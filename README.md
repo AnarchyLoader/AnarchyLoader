@@ -35,10 +35,10 @@ rustup default nightly
 cargo build --release
 ```
 
-# Contributing
+## Contributing
 
 Contributions are welcome! Please open an issue or submit a pull request on GitHub.
 
-# License
+## License
 
 This project is licensed under the GPL 3.0 License. See the [LICENSE](https://github.com/AnarchyLoader/AnarchyLoader/blob/main/LICENSE) file for details.
