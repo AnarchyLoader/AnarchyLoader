@@ -13,6 +13,10 @@
 
 To install AnarchyLoader, you can download [release](https://github.com/AnarchyLoader/AnarchyLoader/releases/latest), or build it by yourself!
 
+## Contributing
+
+Contributions are welcome! Please open an issue or submit a pull request on GitHub.
+
 ### Build Instructions:
 
 1. Clone the repository:
