@@ -1,13 +1,19 @@
 #![windows_subsystem = "windows"]
 
 mod downloader;
+mod hacks;
 
 use eframe::{
-    egui::{self, RichText},
+    egui::{self, RichText, Spinner},
     App,
 };
 
 use dll_syringe::{process::OwnedProcess, Syringe};
+use hacks::Hack;
+use std::{
+    env,
+    time::{Duration, Instant},
+};
 
 pub(crate) fn load_icon() -> egui::IconData {
     let (icon_rgba, icon_width, icon_height) = {
@@ -47,23 +53,41 @@ fn main() {
 }
 
 struct MyApp {
-    items: Vec<String>,
-    selected_item: String,
-    error_message: String,
+    items: Vec<Hack>,
+    selected_item: Option<Hack>,
+    status_message: String,
+    app_version: String,
+    inject_in_progress: bool,
+    injecting_start_time: Option<Instant>,
 }
 
 impl Default for MyApp {
     fn default() -> Self {
         let items = vec![
-            "HPP v6".to_string(),
-            "Sakura".to_string(),
-            "Dopamine".to_string(),
+            Hack::new("HPP v6", "HVH Cheat", "_xvi", "crack", "hpp_v6"),
+            Hack::new(
+                "Sakura",
+                "Sakura is a free and public cheat for Counter-Strike 1.6 written in C++.",
+                "nc-gp",
+                "open-source",
+                "sakura",
+            ),
+            Hack::new(
+                "Dopamine",
+                "CS 1.6 Multihack. Attempt to develop and improve Nor-Adrenaline.",
+                "KleskBY",
+                "open-source",
+                "dopamine",
+            ),
         ];
 
         Self {
-            items,
-            selected_item: String::new(),
-            error_message: String::new(),
+            items: items.clone(),
+            selected_item: None,
+            status_message: String::new(),
+            app_version: env!("CARGO_PKG_VERSION").to_string(),
+            inject_in_progress: false,
+            injecting_start_time: None,
         }
     }
 }
@@ -78,11 +102,14 @@ impl App for MyApp {
                 |ui| {
                     for item in &self.items {
                         if ui
-                            .selectable_label(self.selected_item == *item, item)
+                            .selectable_label(
+                                self.selected_item.as_ref() == Some(item),
+                                item.name.clone(),
+                            )
                             .clicked()
                         {
-                            self.selected_item = item.clone();
-                            self.error_message.clear();
+                            self.selected_item = Some(item.clone());
+                            self.status_message.clear();
                         }
                     }
                 },
@@ -92,52 +119,85 @@ impl App for MyApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.centered_and_justified(|ui| {
                 ui.vertical_centered(|ui| {
-                    ui.heading("AnarchyLoader");
+                    ui.label(
+                        RichText::new(format!("AnarchyLoader v{}", self.app_version)).size(24.0),
+                    );
                     ui.separator();
 
-                    if !self.selected_item.is_empty() {
-                        ui.add_space(100.0);
-                        ui.label(RichText::new(self.selected_item.clone()).size(24.0));
-                        ui.add_space(10.0);
+                    if let Some(selected) = &self.selected_item {
+                        ui.add_space(130.0);
+                        ui.vertical_centered(|ui| {
+                            ui.label(
+                                RichText::new(format!("{} by {}", selected.name, selected.author))
+                                    .size(24.0),
+                            );
+                            ui.label(RichText::new(selected.description.clone()).heading());
+                        });
+
+                        ui.add_space(3.0);
 
                         if ui
-                            .button("Inject")
+                            .button(format!("Inject the {}", selected.name))
                             .on_hover_cursor(egui::CursorIcon::PointingHand)
-                            .on_hover_text(format!("Inject the {}", self.selected_item))
+                            .on_hover_text(format!("Inject the {}", selected.name))
                             .clicked()
                         {
-                            let file_path = format!("{}.dll", self.selected_item);
-                            if !std::path::Path::new(&file_path).exists() {
-                                match downloader::download_file(&self.selected_item, &file_path) {
-                                    Ok(_) => (),
-                                    Err(e) => {
-                                        self.error_message =
-                                            format!("Failed to download file: {}", e);
-                                        return;
-                                    }
-                                }
-                            }
-
-                            if let Some(target_process) = OwnedProcess::find_first_by_name("hl.exe")
-                            {
-                                let syringe = Syringe::for_process(target_process);
-                                if let Err(e) =
-                                    syringe.inject(format!("{}.dll", self.selected_item))
-                                {
-                                    self.error_message = format!("Failed to inject: {}", e);
-                                } else {
-                                    self.error_message.clear();
-                                }
-                            } else {
-                                self.error_message = "Process 'hl.exe' not found.".to_string();
-                            }
+                            self.status_message = "Injecting...".to_string();
+                            self.inject_in_progress = true;
+                            self.injecting_start_time = Some(Instant::now());
+                            ctx.request_repaint();
                         }
 
-                        if !self.error_message.is_empty() {
-                            ui.label(RichText::new(&self.error_message).color(egui::Color32::RED));
+                        if self.inject_in_progress {
+                            if let Some(start_time) = self.injecting_start_time {
+                                if start_time.elapsed() >= Duration::from_secs(2) {
+                                    let temp_dir = env::temp_dir();
+                                    let file_path = format!("{}{}.dll", temp_dir.display(), selected.name);
+
+                                    selected.download(&mut self.status_message, file_path.clone());
+                                    if let Some(target_process) =
+                                        OwnedProcess::find_first_by_name("hl.exe")
+                                    {
+                                        let syringe = Syringe::for_process(target_process);
+                                        if let Err(e) = syringe.inject(file_path)
+                                        {
+                                            self.status_message =
+                                                format!("Failed to inject: {}", e);
+                                        } else {
+                                            self.status_message =
+                                                "Injection successful.".to_string();
+                                        }
+                                    } else {
+                                        self.status_message =
+                                            "Failed to inject: Process 'hl.exe' not found."
+                                                .to_string();
+                                    }
+                                    self.inject_in_progress = false;
+                                    self.injecting_start_time = None;
+                                } else {
+                                    ui.label(RichText::new(&self.status_message).color(
+                                        if self.status_message.starts_with("Failed") {
+                                            egui::Color32::RED
+                                        } else {
+                                            egui::Color32::WHITE
+                                        },
+                                    ));
+                                    ui.add(Spinner::default());
+
+                                    ctx.request_repaint();
+                                }
+                            }
+                        } else if !self.status_message.is_empty() {
+                            let color = if self.status_message.starts_with("Failed") {
+                                egui::Color32::RED
+                            } else {
+                                egui::Color32::WHITE
+                            };
+                            ui.label(RichText::new(&self.status_message).color(color));
                         }
                     } else {
-                        ui.label("Please select an item from the list.");
+                        ui.add_space(150.0);
+                        ui.label("Please select a cheat from the list.");
                     }
                 });
             });
