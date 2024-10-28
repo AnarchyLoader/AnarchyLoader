@@ -15,12 +15,16 @@ base64 = "0.22.1"
 ascii85 = "0.2.1"
 eframe = "0.29.1"
 dll-syringe = "0.15.2"
-reqwest = { version = "0.12.8", features = ["blocking"] }
+reqwest = { version = "0.12.8", features = ["blocking", "json"] }
 image = "0.25.4"
 profiling = "1.0.15"
+serde = { version = "1.0.214", features = ["derive"] }
 
 [target.'cfg(windows)'.build-dependencies]
 winres = "0.1.12"
+
+[build-dependencies]
+proc-macro2 = "1.0"
 
 [profile.release]
 codegen-units = 1
