@@ -3,8 +3,15 @@ use std::fs::File;
 use std::io::copy;
 
 pub fn download_file(file: &str, destination: &str) -> Result<(), Box<dyn std::error::Error>> {
-    let response =
-        reqwest::blocking::get(format!("https://cdn.alexxxxand.site/cheats/{}.dll", file))?;
+    let response = reqwest::blocking::get(format!(
+        "{}/hacks/{}",
+        if std::env::args().any(|arg| arg == "--local") {
+            "http://127.0.0.1:8000"
+        } else {
+            "https://anarchy.collapseloader.org"
+        },
+        file
+    ))?;
 
     if response.status().is_success() {
         let mut file = File::create(destination)?;

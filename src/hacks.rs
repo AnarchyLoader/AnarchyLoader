@@ -33,19 +33,20 @@ impl Hack {
         }
     }
 
-    pub(crate) fn download(&self, status_message: &mut String, file_path: String) {
-        println!("Downloading {}...", self.name);
-
+    pub(crate) fn download(&self, file_path: String) -> Result<(), String> {
         if !std::path::Path::new(&file_path).exists() {
-            match download_file(&self.name, &file_path) {
+            println!("Downloading {}...", self.name);
+            match download_file(&self.file, &file_path) {
                 Ok(_) => {
-                    status_message.clear();
+                    println!("Downloaded {}!", self.name);
+                    Ok(())
                 }
                 Err(e) => {
-                    *status_message = format!("Failed to download file: {}", e);
-                    return;
+                    Err(format!("Failed to download file: {}", e))
                 }
             }
+        } else {
+            Ok(())
         }
     }
 }

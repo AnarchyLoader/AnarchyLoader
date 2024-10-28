@@ -1,19 +1,23 @@
-#![windows_subsystem = "windows"]
+// main.rs
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod downloader;
 mod hacks;
 
+use std::env;
+use std::sync::{Arc, Mutex};
+use std::thread;
+use std::time::Duration;
+
+use dll_syringe::{process::OwnedProcess, Syringe};
 use eframe::{
     egui::{self, RichText, Spinner},
     App,
 };
+use reqwest::blocking::Client;
+use serde::Deserialize;
 
-use dll_syringe::{process::OwnedProcess, Syringe};
 use hacks::Hack;
-use std::{
-    env,
-    time::{Duration, Instant},
-};
 
 pub(crate) fn load_icon() -> egui::IconData {
     let (icon_rgba, icon_width, icon_height) = {
@@ -34,7 +38,7 @@ pub(crate) fn load_icon() -> egui::IconData {
 }
 
 fn main() {
-    let app = MyApp::default();
+    let app = MyApp::new();
 
     let native_options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
@@ -52,79 +56,120 @@ fn main() {
     .unwrap();
 }
 
+
+#[derive(Deserialize, Debug)]
+struct HackApiResponse {
+    name: String,
+    description: String,
+    author: String,
+    status: String,
+    filename: String,
+    process: String,
+}
+
 struct MyApp {
     items: Vec<Hack>,
     selected_item: Option<Hack>,
-    status_message: String,
+    status_message: Arc<Mutex<String>>,
+    parse_error: Option<String>,
     app_version: String,
-    inject_in_progress: bool,
-    injecting_start_time: Option<Instant>,
+    inject_in_progress: Arc<Mutex<bool>>,
 }
 
-impl Default for MyApp {
-    fn default() -> Self {
-        let items = vec![
-            Hack::new("HPP v6", "HVH Cheat", "_xvi", "crack", "hpp_v6", ""),
-            Hack::new(
-                "Sakura",
-                "Sakura is a free and public cheat for Counter-Strike 1.6 written in C++.",
-                "nc-gp",
-                "open-source",
-                "sakura",
-                "",
-            ),
-            Hack::new(
-                "Dopamine",
-                "CS 1.6 Multihack. Attempt to develop and improve Nor-Adrenaline.",
-                "KleskBY",
-                "open-source",
-                "dopamine",
-                "",
-            ),
-            Hack::new(
-                "AimWare",
-                "AimWare is cheat mod for CS 1.6, inspired by the Aimware CS",
-                "rushensky",
-                "crack",
-                "AimWare",
-                ""
-            )
+impl MyApp {
+    fn new() -> Self {
+        let mut items = Vec::new();
+        let mut parse_error = None;
+        let status_message = Arc::new(Mutex::new(String::new()));
+        let inject_in_progress = Arc::new(Mutex::new(false));
 
-        ];
+        let client = Client::new();
+        let api_url = if std::env::args().any(|arg| arg == "--local") {
+            "http://127.0.0.1:8000/api/hacks/"
+        } else {
+            "https://anarchy.collapseloader.org/api/hacks/"
+        };
+
+        let response = client.get(api_url).send();
+
+        match response {
+            Ok(res) => {
+                if res.status().is_success() {
+                    match res.json::<Vec<HackApiResponse>>() {
+                        Ok(parsed_hacks) => {
+                            if parsed_hacks.is_empty() {
+                                parse_error = Some("No hacks available.".to_string());
+                            } else {
+                                for hack in parsed_hacks {
+                                    items.push(Hack::new(
+                                        &hack.name,
+                                        &hack.description,
+                                        &hack.author,
+                                        &hack.status,
+                                        &hack.filename,
+                                        &hack.process,
+                                    ));
+                                }
+                            }
+                        }
+                        Err(err) => {
+                            parse_error = Some(format!("Failed to parse JSON: {}", err));
+                        }
+                    }
+                } else {
+                    parse_error = Some(format!(
+                        "API request failed with status: {}",
+                        res.status()
+                    ));
+                }
+            }
+            Err(err) => parse_error = Some(format!("API request failed: {}", err)),
+        }
 
         Self {
-            items: items.clone(),
+            items,
             selected_item: None,
-            status_message: String::new(),
+            status_message,
+            parse_error,
             app_version: env!("CARGO_PKG_VERSION").to_string(),
-            inject_in_progress: false,
-            injecting_start_time: None,
+            inject_in_progress,
         }
     }
 }
 
 impl App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        if let Some(error) = &self.parse_error {
+            egui::CentralPanel::default().show(ctx, |ui| {
+                ui.vertical_centered(|ui| {
+                    ui.add_space(100.0);
+                    ui.colored_label(
+                        egui::Color32::RED,
+                        RichText::new(error).size(24.0).strong(),
+                    );
+                });
+            });
+            return;
+        }
+
         egui::SidePanel::left("left_panel").show(ctx, |ui| {
             ui.add_space(5.0);
 
-            ui.with_layout(
-                egui::Layout::top_down_justified(egui::Align::Center),
-                |ui| {
-                    for item in &self.items {
-                        if ui
-                            .selectable_label(
-                                self.selected_item.as_ref() == Some(item),
-                                item.name.clone(),
-                            )
-                            .clicked()
-                        {
-                            self.selected_item = Some(item.clone());
-                            self.status_message.clear();
-                        }
+            ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
+                for item in &self.items {
+                    if ui
+                        .selectable_label(
+                            self.selected_item.as_ref() == Some(item),
+                            item.name.clone(),
+                        )
+                        .clicked()
+                    {
+                        self.selected_item = Some(item.clone());
+                        let mut status = self.status_message.lock().unwrap();
+                        status.clear();
                     }
-                },
-            );
+                }
+            });
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
@@ -136,16 +181,15 @@ impl App for MyApp {
                     ui.separator();
 
                     if let Some(selected) = &self.selected_item {
-                        ui.add_space(130.0);
+                        ui.add_space(100.0);
                         ui.vertical_centered(|ui| {
+                            ui.label(RichText::new(selected.name.clone()).size(24.0));
                             ui.label(
-                                RichText::new(format!("{} by {}", selected.name, selected.author))
-                                    .size(24.0),
+                                RichText::new(format!("{} | by {}", selected.status, selected.author))
+                                    .color(egui::Color32::LIGHT_BLUE),
                             );
-                            ui.label(RichText::new(format!("{}", selected.status))
-                                .color(egui::Color32::LIGHT_BLUE));
 
-                            ui.label(RichText::new(selected.description.clone()).heading());
+                            ui.label(RichText::new(selected.description.clone()).size(14.0));
                         });
 
                         ui.add_space(3.0);
@@ -156,58 +200,116 @@ impl App for MyApp {
                             .on_hover_text(format!("Inject the {}", selected.name))
                             .clicked()
                         {
-                            self.status_message = "Injecting...".to_string();
-                            self.inject_in_progress = true;
-                            self.injecting_start_time = Some(Instant::now());
-                            ctx.request_repaint();
+                            let inject_in_progress = Arc::clone(&self.inject_in_progress);
+                            let status_message = Arc::clone(&self.status_message);
+                            let selected_clone = selected.clone();
+                            let ctx_clone = ctx.clone();
+
+                            *inject_in_progress.lock().unwrap() = true;
+
+                            thread::spawn(move || {
+                                {
+                                    let mut status = status_message.lock().unwrap();
+                                    *status = "Starting injection...".to_string();
+                                }
+                                ctx_clone.request_repaint();
+                                thread::sleep(Duration::from_secs(1));
+
+                                let temp_dir = env::temp_dir();
+                                let file_path =
+                                    format!("{}{}.dll", temp_dir.display(), selected_clone.file);
+
+                                if !std::path::Path::new(&file_path).exists() {
+                                    {
+                                        let mut status = status_message.lock().unwrap();
+                                        *status = "Downloading...".to_string();
+                                    }
+                                    ctx_clone.request_repaint();
+
+                                    let download_result = selected_clone.download(file_path.clone());
+
+                                    match download_result {
+                                        Ok(_) => {
+                                            {
+                                                let mut status = status_message.lock().unwrap();
+                                                *status = "Download complete.".to_string();
+                                            }
+                                            ctx_clone.request_repaint();
+                                        }
+                                        Err(e) => {
+                                            let mut status = status_message.lock().unwrap();
+                                            *status = format!("Failed to download: {}", e);
+                                            ctx_clone.request_repaint();
+                                            *inject_in_progress.lock().unwrap() = false;
+                                            return;
+                                        }
+                                    }
+                                } else {
+                                    {
+                                        let mut status = status_message.lock().unwrap();
+                                        *status = "File already exists. Skipping download."
+                                            .to_string();
+                                    }
+                                    ctx_clone.request_repaint();
+                                }
+
+                                thread::sleep(Duration::from_secs(1));
+
+                                {
+                                    let mut status = status_message.lock().unwrap();
+                                    *status = "Injecting...".to_string();
+                                }
+                                ctx_clone.request_repaint();
+                                thread::sleep(Duration::from_secs(1));
+
+                                if let Some(target_process) =
+                                    OwnedProcess::find_first_by_name("hl.exe")
+                                {
+                                    let syringe = Syringe::for_process(target_process);
+                                    if let Err(e) = syringe.inject(file_path) {
+                                        let mut status = status_message.lock().unwrap();
+                                        *status = format!("Failed to inject: {}", e);
+                                    } else {
+                                        let mut status = status_message.lock().unwrap();
+                                        *status = "Injection successful.".to_string();
+                                    }
+                                } else {
+                                    let mut status = status_message.lock().unwrap();
+                                    *status =
+                                        "Failed to inject: Process 'hl.exe' not found.".to_string();
+                                }
+
+                                *inject_in_progress.lock().unwrap() = false;
+                                ctx_clone.request_repaint();
+                            });
                         }
 
-                        if self.inject_in_progress {
-                            if let Some(start_time) = self.injecting_start_time {
-                                if start_time.elapsed() >= Duration::from_secs(2) {
-                                    let temp_dir = env::temp_dir();
-                                    let file_path =
-                                        format!("{}{}.dll", temp_dir.display(), selected.name);
+                        let inject_in_progress = *self.inject_in_progress.lock().unwrap();
 
-                                    selected.download(&mut self.status_message, file_path.clone());
-                                    if let Some(target_process) =
-                                        OwnedProcess::find_first_by_name("hl.exe")
-                                    {
-                                        let syringe = Syringe::for_process(target_process);
-                                        if let Err(e) = syringe.inject(file_path) {
-                                            self.status_message =
-                                                format!("Failed to inject: {}", e);
-                                        } else {
-                                            self.status_message =
-                                                "Injection successful.".to_string();
-                                        }
-                                    } else {
-                                        self.status_message =
-                                            "Failed to inject: Process 'hl.exe' not found."
-                                                .to_string();
-                                    }
-                                    self.inject_in_progress = false;
-                                    self.injecting_start_time = None;
+                        if inject_in_progress {
+                            ui.add_space(10.0);
+                            let status = self.status_message.lock().unwrap().clone();
+                            ui.label(RichText::new(&status).color(
+                                if status.starts_with("Failed") {
+                                    egui::Color32::RED
                                 } else {
-                                    ui.label(RichText::new(&self.status_message).color(
-                                        if self.status_message.starts_with("Failed") {
-                                            egui::Color32::RED
-                                        } else {
-                                            egui::Color32::WHITE
-                                        },
-                                    ));
-                                    ui.add(Spinner::default());
-
-                                    ctx.request_repaint();
-                                }
+                                    egui::Color32::WHITE
+                                },
+                            ));
+                            ui.add_space(2.0);
+                            ui.add(Spinner::new());
+                            ctx.request_repaint();
+                        } else {
+                            ui.add_space(10.0);
+                            let status = self.status_message.lock().unwrap().clone();
+                            if !status.is_empty() {
+                                let color = if status.starts_with("Failed") {
+                                    egui::Color32::RED
+                                } else {
+                                    egui::Color32::WHITE
+                                };
+                                ui.label(RichText::new(&status).color(color));
                             }
-                        } else if !self.status_message.is_empty() {
-                            let color = if self.status_message.starts_with("Failed") {
-                                egui::Color32::RED
-                            } else {
-                                egui::Color32::WHITE
-                            };
-                            ui.label(RichText::new(&self.status_message).color(color));
                         }
                     } else {
                         ui.add_space(150.0);
