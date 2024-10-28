@@ -64,13 +64,14 @@ struct MyApp {
 impl Default for MyApp {
     fn default() -> Self {
         let items = vec![
-            Hack::new("HPP v6", "HVH Cheat", "_xvi", "crack", "hpp_v6"),
+            Hack::new("HPP v6", "HVH Cheat", "_xvi", "crack", "hpp_v6", ""),
             Hack::new(
                 "Sakura",
                 "Sakura is a free and public cheat for Counter-Strike 1.6 written in C++.",
                 "nc-gp",
                 "open-source",
                 "sakura",
+                "",
             ),
             Hack::new(
                 "Dopamine",
@@ -78,7 +79,17 @@ impl Default for MyApp {
                 "KleskBY",
                 "open-source",
                 "dopamine",
+                "",
             ),
+            Hack::new(
+                "AimWare",
+                "AimWare is cheat mod for CS 1.6, inspired by the Aimware CS",
+                "rushensky",
+                "crack",
+                "AimWare",
+                ""
+            )
+
         ];
 
         Self {
@@ -131,6 +142,9 @@ impl App for MyApp {
                                 RichText::new(format!("{} by {}", selected.name, selected.author))
                                     .size(24.0),
                             );
+                            ui.label(RichText::new(format!("{}", selected.status))
+                                .color(egui::Color32::LIGHT_BLUE));
+
                             ui.label(RichText::new(selected.description.clone()).heading());
                         });
 
@@ -152,15 +166,15 @@ impl App for MyApp {
                             if let Some(start_time) = self.injecting_start_time {
                                 if start_time.elapsed() >= Duration::from_secs(2) {
                                     let temp_dir = env::temp_dir();
-                                    let file_path = format!("{}{}.dll", temp_dir.display(), selected.name);
+                                    let file_path =
+                                        format!("{}{}.dll", temp_dir.display(), selected.name);
 
                                     selected.download(&mut self.status_message, file_path.clone());
                                     if let Some(target_process) =
                                         OwnedProcess::find_first_by_name("hl.exe")
                                     {
                                         let syringe = Syringe::for_process(target_process);
-                                        if let Err(e) = syringe.inject(file_path)
-                                        {
+                                        if let Err(e) = syringe.inject(file_path) {
                                             self.status_message =
                                                 format!("Failed to inject: {}", e);
                                         } else {
