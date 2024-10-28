@@ -17,9 +17,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [x86_64-pc-windows-gnu]
+        include: 
+          - target: x86_64-pc-windows-gnu
+            archive: tar.xz
     steps:
       - uses: actions/checkout@v3
+
+      - name: Get Commit Hash
+        id: vars
+        run: echo "COMMIT_HASH=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
 
       - name: Compile
         id: compile
@@ -27,10 +33,47 @@ jobs:
         with:
           TOOLCHAIN_VERSION: nightly
           RUSTTARGET: x86_64-pc-windows-gnu
+          ARCHIVE_TYPES: ${{ matrix.archive }}
           UPLOAD_MODE: none
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v3
+      - name: Extract Archive
+        id: extract
+        run: tar -xf ${{ steps.compile.outputs.BUILT_ARCHIVE }}
+
+      - name: Rename Executable
+        id: rename
+        run: mv anarchyloader.exe anarchyloader-${{ env.COMMIT_HASH }}.exe
+
+      - name: VirusTotal Scan
+        id: virustotal
+        uses: crazy-max/ghaction-virustotal@v4
         with:
-          name: Binary
-          path: ${{ steps.compile.outputs.BUILT_ARCHIVE }}
+          vt_api_key: ${{ secrets.VT_API_KEY }}
+          files: |
+            anarchyloader-${{ env.COMMIT_HASH }}.exe
+
+
+      - name: Extract VirusTotal Scan URL
+        id: extract-url
+        run: |
+          echo "VIRUSTOTAL_URL=$(echo '${{ steps.virustotal.outputs.analysis }}' | sed 's/^[^=]*=//')" >> $GITHUB_ENV
+
+      - name: Create Pre-Release
+        id: release
+        uses: ncipollo/release-action@v1
+        with:
+          body: |
+            Automatic pre-release created by GitHub Actions
+            Builded from commit ${{ env.COMMIT_HASH }}
+            VirusTotal Scan: ${{ env.VIRUSTOTAL_URL }}
+          name: "Nightly Build ${{ env.COMMIT_HASH }}"
+          tag: "pre-release-${{ env.COMMIT_HASH }}"
+          prerelease: true
+          artifacts: anarchyloader-${{ env.COMMIT_HASH }}.exe
+
+      - name: Upload artifact
+        id: upload-artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Build_${{ env.COMMIT_HASH }}
+          path: anarchyloader-${{ env.COMMIT_HASH }}.exe
