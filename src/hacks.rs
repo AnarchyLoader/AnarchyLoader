@@ -8,6 +8,7 @@ pub(crate) struct Hack {
     pub status: String,
     pub file: String,
     pub process: String,
+    pub source: String
 }
 
 impl Hack {
@@ -18,6 +19,7 @@ impl Hack {
         status: &str,
         file: &str,
         process: &str,
+        source: &str
     ) -> Self {
         Self {
             name: name.to_string(),
@@ -25,11 +27,8 @@ impl Hack {
             author: author.to_string(),
             status: status.to_string(),
             file: file.to_string(),
-            process: if process.is_empty() {
-                "hl.exe".to_string()
-            } else {
-                process.to_string()
-            },
+            process: process.to_string(),
+            source: source.to_string()
         }
     }
 
