@@ -20,26 +20,21 @@ use serde::Deserialize;
 use hacks::Hack;
 
 pub(crate) fn load_icon() -> egui::IconData {
-    let (icon_rgba, icon_width, icon_height) = {
-        let icon = include_bytes!("../resources/img/icon.ico");
-        let image = image::load_from_memory(icon)
-            .expect("Failed to open icon path")
-            .into_rgba8();
-        let (width, height) = image.dimensions();
-        let rgba = image.into_raw();
-        (rgba, width, height)
-    };
+    let icon = include_bytes!("../resources/img/icon.ico");
+    let image = image::load_from_memory(icon)
+        .expect("Failed to open icon path")
+        .into_rgba8();
+    let (width, height) = image.dimensions();
+    let rgba = image.into_raw();
 
     egui::IconData {
-        rgba: icon_rgba,
-        width: icon_width,
-        height: icon_height,
+        rgba,
+        width,
+        height,
     }
 }
 
 fn main() {
-    let app = MyApp::new();
-
     let native_options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_resizable(false)
@@ -48,15 +43,16 @@ fn main() {
             .with_icon(std::sync::Arc::new(load_icon())),
         ..Default::default()
     };
+
     eframe::run_native(
         "AnarchyLoader",
         native_options,
-        Box::new(|_cc| Ok(Box::new(app))),
+        Box::new(|_cc| Ok(Box::new(MyApp::new()))),
     )
     .unwrap();
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone, PartialEq)]
 struct HackApiResponse {
     name: String,
     description: String,
@@ -73,7 +69,7 @@ struct MyApp {
     status_message: Arc<Mutex<String>>,
     parse_error: Option<String>,
     app_version: String,
-    inject_in_progress: Arc<Mutex<bool>>,
+    inject_in_progress: Arc<std::sync::atomic::AtomicBool>,
 }
 
 impl MyApp {
@@ -81,7 +77,7 @@ impl MyApp {
         let mut items = Vec::new();
         let mut parse_error = None;
         let status_message = Arc::new(Mutex::new(String::new()));
-        let inject_in_progress = Arc::new(Mutex::new(false));
+        let inject_in_progress = Arc::new(std::sync::atomic::AtomicBool::new(false));
 
         let client = Client::new();
         let api_url = if std::env::args().any(|arg| arg == "--local") {
@@ -137,9 +133,15 @@ impl MyApp {
         }
     }
 }
-
 impl App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        let is_dark_mode = ctx.style().visuals.dark_mode;
+        let theme_color = if is_dark_mode {
+            egui::Color32::LIGHT_GRAY
+        } else {
+            egui::Color32::DARK_GRAY
+        };
+
         if let Some(error) = &self.parse_error {
             egui::CentralPanel::default().show(ctx, |ui| {
                 ui.vertical_centered(|ui| {
@@ -167,19 +169,13 @@ impl App for MyApp {
                     ui.with_layout(
                         egui::Layout::top_down_justified(egui::Align::Center),
                         |ui| {
-                            ui.label(format!("{}", self.games.get(process).unwrap()));
+                            ui.label(self.games.get(process).unwrap_or(&process));
                             ui.separator();
                             for item in items {
-                                if ui
-                                    .selectable_label(
-                                        self.selected_item.as_ref() == Some(&(*item).clone()),
-                                        item.name.clone(),
-                                    )
-                                    .clicked()
-                                {
+                                let is_selected = self.selected_item.as_ref() == Some(*item);
+                                if ui.selectable_label(is_selected, &item.name).clicked() {
                                     self.selected_item = Some((*item).clone());
-                                    let mut status = self.status_message.lock().unwrap();
-                                    status.clear();
+                                    self.status_message.lock().unwrap().clear();
                                 }
                             }
                         },
@@ -199,16 +195,16 @@ impl App for MyApp {
                     if let Some(selected) = &self.selected_item {
                         ui.add_space(100.0);
                         ui.vertical_centered(|ui| {
-                            ui.label(RichText::new(selected.name.clone()).size(24.0));
+                            ui.label(RichText::new(&selected.name).size(24.0));
                             ui.label(
                                 RichText::new(format!(
                                     "{} | by {}",
                                     selected.status, selected.author
                                 ))
-                                .color(egui::Color32::LIGHT_BLUE),
+                                .color(theme_color),
                             );
 
-                            ui.label(RichText::new(selected.description.clone()).size(14.0));
+                            ui.label(RichText::new(&selected.description).size(14.0));
                         });
 
                         ui.add_space(3.0);
@@ -224,7 +220,7 @@ impl App for MyApp {
                             let selected_clone = selected.clone();
                             let ctx_clone = ctx.clone();
 
-                            *inject_in_progress.lock().unwrap() = true;
+                            inject_in_progress.store(true, std::sync::atomic::Ordering::SeqCst);
 
                             thread::spawn(move || {
                                 {
@@ -260,7 +256,8 @@ impl App for MyApp {
                                             let mut status = status_message.lock().unwrap();
                                             *status = format!("Failed to download: {}", e);
                                             ctx_clone.request_repaint();
-                                            *inject_in_progress.lock().unwrap() = false;
+                                            inject_in_progress
+                                                .store(false, std::sync::atomic::Ordering::SeqCst);
                                             return;
                                         }
                                     }
@@ -299,12 +296,15 @@ impl App for MyApp {
                                         "Failed to inject: Process 'hl.exe' not found.".to_string();
                                 }
 
-                                *inject_in_progress.lock().unwrap() = false;
+                                inject_in_progress
+                                    .store(false, std::sync::atomic::Ordering::SeqCst);
                                 ctx_clone.request_repaint();
                             });
                         }
 
-                        let inject_in_progress = *self.inject_in_progress.lock().unwrap();
+                        let inject_in_progress = self
+                            .inject_in_progress
+                            .load(std::sync::atomic::Ordering::SeqCst);
 
                         if inject_in_progress {
                             ui.add_space(10.0);
@@ -313,7 +313,7 @@ impl App for MyApp {
                                 if status.starts_with("Failed") {
                                     egui::Color32::RED
                                 } else {
-                                    egui::Color32::WHITE
+                                    theme_color
                                 },
                             ));
                             ui.add_space(2.0);
@@ -326,7 +326,7 @@ impl App for MyApp {
                                 let color = if status.starts_with("Failed") {
                                     egui::Color32::RED
                                 } else {
-                                    egui::Color32::WHITE
+                                    theme_color
                                 };
                                 ui.label(RichText::new(&status).color(color));
                             }
