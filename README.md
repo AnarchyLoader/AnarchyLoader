@@ -6,7 +6,7 @@
 
 ## Showcase
 <div align="center">
-    <img src="https://github.com/user-attachments/assets/f0908faa-e15b-46e3-96d0-338b817c416b" width=500>
+    <img src="https://github.com/user-attachments/assets/c34b63f0-d7dc-4a01-9610-1642d4557ece" width=500>
 </div>
 
 ## Installation
