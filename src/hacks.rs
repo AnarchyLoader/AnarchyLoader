@@ -41,9 +41,7 @@ impl Hack {
                     println!("Downloaded {}!", self.name);
                     Ok(())
                 }
-                Err(e) => {
-                    Err(format!("Failed to download file: {}", e))
-                }
+                Err(e) => Err(format!("Failed to download file: {}", e)),
             }
         } else {
             Ok(())
