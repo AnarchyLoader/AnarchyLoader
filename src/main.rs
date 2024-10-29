@@ -1,9 +1,9 @@
-// main.rs
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod downloader;
 mod hacks;
 
+use std::collections::BTreeMap;
 use std::env;
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -56,19 +56,19 @@ fn main() {
     .unwrap();
 }
 
-
 #[derive(Deserialize, Debug)]
 struct HackApiResponse {
     name: String,
     description: String,
     author: String,
     status: String,
-    filename: String,
+    file: String,
     process: String,
 }
 
 struct MyApp {
     items: Vec<Hack>,
+    games: BTreeMap<String, String>,
     selected_item: Option<Hack>,
     status_message: Arc<Mutex<String>>,
     parse_error: Option<String>,
@@ -106,7 +106,7 @@ impl MyApp {
                                         &hack.description,
                                         &hack.author,
                                         &hack.status,
-                                        &hack.filename,
+                                        &hack.file,
                                         &hack.process,
                                     ));
                                 }
@@ -117,17 +117,18 @@ impl MyApp {
                         }
                     }
                 } else {
-                    parse_error = Some(format!(
-                        "API request failed with status: {}",
-                        res.status()
-                    ));
+                    parse_error = Some(format!("API request failed with status: {}", res.status()));
                 }
             }
             Err(err) => parse_error = Some(format!("API request failed: {}", err)),
         }
 
+        let mut games = BTreeMap::new();
+        games.insert("hl.exe".to_string(), "CS 1.6".to_string());
+
         Self {
             items,
+            games,
             selected_item: None,
             status_message,
             parse_error,
@@ -142,34 +143,49 @@ impl App for MyApp {
         if let Some(error) = &self.parse_error {
             egui::CentralPanel::default().show(ctx, |ui| {
                 ui.vertical_centered(|ui| {
-                    ui.add_space(100.0);
-                    ui.colored_label(
-                        egui::Color32::RED,
-                        RichText::new(error).size(24.0).strong(),
-                    );
+                    ui.add_space(130.0);
+                    ui.colored_label(egui::Color32::RED, RichText::new(error).size(24.0).strong());
                 });
             });
             return;
         }
 
+        let mut items_by_process: BTreeMap<String, Vec<&Hack>> = BTreeMap::new();
+
+        for item in &self.items {
+            items_by_process
+                .entry(item.process.clone())
+                .or_insert_with(Vec::new)
+                .push(item);
+        }
+
         egui::SidePanel::left("left_panel").show(ctx, |ui| {
             ui.add_space(5.0);
 
-            ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
-                for item in &self.items {
-                    if ui
-                        .selectable_label(
-                            self.selected_item.as_ref() == Some(item),
-                            item.name.clone(),
-                        )
-                        .clicked()
-                    {
-                        self.selected_item = Some(item.clone());
-                        let mut status = self.status_message.lock().unwrap();
-                        status.clear();
-                    }
-                }
-            });
+            for (process, items) in &items_by_process {
+                ui.group(|ui| {
+                    ui.with_layout(
+                        egui::Layout::top_down_justified(egui::Align::Center),
+                        |ui| {
+                            ui.label(format!("{}", self.games.get(process).unwrap()));
+                            ui.separator();
+                            for item in items {
+                                if ui
+                                    .selectable_label(
+                                        self.selected_item.as_ref() == Some(&(*item).clone()),
+                                        item.name.clone(),
+                                    )
+                                    .clicked()
+                                {
+                                    self.selected_item = Some((*item).clone());
+                                    let mut status = self.status_message.lock().unwrap();
+                                    status.clear();
+                                }
+                            }
+                        },
+                    );
+                });
+            }
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
@@ -185,8 +201,11 @@ impl App for MyApp {
                         ui.vertical_centered(|ui| {
                             ui.label(RichText::new(selected.name.clone()).size(24.0));
                             ui.label(
-                                RichText::new(format!("{} | by {}", selected.status, selected.author))
-                                    .color(egui::Color32::LIGHT_BLUE),
+                                RichText::new(format!(
+                                    "{} | by {}",
+                                    selected.status, selected.author
+                                ))
+                                .color(egui::Color32::LIGHT_BLUE),
                             );
 
                             ui.label(RichText::new(selected.description.clone()).size(14.0));
@@ -226,7 +245,8 @@ impl App for MyApp {
                                     }
                                     ctx_clone.request_repaint();
 
-                                    let download_result = selected_clone.download(file_path.clone());
+                                    let download_result =
+                                        selected_clone.download(file_path.clone());
 
                                     match download_result {
                                         Ok(_) => {
@@ -247,8 +267,8 @@ impl App for MyApp {
                                 } else {
                                     {
                                         let mut status = status_message.lock().unwrap();
-                                        *status = "File already exists. Skipping download."
-                                            .to_string();
+                                        *status =
+                                            "File already exists. Skipping download.".to_string();
                                     }
                                     ctx_clone.request_repaint();
                                 }
