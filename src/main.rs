@@ -67,6 +67,19 @@ struct HackApiResponse {
     source: String,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+enum AppTab {
+    Home,
+    Settings,
+    About,
+}
+
+impl Default for AppTab {
+    fn default() -> Self {
+        AppTab::Home
+    }
+}
+
 struct MyApp {
     items: Vec<Hack>,
     games: BTreeMap<String, String>,
@@ -75,17 +88,48 @@ struct MyApp {
     parse_error: Option<String>,
     app_version: String,
     inject_in_progress: Arc<std::sync::atomic::AtomicBool>,
-    tab: usize,
+    tab: AppTab,
     search_query: String,
 }
 
 impl MyApp {
     fn new() -> Self {
-        let mut items = Vec::new();
-        let mut parse_error = None;
         let status_message = Arc::new(Mutex::new(String::new()));
         let inject_in_progress = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let mut games = BTreeMap::new();
+        games.insert("hl.exe".to_string(), "CS 1.6".to_string());
 
+        let items = match Self::fetch_hacks() {
+            Ok(hacks) => hacks,
+            Err(err) => {
+                return Self {
+                    parse_error: Some(err),
+                    items: Vec::new(),
+                    games,
+                    selected_item: None,
+                    status_message,
+                    app_version: env!("CARGO_PKG_VERSION").to_string(),
+                    inject_in_progress,
+                    tab: AppTab::default(),
+                    search_query: String::new(),
+                }
+            }
+        };
+
+        Self {
+            items,
+            games,
+            selected_item: None,
+            status_message,
+            parse_error: None,
+            app_version: env!("CARGO_PKG_VERSION").to_string(),
+            inject_in_progress,
+            tab: AppTab::default(),
+            search_query: String::new(),
+        }
+    }
+
+    fn fetch_hacks() -> Result<Vec<Hack>, String> {
         let client = Client::new();
         let api_url = if std::env::args().any(|arg| arg == "--local") {
             "http://127.0.0.1:8000/api/hacks/"
@@ -93,81 +137,55 @@ impl MyApp {
             "https://anarchy.collapseloader.org/api/hacks/"
         };
 
-        let response = client.get(api_url).send();
+        let res = client.get(api_url).send().map_err(|e| e.to_string())?;
 
-        match response {
-            Ok(res) => {
-                if res.status().is_success() {
-                    match res.json::<Vec<HackApiResponse>>() {
-                        Ok(parsed_hacks) => {
-                            if parsed_hacks.is_empty() {
-                                parse_error = Some("No hacks available.".to_string());
-                            } else {
-                                for hack in parsed_hacks {
-                                    items.push(Hack::new(
-                                        &hack.name,
-                                        &hack.description,
-                                        &hack.author,
-                                        &hack.status,
-                                        &hack.file,
-                                        &hack.process,
-                                        &hack.source,
-                                    ));
-                                }
-                            }
-                        }
-                        Err(err) => {
-                            parse_error = Some(format!("Failed to parse JSON: {}", err));
-                        }
-                    }
-                } else {
-                    parse_error = Some(format!("API request failed with status: {}", res.status()));
-                }
+        if res.status().is_success() {
+            let parsed_hacks: Vec<HackApiResponse> = res.json().map_err(|e| e.to_string())?;
+            if parsed_hacks.is_empty() {
+                Err("No hacks available.".to_string())
+            } else {
+                Ok(parsed_hacks
+                    .into_iter()
+                    .map(|hack| {
+                        Hack::new(
+                            &hack.name,
+                            &hack.description,
+                            &hack.author,
+                            &hack.status,
+                            &hack.file,
+                            &hack.process,
+                            &hack.source,
+                        )
+                    })
+                    .collect())
             }
-            Err(err) => parse_error = Some(format!("API request failed: {}", err)),
-        }
-
-        let mut games = BTreeMap::new();
-        games.insert("hl.exe".to_string(), "CS 1.6".to_string());
-
-        Self {
-            items,
-            games,
-            selected_item: None,
-            status_message,
-            parse_error,
-            app_version: env!("CARGO_PKG_VERSION").to_string(),
-            inject_in_progress,
-            tab: 0,
-            search_query: String::new(),
+        } else {
+            Err(format!("API request failed with status: {}", res.status()))
         }
     }
-}
-impl App for MyApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        let is_dark_mode = ctx.style().visuals.dark_mode;
-        let theme_color = if is_dark_mode {
-            egui::Color32::LIGHT_GRAY
-        } else {
-            egui::Color32::DARK_GRAY
-        };
 
-        if let Some(error) = &self.parse_error {
-            egui::CentralPanel::default().show(ctx, |ui| {
-                ui.vertical_centered(|ui| {
-                    ui.add_space(130.0);
-                    ui.colored_label(egui::Color32::RED, RichText::new(error).size(24.0).strong());
-                });
-            });
-            return;
-        }
-
+    fn render_top_panel(&mut self, ctx: &egui::Context) {
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
             ui.add_space(5.0);
             ui.horizontal(|ui| {
-                ui.selectable_value(&mut self.tab, 0, "Home");
-                ui.selectable_value(&mut self.tab, 1, "Settings");
-                ui.selectable_value(&mut self.tab, 2, "About");
+                if ui
+                    .selectable_label(self.tab == AppTab::Home, "Home")
+                    .clicked()
+                {
+                    self.tab = AppTab::Home;
+                }
+                if ui
+                    .selectable_label(self.tab == AppTab::Settings, "Settings")
+                    .clicked()
+                {
+                    self.tab = AppTab::Settings;
+                }
+                if ui
+                    .selectable_label(self.tab == AppTab::About, "About")
+                    .clicked()
+                {
+                    self.tab = AppTab::About;
+                }
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Min), |ui| {
                     ui.add(
                         egui::TextEdit::singleline(&mut self.search_query).hint_text("Search..."),
@@ -176,23 +194,8 @@ impl App for MyApp {
             });
             ui.add_space(5.0);
         });
-
-        match self.tab {
-            0 => {
-                self.render_home_tab(ctx, theme_color);
-            }
-            1 => {
-                self.render_settings_tab(ctx);
-            }
-            2 => {
-                self.render_about_tab(ctx);
-            }
-            _ => {}
-        }
     }
-}
 
-impl MyApp {
     fn render_home_tab(&mut self, ctx: &egui::Context, theme_color: egui::Color32) {
         let mut items_by_process: BTreeMap<String, Vec<&Hack>> = BTreeMap::new();
 
@@ -220,7 +223,7 @@ impl MyApp {
                     for (process, items) in &items_by_process {
                         ui.group(|ui| {
                             ui.with_layout(egui::Layout::top_down(egui::Align::Min), |ui| {
-                                let game_name = self.games.get(process).unwrap_or(&process).clone();
+                                let game_name = self.games.get(process).unwrap_or(process);
                                 ui.heading(game_name);
                                 ui.separator();
                                 for item in items {
@@ -263,30 +266,28 @@ impl MyApp {
                     let selected_clone = selected.clone();
                     let ctx_clone = ctx.clone();
 
+                    {
+                        let mut status = status_message.lock().unwrap();
+                        *status = "Starting injection...".to_string();
+                    }
+
                     inject_in_progress.store(true, std::sync::atomic::Ordering::SeqCst);
 
                     thread::spawn(move || {
-                        {
-                            let mut status = status_message.lock().unwrap();
-                            *status = "Starting injection...".to_string();
-                        }
                         ctx_clone.request_repaint();
                         thread::sleep(Duration::from_secs(1));
 
                         let temp_dir = env::temp_dir();
-                        let file_path =
-                            format!("{}{}.dll", temp_dir.display(), selected_clone.file);
+                        let file_path = temp_dir.join(&selected_clone.file);
 
-                        if !std::path::Path::new(&file_path).exists() {
+                        if !file_path.exists() {
                             {
                                 let mut status = status_message.lock().unwrap();
                                 *status = "Downloading...".to_string();
                             }
                             ctx_clone.request_repaint();
 
-                            let download_result = selected_clone.download(file_path.clone());
-
-                            match download_result {
+                            match selected_clone.download(file_path.to_string_lossy().to_string()) {
                                 Ok(_) => {
                                     {
                                         let mut status = status_message.lock().unwrap();
@@ -297,9 +298,9 @@ impl MyApp {
                                 Err(e) => {
                                     let mut status = status_message.lock().unwrap();
                                     *status = format!("Failed to download: {}", e);
-                                    ctx_clone.request_repaint();
                                     inject_in_progress
                                         .store(false, std::sync::atomic::Ordering::SeqCst);
+                                    ctx_clone.request_repaint();
                                     return;
                                 }
                             }
@@ -399,13 +400,55 @@ impl MyApp {
             ui.label("AnarchyLoader is a free and open-source cheat loader for various games.");
             ui.add_space(10.0);
             ui.horizontal(|ui| {
-                if ui.button("Visit Website").clicked() {
+                if ui
+                    .button("Visit Website")
+                    .on_hover_cursor(egui::CursorIcon::PointingHand)
+                    .clicked()
+                {
                     let _ = opener::open("https://anarchy.collapseloader.org");
                 }
-                if ui.button("Github Repository").clicked() {
+                if ui
+                    .button("Github Repository")
+                    .on_hover_cursor(egui::CursorIcon::PointingHand)
+                    .clicked()
+                {
                     let _ = opener::open("https://github.com/AnarchyLoader/AnarchyLoader");
                 }
             });
         });
+    }
+}
+
+impl App for MyApp {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        let is_dark_mode = ctx.style().visuals.dark_mode;
+        let theme_color = if is_dark_mode {
+            egui::Color32::LIGHT_GRAY
+        } else {
+            egui::Color32::DARK_GRAY
+        };
+
+        if self.parse_error.is_some() {
+            egui::CentralPanel::default().show(ctx, |ui| {
+                ui.vertical_centered(|ui| {
+                    ui.add_space(130.0);
+                    ui.colored_label(
+                        egui::Color32::RED,
+                        RichText::new(self.parse_error.as_ref().unwrap())
+                            .size(24.0)
+                            .strong(),
+                    );
+                });
+            });
+            return;
+        }
+
+        self.render_top_panel(ctx);
+
+        match self.tab {
+            AppTab::Home => self.render_home_tab(ctx, theme_color),
+            AppTab::Settings => self.render_settings_tab(ctx),
+            AppTab::About => self.render_about_tab(ctx),
+        }
     }
 }
