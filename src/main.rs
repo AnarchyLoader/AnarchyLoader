@@ -65,6 +65,7 @@ struct HackApiResponse {
     file: String,
     process: String,
     source: String,
+    game: String,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -82,7 +83,6 @@ impl Default for AppTab {
 
 struct MyApp {
     items: Vec<Hack>,
-    games: BTreeMap<String, String>,
     selected_item: Option<Hack>,
     status_message: Arc<Mutex<String>>,
     parse_error: Option<String>,
@@ -96,8 +96,6 @@ impl MyApp {
     fn new() -> Self {
         let status_message = Arc::new(Mutex::new(String::new()));
         let inject_in_progress = Arc::new(std::sync::atomic::AtomicBool::new(false));
-        let mut games = BTreeMap::new();
-        games.insert("hl.exe".to_string(), "CS 1.6".to_string());
 
         let items = match Self::fetch_hacks() {
             Ok(hacks) => hacks,
@@ -105,7 +103,6 @@ impl MyApp {
                 return Self {
                     parse_error: Some(err),
                     items: Vec::new(),
-                    games,
                     selected_item: None,
                     status_message,
                     app_version: env!("CARGO_PKG_VERSION").to_string(),
@@ -118,7 +115,6 @@ impl MyApp {
 
         Self {
             items,
-            games,
             selected_item: None,
             status_message,
             parse_error: None,
@@ -128,7 +124,7 @@ impl MyApp {
             search_query: String::new(),
         }
     }
-
+    
     fn fetch_hacks() -> Result<Vec<Hack>, String> {
         let client = Client::new();
         let api_url = if std::env::args().any(|arg| arg == "--local") {
@@ -155,6 +151,7 @@ impl MyApp {
                             &hack.file,
                             &hack.process,
                             &hack.source,
+                            &hack.game,
                         )
                     })
                     .collect())
@@ -197,7 +194,7 @@ impl MyApp {
     }
 
     fn render_home_tab(&mut self, ctx: &egui::Context, theme_color: egui::Color32) {
-        let mut items_by_process: BTreeMap<String, Vec<&Hack>> = BTreeMap::new();
+        let mut items_by_game: BTreeMap<String, BTreeMap<String, Vec<&Hack>>> = BTreeMap::new();
 
         for item in &self.items {
             if self.search_query.is_empty()
@@ -206,10 +203,30 @@ impl MyApp {
                     .to_lowercase()
                     .contains(&self.search_query.to_lowercase())
             {
-                items_by_process
-                    .entry(item.process.clone())
-                    .or_insert_with(Vec::new)
-                    .push(item);
+                let game = item.game.clone();
+                if game.starts_with("CSS") {
+                    let mut parts = game.split_whitespace();
+                    let game_name = parts.next().unwrap_or("CSS").to_string(); // "CSS"
+                    let version = parts.collect::<Vec<&str>>().join(" ");
+                    let version = if version.is_empty() {
+                        "Unknown version".to_string()
+                    } else {
+                        version
+                    };
+                    items_by_game
+                        .entry(game_name)
+                        .or_insert_with(BTreeMap::new)
+                        .entry(version)
+                        .or_insert_with(Vec::new)
+                        .push(item);
+                } else {
+                    items_by_game
+                        .entry(game.clone())
+                        .or_insert_with(BTreeMap::new)
+                        .entry("".to_string()) // No version
+                        .or_insert_with(Vec::new)
+                        .push(item);
+                }
             }
         }
 
@@ -220,18 +237,28 @@ impl MyApp {
                 ui.add_space(5.0);
 
                 egui::ScrollArea::vertical().show(ui, |ui| {
-                    for (process, items) in &items_by_process {
+                    for (game_name, versions) in &items_by_game {
                         ui.group(|ui| {
                             ui.with_layout(egui::Layout::top_down(egui::Align::Min), |ui| {
-                                let game_name = self.games.get(process).unwrap_or(process);
                                 ui.heading(game_name);
                                 ui.separator();
-                                for item in items {
-                                    let is_selected = self.selected_item.as_ref() == Some(*item);
-                                    if ui.selectable_label(is_selected, &item.name).clicked() {
-                                        self.selected_item = Some((*item).clone());
-                                        self.status_message.lock().unwrap().clear();
+                                for (version, items) in versions {
+                                    if !version.is_empty() {
+                                        ui.label(format!("Version: {}", version));
                                     }
+                                    for item in items {
+                                        let is_selected =
+                                            self.selected_item.as_ref() == Some(*item);
+                                        if ui
+                                            .selectable_label(is_selected, &item.name)
+                                            .on_hover_cursor(egui::CursorIcon::PointingHand)
+                                            .clicked()
+                                        {
+                                            self.selected_item = Some((*item).clone());
+                                            self.status_message.lock().unwrap().clear();
+                                        }
+                                    }
+                                    ui.add_space(5.0);
                                 }
                             });
                         });
@@ -245,11 +272,7 @@ impl MyApp {
             if let Some(selected) = &self.selected_item {
                 ui.horizontal(|ui| {
                     ui.heading(&selected.name);
-                    ui.label(
-                        RichText::new(format!("by {}", selected.author))
-                            .color(theme_color)
-                            .italics(),
-                    );
+                    ui.label(RichText::new(format!("by {}", selected.author)).color(theme_color));
                     ui.hyperlink_to("(source)", &selected.source)
                 });
                 ui.separator();
