@@ -42,8 +42,8 @@ fn main() {
 
     let native_options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_resizable(false)
-            .with_maximize_button(false)
+            .with_min_inner_size(egui::vec2(600.0, 200.0))
+            // .with_maximize_button(false)
             .with_inner_size(egui::vec2(800.0, 400.0))
             .with_icon(std::sync::Arc::new(load_icon())),
         ..Default::default()
@@ -206,7 +206,7 @@ impl MyApp {
                 let game = item.game.clone();
                 if game.starts_with("CSS") {
                     let mut parts = game.split_whitespace();
-                    let game_name = parts.next().unwrap_or("CSS").to_string(); // "CSS"
+                    let game_name = parts.next().unwrap_or("CSS").to_string();
                     let version = parts.collect::<Vec<&str>>().join(" ");
                     let version = if version.is_empty() {
                         "Unknown version".to_string()
@@ -223,7 +223,7 @@ impl MyApp {
                     items_by_game
                         .entry(game.clone())
                         .or_insert_with(BTreeMap::new)
-                        .entry("".to_string()) // No version
+                        .entry("".to_string())
                         .or_insert_with(Vec::new)
                         .push(item);
                 }
