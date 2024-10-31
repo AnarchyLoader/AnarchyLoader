@@ -3,19 +3,21 @@
 mod downloader;
 mod hacks;
 
-use std::collections::BTreeMap;
-use std::env;
+use std::collections::{BTreeMap, HashSet};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
+use std::{env, fs};
 
 use dll_syringe::{process::OwnedProcess, Syringe};
 use eframe::{
     egui::{self, RichText, Spinner},
     App,
 };
+use egui::CursorIcon::PointingHand as Clickable;
+use egui::Sense;
 use reqwest::blocking::Client;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use hacks::Hack;
 
@@ -43,7 +45,6 @@ fn main() {
     let native_options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_min_inner_size(egui::vec2(600.0, 200.0))
-            // .with_maximize_button(false)
             .with_inner_size(egui::vec2(800.0, 400.0))
             .with_icon(std::sync::Arc::new(load_icon())),
         ..Default::default()
@@ -81,6 +82,13 @@ impl Default for AppTab {
     }
 }
 
+#[derive(Serialize, Deserialize)]
+struct Config {
+    favorites: HashSet<String>,
+    show_only_favorites: bool,
+    favorites_color: egui::Color32,
+}
+
 struct MyApp {
     items: Vec<Hack>,
     selected_item: Option<Hack>,
@@ -90,10 +98,14 @@ struct MyApp {
     inject_in_progress: Arc<std::sync::atomic::AtomicBool>,
     tab: AppTab,
     search_query: String,
+    favorites: HashSet<String>,
+    show_only_favorites: bool,
+    favorites_color: egui::Color32,
 }
 
 impl MyApp {
     fn new() -> Self {
+        let config = Self::load_favorites();
         let status_message = Arc::new(Mutex::new(String::new()));
         let inject_in_progress = Arc::new(std::sync::atomic::AtomicBool::new(false));
 
@@ -109,6 +121,9 @@ impl MyApp {
                     inject_in_progress,
                     tab: AppTab::default(),
                     search_query: String::new(),
+                    favorites: config.favorites,
+                    show_only_favorites: config.show_only_favorites,
+                    favorites_color: config.favorites_color,
                 }
             }
         };
@@ -122,9 +137,12 @@ impl MyApp {
             inject_in_progress,
             tab: AppTab::default(),
             search_query: String::new(),
+            favorites: config.favorites,
+            show_only_favorites: config.show_only_favorites,
+            favorites_color: config.favorites_color,
         }
     }
-    
+
     fn fetch_hacks() -> Result<Vec<Hack>, String> {
         let client = Client::new();
         let api_url = if std::env::args().any(|arg| arg == "--local") {
@@ -167,18 +185,21 @@ impl MyApp {
             ui.horizontal(|ui| {
                 if ui
                     .selectable_label(self.tab == AppTab::Home, "Home")
+                    .on_hover_cursor(Clickable)
                     .clicked()
                 {
                     self.tab = AppTab::Home;
                 }
                 if ui
                     .selectable_label(self.tab == AppTab::Settings, "Settings")
+                    .on_hover_cursor(Clickable)
                     .clicked()
                 {
                     self.tab = AppTab::Settings;
                 }
                 if ui
                     .selectable_label(self.tab == AppTab::About, "About")
+                    .on_hover_cursor(Clickable)
                     .clicked()
                 {
                     self.tab = AppTab::About;
@@ -193,10 +214,51 @@ impl MyApp {
         });
     }
 
-    fn render_home_tab(&mut self, ctx: &egui::Context, theme_color: egui::Color32) {
-        let mut items_by_game: BTreeMap<String, BTreeMap<String, Vec<&Hack>>> = BTreeMap::new();
+    fn load_favorites() -> Config {
+        let config_path = dirs::config_dir()
+            .unwrap_or_else(|| std::path::PathBuf::from("."))
+            .join("anarchyloader")
+            .join("config.json");
 
-        for item in &self.items {
+        if let Ok(data) = fs::read_to_string(config_path) {
+            if let Ok(config) = serde_json::from_str::<Config>(&data) {
+                return config;
+            }
+        }
+        Config {
+            favorites: HashSet::new(),
+            show_only_favorites: false,
+            favorites_color: egui::Color32::GOLD,
+        }
+    }
+
+    fn save_favorites(&self) {
+        let config_dir = dirs::config_dir()
+            .unwrap_or_else(|| std::path::PathBuf::from("."))
+            .join("anarchyloader");
+
+        fs::create_dir_all(&config_dir).ok();
+        let config_path = config_dir.join("config.json");
+
+        let config = Config {
+            favorites: self.favorites.clone(),
+            show_only_favorites: self.show_only_favorites,
+            favorites_color: self.favorites_color,
+        };
+
+        if let Ok(data) = serde_json::to_string(&config) {
+            fs::write(config_path, data).ok();
+        }
+    }
+
+    fn render_home_tab(&mut self, ctx: &egui::Context, theme_color: egui::Color32) {
+        let mut items_by_game: BTreeMap<String, BTreeMap<String, Vec<Hack>>> = BTreeMap::new();
+
+        for item in self.items.clone() {
+            if self.show_only_favorites && !self.favorites.contains(&item.name) {
+                continue;
+            }
+
             if self.search_query.is_empty()
                 || item
                     .name
@@ -230,6 +292,11 @@ impl MyApp {
             }
         }
 
+        items_by_game.retain(|_, versions| {
+            versions.retain(|_, items| !items.is_empty());
+            !versions.is_empty()
+        });
+
         egui::SidePanel::left("left_panel")
             .resizable(true)
             .default_width(200.0)
@@ -244,21 +311,79 @@ impl MyApp {
                                 ui.separator();
                                 for (version, items) in versions {
                                     if !version.is_empty() {
-                                        ui.label(format!("Version: {}", version));
+                                        ui.label(RichText::new(version).heading());
                                     }
+
                                     for item in items {
-                                        let is_selected =
-                                            self.selected_item.as_ref() == Some(*item);
-                                        if ui
-                                            .selectable_label(is_selected, &item.name)
-                                            .on_hover_cursor(egui::CursorIcon::PointingHand)
-                                            .clicked()
-                                        {
-                                            self.selected_item = Some((*item).clone());
-                                            self.status_message.lock().unwrap().clear();
-                                        }
+                                        ui.horizontal(|ui| {
+                                            let is_favorite = self.favorites.contains(&item.name);
+                                            let label = if is_favorite {
+                                                RichText::new(&item.name)
+                                                    .color(self.favorites_color)
+                                            } else {
+                                                RichText::new(&item.name)
+                                            };
+                                            let response = ui.selectable_label(
+                                                self.selected_item.as_ref() == Some(item),
+                                                label,
+                                            );
+
+                                            let hovered = response.hovered();
+
+                                            if hovered || is_favorite {
+                                                let favorite_icon =
+                                                    if is_favorite { "★" } else { "☆" };
+                                                if ui
+                                                    .add(
+                                                        egui::Button::new(RichText::new(
+                                                            favorite_icon,
+                                                        ))
+                                                        .frame(false)
+                                                        .sense(Sense::click()),
+                                                    )
+                                                    .on_hover_cursor(Clickable)
+                                                    .clicked()
+                                                {
+                                                    if is_favorite {
+                                                        self.favorites.remove(&item.name);
+                                                    } else {
+                                                        self.favorites.insert(item.name.clone());
+                                                    }
+                                                    self.save_favorites();
+                                                }
+                                            }
+
+                                            response.context_menu(|ui| {
+                                                if is_favorite {
+                                                    if ui
+                                                        .button("Remove from favorites")
+                                                        .on_hover_cursor(Clickable)
+                                                        .clicked()
+                                                    {
+                                                        self.favorites.remove(&item.name);
+                                                        self.save_favorites();
+                                                        ui.close_menu();
+                                                    }
+                                                } else {
+                                                    if ui
+                                                        .button("Add to favorites")
+                                                        .on_hover_cursor(Clickable)
+                                                        .clicked()
+                                                    {
+                                                        self.favorites.insert(item.name.clone());
+                                                        self.save_favorites();
+                                                        ui.close_menu();
+                                                    }
+                                                }
+                                            });
+
+                                            if response.clicked() {
+                                                self.selected_item = Some(item.clone());
+                                            }
+
+                                            response.on_hover_cursor(Clickable);
+                                        });
                                     }
-                                    ui.add_space(5.0);
                                 }
                             });
                         });
@@ -280,7 +405,7 @@ impl MyApp {
 
                 if ui
                     .button(format!("Inject {}", selected.name))
-                    .on_hover_cursor(egui::CursorIcon::PointingHand)
+                    .on_hover_cursor(Clickable)
                     .on_hover_text(format!("Inject the {}", selected.name))
                     .clicked()
                 {
@@ -312,10 +437,6 @@ impl MyApp {
 
                             match selected_clone.download(file_path.to_string_lossy().to_string()) {
                                 Ok(_) => {
-                                    {
-                                        let mut status = status_message.lock().unwrap();
-                                        *status = "Download complete.".to_string();
-                                    }
                                     ctx_clone.request_repaint();
                                 }
                                 Err(e) => {
@@ -410,7 +531,22 @@ impl MyApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("Settings");
             ui.separator();
-            ui.label("Nothing to see here yet.");
+            if ui
+                .checkbox(&mut self.show_only_favorites, "Show only favorite hacks")
+                .on_hover_cursor(Clickable)
+                .changed()
+            {
+                self.save_favorites();
+            }
+            ui.add_space(10.0);
+            ui.label("Favorites Color:");
+            if ui
+                .color_edit_button_srgba(&mut self.favorites_color)
+                .on_hover_cursor(Clickable)
+                .changed()
+            {
+                self.save_favorites();
+            }
         });
     }
 
@@ -425,14 +561,14 @@ impl MyApp {
             ui.horizontal(|ui| {
                 if ui
                     .button("Visit Website")
-                    .on_hover_cursor(egui::CursorIcon::PointingHand)
+                    .on_hover_cursor(Clickable)
                     .clicked()
                 {
                     let _ = opener::open("https://anarchy.collapseloader.org");
                 }
                 if ui
                     .button("Github Repository")
-                    .on_hover_cursor(egui::CursorIcon::PointingHand)
+                    .on_hover_cursor(Clickable)
                     .clicked()
                 {
                     let _ = opener::open("https://github.com/AnarchyLoader/AnarchyLoader");
