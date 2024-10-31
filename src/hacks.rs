@@ -9,7 +9,7 @@ pub(crate) struct Hack {
     pub file: String,
     pub process: String,
     pub source: String,
-    pub game: String
+    pub game: String,
 }
 
 impl Hack {
@@ -21,7 +21,7 @@ impl Hack {
         file: &str,
         process: &str,
         source: &str,
-        game: &str
+        game: &str,
     ) -> Self {
         Self {
             name: name.to_string(),
@@ -31,7 +31,7 @@ impl Hack {
             file: file.to_string(),
             process: process.to_string(),
             source: source.to_string(),
-            game: game.to_string()
+            game: game.to_string(),
         }
     }
 
