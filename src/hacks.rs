@@ -1,4 +1,18 @@
+use serde::Deserialize;
+
 use crate::downloader::download_file;
+
+#[derive(Deserialize, Debug, Clone, PartialEq)]
+pub(crate) struct HackApiResponse {
+    pub name: String,
+    pub description: String,
+    pub author: String,
+    pub status: String,
+    pub file: String,
+    pub process: String,
+    pub source: String,
+    pub game: String,
+}
 
 #[derive(Clone, PartialEq)]
 pub(crate) struct Hack {

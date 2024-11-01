@@ -1,5 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod custom_widgets;
 mod downloader;
 mod hacks;
 
@@ -18,10 +19,10 @@ use eframe::{
 };
 use egui::CursorIcon::PointingHand as Clickable;
 use egui::Sense;
-use reqwest::blocking::Client;
 use serde::{Deserialize, Serialize};
 
-use hacks::Hack;
+use custom_widgets::{Button, SelectableLabel};
+use hacks::{Hack, HackApiResponse};
 
 pub(crate) fn load_icon() -> egui::IconData {
     let (icon_rgba, icon_width, icon_height) = {
@@ -57,18 +58,6 @@ fn main() {
         Box::new(|_cc| Ok(Box::new(app))),
     )
     .unwrap();
-}
-
-#[derive(Deserialize, Debug, Clone, PartialEq)]
-struct HackApiResponse {
-    name: String,
-    description: String,
-    author: String,
-    status: String,
-    file: String,
-    process: String,
-    source: String,
-    game: String,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -146,14 +135,13 @@ impl MyApp {
     }
 
     fn fetch_hacks() -> Result<Vec<Hack>, String> {
-        let client = Client::new();
         let api_url = if std::env::args().any(|arg| arg == "--local") {
             "http://127.0.0.1:8000/api/hacks/"
         } else {
             "https://anarchy.collapseloader.org/api/hacks/"
         };
 
-        let res = client.get(api_url).send().map_err(|e| e.to_string())?;
+        let res = reqwest::blocking::get(api_url).map_err(|e| e.to_string())?;
 
         if res.status().is_success() {
             let parsed_hacks: Vec<HackApiResponse> = res.json().map_err(|e| e.to_string())?;
@@ -187,21 +175,18 @@ impl MyApp {
             ui.horizontal(|ui| {
                 if ui
                     .selectable_label(self.tab == AppTab::Home, "Home")
-                    .on_hover_cursor(Clickable)
                     .clicked()
                 {
                     self.tab = AppTab::Home;
                 }
                 if ui
-                    .selectable_label(self.tab == AppTab::Settings, "Settings")
-                    .on_hover_cursor(Clickable)
+                    .cselectable_label(self.tab == AppTab::Settings, "Settings")
                     .clicked()
                 {
                     self.tab = AppTab::Settings;
                 }
                 if ui
-                    .selectable_label(self.tab == AppTab::About, "About")
-                    .on_hover_cursor(Clickable)
+                    .cselectable_label(self.tab == AppTab::About, "About")
                     .clicked()
                 {
                     self.tab = AppTab::About;
@@ -362,20 +347,14 @@ impl MyApp {
 
                                             response.context_menu(|ui| {
                                                 if is_favorite {
-                                                    if ui
-                                                        .button("Remove from favorites")
-                                                        .on_hover_cursor(Clickable)
-                                                        .clicked()
+                                                    if ui.cbutton("Remove from favorites").clicked()
                                                     {
                                                         self.favorites.remove(&item.name);
                                                         self.save_favorites();
                                                         ui.close_menu();
                                                     }
                                                 } else {
-                                                    if ui
-                                                        .button("Add to favorites")
-                                                        .on_hover_cursor(Clickable)
-                                                        .clicked()
+                                                    if ui.cbutton("Add to favorites").clicked()
                                                     {
                                                         self.favorites.insert(item.name.clone());
                                                         self.save_favorites();
@@ -383,13 +362,7 @@ impl MyApp {
                                                     }
                                                 }
 
-                                                if ui
-                                                    .button("Open in Explorer")
-                                                    .on_hover_cursor(Clickable)
-                                                    .on_hover_text(
-                                                        "Open the file location in Explorer",
-                                                    )
-                                                    .clicked()
+                                                if ui.button_with_tooltip("Open in Explorer", "Open the file location in Explorer").clicked()
                                                 {
                                                     if !Path::new(&file_path_owned).exists() {
                                                         let mut status =
@@ -415,11 +388,8 @@ impl MyApp {
                                                         );
                                                     }
                                                 }
-                                                if ui
-                                                    .button("Reinstall")
-                                                    .on_hover_cursor(Clickable)
-                                                    .on_hover_text("Reinstall the selected item")
-                                                    .clicked()
+
+                                                if ui.button_with_tooltip("Reinstall", "Reinstall the selected item").clicked()
                                                 {
                                                     thread::spawn(move || {
                                                         if !Path::new(&file_path_owned).exists() {
@@ -509,7 +479,6 @@ impl MyApp {
                 if ui
                     .button(format!("Inject {}", selected.name))
                     .on_hover_cursor(Clickable)
-                    .on_hover_text(format!("Inject the {}", selected.name))
                     .clicked()
                 {
                     let inject_in_progress = Arc::clone(&self.inject_in_progress);
@@ -661,18 +630,10 @@ impl MyApp {
             ui.label("AnarchyLoader is a free and open-source cheat loader for various games.");
             ui.add_space(10.0);
             ui.horizontal(|ui| {
-                if ui
-                    .button("Visit Website")
-                    .on_hover_cursor(Clickable)
-                    .clicked()
-                {
+                if ui.cbutton("Visit Website").clicked() {
                     let _ = opener::open("https://anarchy.collapseloader.org");
                 }
-                if ui
-                    .button("Github Repository")
-                    .on_hover_cursor(Clickable)
-                    .clicked()
-                {
+                if ui.cbutton("Github Repository").clicked() {
                     let _ = opener::open("https://github.com/AnarchyLoader/AnarchyLoader");
                 }
             });
@@ -682,6 +643,8 @@ impl MyApp {
 
 impl App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        egui_extras::install_image_loaders(ctx);
+
         let is_dark_mode = ctx.style().visuals.dark_mode;
         let theme_color = if is_dark_mode {
             egui::Color32::LIGHT_GRAY
