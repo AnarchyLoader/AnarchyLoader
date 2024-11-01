@@ -4,6 +4,8 @@ mod downloader;
 mod hacks;
 
 use std::collections::{BTreeMap, HashSet};
+use std::path::Path;
+use std::process::Command;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
@@ -304,7 +306,7 @@ impl MyApp {
                 ui.add_space(5.0);
 
                 egui::ScrollArea::vertical().show(ui, |ui| {
-                    for (game_name, versions) in &items_by_game {
+                    for (game_name, versions) in items_by_game {
                         ui.group(|ui| {
                             ui.with_layout(egui::Layout::top_down(egui::Align::Min), |ui| {
                                 ui.heading(game_name);
@@ -315,6 +317,8 @@ impl MyApp {
                                     }
 
                                     for item in items {
+                                        let item_clone = item.clone();
+
                                         ui.horizontal(|ui| {
                                             let is_favorite = self.favorites.contains(&item.name);
                                             let label = if is_favorite {
@@ -324,7 +328,7 @@ impl MyApp {
                                                 RichText::new(&item.name)
                                             };
                                             let response = ui.selectable_label(
-                                                self.selected_item.as_ref() == Some(item),
+                                                self.selected_item.as_ref() == Some(&item),
                                                 label,
                                             );
 
@@ -352,6 +356,9 @@ impl MyApp {
                                                     self.save_favorites();
                                                 }
                                             }
+                                            let file_path_owned = item.file_path.clone();
+                                            let ctx_clone = ctx.clone();
+                                            let status_message = Arc::clone(&self.status_message);
 
                                             response.context_menu(|ui| {
                                                 if is_favorite {
@@ -375,10 +382,103 @@ impl MyApp {
                                                         ui.close_menu();
                                                     }
                                                 }
+
+                                                if ui
+                                                    .button("Open in Explorer")
+                                                    .on_hover_cursor(Clickable)
+                                                    .on_hover_text(
+                                                        "Open the file location in Explorer",
+                                                    )
+                                                    .clicked()
+                                                {
+                                                    if !Path::new(&file_path_owned).exists() {
+                                                        let mut status =
+                                                            status_message.lock().unwrap();
+                                                        *status =
+                                                            "Failed: File does not exist.".to_string();
+                                                        ctx_clone.request_repaint();
+                                                        return;
+                                                    }
+
+                                                    if let Err(e) = Command::new("explorer.exe")
+                                                        .arg(format!(
+                                                            "/select,{}",
+                                                            item.file_path.to_string_lossy()
+                                                        ))
+                                                        .spawn()
+                                                    {
+                                                        let mut status =
+                                                            self.status_message.lock().unwrap();
+                                                        *status = format!(
+                                                            "Failed to open Explorer: {}",
+                                                            e
+                                                        );
+                                                    }
+                                                }
+                                                if ui
+                                                    .button("Reinstall")
+                                                    .on_hover_cursor(Clickable)
+                                                    .on_hover_text("Reinstall the selected item")
+                                                    .clicked()
+                                                {
+                                                    thread::spawn(move || {
+                                                        if !Path::new(&file_path_owned).exists() {
+                                                            let mut status =
+                                                                status_message.lock().unwrap();
+                                                            *status =
+                                                                "Failed to reinstall: file does not exist.".to_string();
+                                                            ctx_clone.request_repaint();
+                                                            return;
+                                                        }
+
+                                                        {
+                                                            let mut status =
+                                                                status_message.lock().unwrap();
+                                                            *status = "Reinstalling...".to_string();
+                                                            ctx_clone.request_repaint();
+                                                        }
+
+                                                        if let Err(e) =
+                                                            fs::remove_file(&file_path_owned)
+                                                        {
+                                                            let mut status =
+                                                                status_message.lock().unwrap();
+                                                            *status = format!(
+                                                                "Failed to delete file: {}",
+                                                                e
+                                                            );
+                                                            ctx_clone.request_repaint();
+                                                            return;
+                                                        }
+
+                                                        match item.download(
+                                                            file_path_owned
+                                                                .to_string_lossy()
+                                                                .to_string(),
+                                                        ) {
+                                                            Ok(_) => {
+                                                                let mut status =
+                                                                    status_message.lock().unwrap();
+                                                                *status =
+                                                                    "Reinstalled.".to_string();
+                                                                ctx_clone.request_repaint();
+                                                            }
+                                                            Err(e) => {
+                                                                let mut status =
+                                                                    status_message.lock().unwrap();
+                                                                *status = format!(
+                                                                    "Failed to reinstall: {}",
+                                                                    e
+                                                                );
+                                                                ctx_clone.request_repaint();
+                                                            }
+                                                        }
+                                                    });
+                                                }
                                             });
 
                                             if response.clicked() {
-                                                self.selected_item = Some(item.clone());
+                                                self.selected_item = Some(item_clone.clone());
                                                 let mut status =
                                                     self.status_message.lock().unwrap();
                                                 *status = String::new();
@@ -428,17 +528,16 @@ impl MyApp {
                         ctx_clone.request_repaint();
                         thread::sleep(Duration::from_secs(1));
 
-                        let temp_dir = env::temp_dir();
-                        let file_path = temp_dir.join(&selected_clone.file);
-
-                        if !file_path.exists() {
+                        if !selected_clone.file_path.exists() {
                             {
                                 let mut status = status_message.lock().unwrap();
                                 *status = "Downloading...".to_string();
                             }
                             ctx_clone.request_repaint();
 
-                            match selected_clone.download(file_path.to_string_lossy().to_string()) {
+                            match selected_clone
+                                .download(selected_clone.file_path.to_string_lossy().to_string())
+                            {
                                 Ok(_) => {
                                     ctx_clone.request_repaint();
                                 }
@@ -472,7 +571,7 @@ impl MyApp {
                             OwnedProcess::find_first_by_name(&selected_clone.process)
                         {
                             let syringe = Syringe::for_process(target_process);
-                            if let Err(e) = syringe.inject(file_path) {
+                            if let Err(e) = syringe.inject(selected_clone.file_path.clone()) {
                                 let mut status = status_message.lock().unwrap();
                                 *status = format!("Failed to inject: {}", e);
                             } else {
