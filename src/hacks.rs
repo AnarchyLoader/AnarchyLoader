@@ -10,6 +10,7 @@ pub(crate) struct Hack {
     pub process: String,
     pub source: String,
     pub game: String,
+    pub file_path: std::path::PathBuf,
 }
 
 impl Hack {
@@ -32,6 +33,10 @@ impl Hack {
             process: process.to_string(),
             source: source.to_string(),
             game: game.to_string(),
+            file_path: dirs::config_dir()
+                .unwrap_or_else(|| std::path::PathBuf::from("."))
+                .join("anarchyloader")
+                .join(&file),
         }
     }
 
