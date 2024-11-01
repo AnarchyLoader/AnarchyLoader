@@ -379,6 +379,9 @@ impl MyApp {
 
                                             if response.clicked() {
                                                 self.selected_item = Some(item.clone());
+                                                let mut status =
+                                                    self.status_message.lock().unwrap();
+                                                *status = String::new();
                                             }
 
                                             response.on_hover_cursor(Clickable);
