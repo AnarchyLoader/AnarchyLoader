@@ -2,11 +2,11 @@ use std::{fs::File, io::copy};
 
 use reqwest;
 
+use crate::config::Config;
+
 pub fn download_file(file: &str, destination: &str) -> Result<(), Box<dyn std::error::Error>> {
-    let response = reqwest::blocking::get(format!(
-        "{}/{}",
-        "https://cdn.collapseloader.org/anarchy/", file
-    ))?;
+    let config = Config::load_config();
+    let response = reqwest::blocking::get(format!("{}{}", config.cdn_endpoint, file))?;
 
     if response.status().is_success() {
         let mut file = File::create(destination)?;

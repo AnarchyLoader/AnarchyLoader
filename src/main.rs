@@ -8,7 +8,7 @@ mod hacks;
 use std::{
     collections::BTreeMap,
     env, fs,
-    path::{Path, PathBuf},
+    path::Path,
     process::Command,
     sync::{Arc, Mutex},
     thread,
@@ -88,7 +88,7 @@ struct MyApp {
 
 impl MyApp {
     fn new() -> Self {
-        let config = Self::load_config();
+        let config = Config::load_config();
         let status_message = Arc::new(Mutex::new(String::new()));
         let inject_in_progress = Arc::new(std::sync::atomic::AtomicBool::new(false));
 
@@ -187,37 +187,9 @@ impl MyApp {
         });
     }
 
-    fn load_config() -> Config {
-        let config_dir = dirs::config_dir()
-            .unwrap_or_else(|| PathBuf::from("."))
-            .join("anarchyloader");
-
-        fs::create_dir_all(&config_dir).ok();
-        let config_path = config_dir.join("config.json");
-
-        if let Ok(data) = fs::read_to_string(&config_path) {
-            serde_json::from_str::<Config>(&data).unwrap_or_default()
-        } else {
-            Config::default()
-        }
-    }
-
-    fn save_config(&self) {
-        let config_dir = dirs::config_dir()
-            .unwrap_or_else(|| PathBuf::from("."))
-            .join("anarchyloader");
-
-        fs::create_dir_all(&config_dir).ok();
-        let config_path = config_dir.join("config.json");
-
-        if let Ok(data) = serde_json::to_string(&self.config) {
-            fs::write(config_path, data).ok();
-        }
-    }
-
     fn reset_config(&mut self) {
         self.config = Config::default();
-        self.save_config();
+        self.config.save_config();
     }
 
     fn render_home_tab(&mut self, ctx: &egui::Context, theme_color: egui::Color32) {
@@ -320,9 +292,10 @@ impl MyApp {
                                                     } else {
                                                         self.config.favorites.insert(item.name.clone());
                                                     }
-                                                    self.save_config();
+                                                    self.config.save_config();
                                                 }
                                             }
+
                                             let file_path_owned = item.file_path.clone();
                                             let ctx_clone = ctx.clone();
                                             let status_message = Arc::clone(&self.status_message);
@@ -332,14 +305,14 @@ impl MyApp {
                                                     if ui.cbutton("Remove from favorites").clicked()
                                                     {
                                                         self.config.favorites.remove(&item.name);
-                                                        self.save_config();
+                                                        self.config.save_config();
                                                         ui.close_menu();
                                                     }
                                                 } else {
                                                     if ui.cbutton("Add to favorites").clicked()
                                                     {
                                                         self.config.favorites.insert(item.name.clone());
-                                                        self.save_config();
+                                                        self.config.save_config();
                                                         ui.close_menu();
                                                     }
                                                 }
@@ -453,7 +426,7 @@ impl MyApp {
                 ui.horizontal(|ui| {
                     ui.heading(&selected.name);
                     ui.label(RichText::new(format!("by {}", selected.author)).color(theme_color));
-                    ui.hyperlink_to("(source)", &selected.source)
+                    ui.hyperlink_to("(source)", &selected.source).on_hover_text(&selected.source)
                 });
                 ui.separator();
                 ui.label(&selected.description);
@@ -461,6 +434,7 @@ impl MyApp {
                 if ui
                     .button(format!("Inject {}", selected.name))
                     .on_hover_cursor(Clickable)
+                    .on_hover_text(&selected.file)
                     .clicked()
                 {
                     let inject_in_progress = Arc::clone(&self.inject_in_progress);
@@ -499,7 +473,7 @@ impl MyApp {
                                 }
                                 Err(e) => {
                                     let mut status = status_message.lock().unwrap();
-                                    *status = format!("Failed to download: {}", e);
+                                    *status = format!("{}", e);
                                     inject_in_progress
                                         .store(false, std::sync::atomic::Ordering::SeqCst);
                                     ctx_clone.request_repaint();
@@ -553,16 +527,18 @@ impl MyApp {
                 if inject_in_progress {
                     ui.add_space(10.0);
                     let status = self.status_message.lock().unwrap().clone();
-                    ui.label(
-                        RichText::new(&status).color(if status.starts_with("Failed") {
-                            egui::Color32::RED
-                        } else {
-                            theme_color
-                        }),
-                    );
-                    ui.add_space(2.0);
-                    ui.add(Spinner::new());
-                    ctx.request_repaint();
+                    ui.horizontal(|ui| {
+                        ui.add(Spinner::new());
+                        ui.add_space(5.0);
+                        ui.label(
+                            RichText::new(&status).color(if status.starts_with("Failed") {
+                                egui::Color32::RED
+                            } else {
+                                theme_color
+                            }),
+                        );
+                        ctx.request_repaint();
+                    });
                 } else {
                     ui.add_space(10.0);
                     let status = self.status_message.lock().unwrap().clone();
@@ -597,7 +573,7 @@ impl MyApp {
                 .on_hover_cursor(Clickable)
                 .changed()
             {
-                self.save_config();
+                self.config.save_config();
             }
 
             ui.add_space(10.0);
@@ -610,7 +586,7 @@ impl MyApp {
                 .on_hover_cursor(Clickable)
                 .changed()
             {
-                self.save_config();
+                self.config.save_config();
             }
 
             ui.add_space(10.0);
@@ -622,7 +598,7 @@ impl MyApp {
                     .on_hover_cursor(Clickable)
                     .changed()
                 {
-                    self.save_config();
+                    self.config.save_config();
                 }
             });
 
@@ -634,7 +610,17 @@ impl MyApp {
                     .text_edit_singleline(&mut self.config.api_endpoint)
                     .changed()
                 {
-                    self.save_config();
+                    self.config.save_config();
+                }
+            });
+
+            ui.horizontal(|ui| {
+                ui.label("CDN Endpoint:");
+                if ui
+                    .text_edit_singleline(&mut self.config.cdn_endpoint)
+                    .changed()
+                {
+                    self.config.save_config();
                 }
             });
 
@@ -693,7 +679,7 @@ impl App for MyApp {
                         .text_edit_singleline(&mut self.config.api_endpoint)
                         .changed()
                     {
-                        self.save_config();
+                        self.config.save_config();
                     }
                 });
             });
