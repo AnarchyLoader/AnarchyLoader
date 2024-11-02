@@ -1,27 +1,28 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod config;
 mod custom_widgets;
 mod downloader;
 mod hacks;
 
-use std::collections::{BTreeMap, HashSet};
-use std::path::Path;
-use std::process::Command;
-use std::sync::{Arc, Mutex};
-use std::thread;
-use std::time::Duration;
-use std::{env, fs};
+use std::{
+    collections::BTreeMap,
+    env, fs,
+    path::{Path, PathBuf},
+    process::Command,
+    sync::{Arc, Mutex},
+    thread,
+    time::Duration,
+};
 
+use config::Config;
+use custom_widgets::{Button, SelectableLabel};
 use dll_syringe::{process::OwnedProcess, Syringe};
 use eframe::{
     egui::{self, RichText, Spinner},
     App,
 };
-use egui::CursorIcon::PointingHand as Clickable;
-use egui::Sense;
-use serde::{Deserialize, Serialize};
-
-use custom_widgets::{Button, SelectableLabel};
+use egui::{CursorIcon::PointingHand as Clickable, Sense};
 use hacks::{Hack, HackApiResponse};
 
 pub(crate) fn load_icon() -> egui::IconData {
@@ -73,13 +74,6 @@ impl Default for AppTab {
     }
 }
 
-#[derive(Serialize, Deserialize)]
-struct Config {
-    favorites: HashSet<String>,
-    show_only_favorites: bool,
-    favorites_color: egui::Color32,
-}
-
 struct MyApp {
     items: Vec<Hack>,
     selected_item: Option<Hack>,
@@ -89,32 +83,28 @@ struct MyApp {
     inject_in_progress: Arc<std::sync::atomic::AtomicBool>,
     tab: AppTab,
     search_query: String,
-    favorites: HashSet<String>,
-    show_only_favorites: bool,
-    favorites_color: egui::Color32,
+    config: Config,
 }
 
 impl MyApp {
     fn new() -> Self {
-        let config = Self::load_favorites();
+        let config = Self::load_config();
         let status_message = Arc::new(Mutex::new(String::new()));
         let inject_in_progress = Arc::new(std::sync::atomic::AtomicBool::new(false));
 
-        let items = match Self::fetch_hacks() {
+        let items = match Self::fetch_hacks(&config.api_endpoint) {
             Ok(hacks) => hacks,
             Err(err) => {
                 return Self {
-                    parse_error: Some(err),
                     items: Vec::new(),
                     selected_item: None,
                     status_message,
+                    parse_error: Some(err),
                     app_version: env!("CARGO_PKG_VERSION").to_string(),
                     inject_in_progress,
                     tab: AppTab::default(),
                     search_query: String::new(),
-                    favorites: config.favorites,
-                    show_only_favorites: config.show_only_favorites,
-                    favorites_color: config.favorites_color,
+                    config: config,
                 }
             }
         };
@@ -128,44 +118,40 @@ impl MyApp {
             inject_in_progress,
             tab: AppTab::default(),
             search_query: String::new(),
-            favorites: config.favorites,
-            show_only_favorites: config.show_only_favorites,
-            favorites_color: config.favorites_color,
+            config: config,
         }
     }
 
-    fn fetch_hacks() -> Result<Vec<Hack>, String> {
-        let api_url = if std::env::args().any(|arg| arg == "--local") {
-            "http://127.0.0.1:8000/api/hacks/"
-        } else {
-            "https://anarchy.collapseloader.org/api/hacks/"
-        };
-
-        let res = reqwest::blocking::get(api_url).map_err(|e| e.to_string())?;
-
-        if res.status().is_success() {
-            let parsed_hacks: Vec<HackApiResponse> = res.json().map_err(|e| e.to_string())?;
-            if parsed_hacks.is_empty() {
-                Err("No hacks available.".to_string())
-            } else {
-                Ok(parsed_hacks
-                    .into_iter()
-                    .map(|hack| {
-                        Hack::new(
-                            &hack.name,
-                            &hack.description,
-                            &hack.author,
-                            &hack.status,
-                            &hack.file,
-                            &hack.process,
-                            &hack.source,
-                            &hack.game,
-                        )
-                    })
-                    .collect())
+    fn fetch_hacks(api_endpoint: &str) -> Result<Vec<Hack>, String> {
+        match reqwest::blocking::get(api_endpoint) {
+            Ok(res) => {
+                if res.status().is_success() {
+                    let parsed_hacks: Vec<HackApiResponse> =
+                        res.json().map_err(|e| e.to_string())?;
+                    if parsed_hacks.is_empty() {
+                        Err("No hacks available.".to_string())
+                    } else {
+                        Ok(parsed_hacks
+                            .into_iter()
+                            .map(|hack| {
+                                Hack::new(
+                                    &hack.name,
+                                    &hack.description,
+                                    &hack.author,
+                                    &hack.status,
+                                    &hack.file,
+                                    &hack.process,
+                                    &hack.source,
+                                    &hack.game,
+                                )
+                            })
+                            .collect())
+                    }
+                } else {
+                    Err(format!("API request failed with status: {}", res.status()))
+                }
             }
-        } else {
-            Err(format!("API request failed with status: {}", res.status()))
+            Err(e) => Err(format!("Failed to connect to API: {}", e)),
         }
     }
 
@@ -174,7 +160,7 @@ impl MyApp {
             ui.add_space(5.0);
             ui.horizontal(|ui| {
                 if ui
-                    .selectable_label(self.tab == AppTab::Home, "Home")
+                    .cselectable_label(self.tab == AppTab::Home, "Home")
                     .clicked()
                 {
                     self.tab = AppTab::Home;
@@ -201,48 +187,44 @@ impl MyApp {
         });
     }
 
-    fn load_favorites() -> Config {
-        let config_path = dirs::config_dir()
-            .unwrap_or_else(|| std::path::PathBuf::from("."))
-            .join("anarchyloader")
-            .join("config.json");
-
-        if let Ok(data) = fs::read_to_string(config_path) {
-            if let Ok(config) = serde_json::from_str::<Config>(&data) {
-                return config;
-            }
-        }
-        Config {
-            favorites: HashSet::new(),
-            show_only_favorites: false,
-            favorites_color: egui::Color32::GOLD,
-        }
-    }
-
-    fn save_favorites(&self) {
+    fn load_config() -> Config {
         let config_dir = dirs::config_dir()
-            .unwrap_or_else(|| std::path::PathBuf::from("."))
+            .unwrap_or_else(|| PathBuf::from("."))
             .join("anarchyloader");
 
         fs::create_dir_all(&config_dir).ok();
         let config_path = config_dir.join("config.json");
 
-        let config = Config {
-            favorites: self.favorites.clone(),
-            show_only_favorites: self.show_only_favorites,
-            favorites_color: self.favorites_color,
-        };
+        if let Ok(data) = fs::read_to_string(&config_path) {
+            serde_json::from_str::<Config>(&data).unwrap_or_default()
+        } else {
+            Config::default()
+        }
+    }
 
-        if let Ok(data) = serde_json::to_string(&config) {
+    fn save_config(&self) {
+        let config_dir = dirs::config_dir()
+            .unwrap_or_else(|| PathBuf::from("."))
+            .join("anarchyloader");
+
+        fs::create_dir_all(&config_dir).ok();
+        let config_path = config_dir.join("config.json");
+
+        if let Ok(data) = serde_json::to_string(&self.config) {
             fs::write(config_path, data).ok();
         }
+    }
+
+    fn reset_config(&mut self) {
+        self.config = Config::default();
+        self.save_config();
     }
 
     fn render_home_tab(&mut self, ctx: &egui::Context, theme_color: egui::Color32) {
         let mut items_by_game: BTreeMap<String, BTreeMap<String, Vec<Hack>>> = BTreeMap::new();
 
         for item in self.items.clone() {
-            if self.show_only_favorites && !self.favorites.contains(&item.name) {
+            if self.config.show_only_favorites && !self.config.favorites.contains(&item.name) {
                 continue;
             }
 
@@ -305,10 +287,10 @@ impl MyApp {
                                         let item_clone = item.clone();
 
                                         ui.horizontal(|ui| {
-                                            let is_favorite = self.favorites.contains(&item.name);
+                                            let is_favorite = self.config.favorites.contains(&item.name);
                                             let label = if is_favorite {
                                                 RichText::new(&item.name)
-                                                    .color(self.favorites_color)
+                                                    .color(self.config.favorites_color)
                                             } else {
                                                 RichText::new(&item.name)
                                             };
@@ -334,11 +316,11 @@ impl MyApp {
                                                     .clicked()
                                                 {
                                                     if is_favorite {
-                                                        self.favorites.remove(&item.name);
+                                                        self.config.favorites.remove(&item.name);
                                                     } else {
-                                                        self.favorites.insert(item.name.clone());
+                                                        self.config.favorites.insert(item.name.clone());
                                                     }
-                                                    self.save_favorites();
+                                                    self.save_config();
                                                 }
                                             }
                                             let file_path_owned = item.file_path.clone();
@@ -349,15 +331,15 @@ impl MyApp {
                                                 if is_favorite {
                                                     if ui.cbutton("Remove from favorites").clicked()
                                                     {
-                                                        self.favorites.remove(&item.name);
-                                                        self.save_favorites();
+                                                        self.config.favorites.remove(&item.name);
+                                                        self.save_config();
                                                         ui.close_menu();
                                                     }
                                                 } else {
                                                     if ui.cbutton("Add to favorites").clicked()
                                                     {
-                                                        self.favorites.insert(item.name.clone());
-                                                        self.save_favorites();
+                                                        self.config.favorites.insert(item.name.clone());
+                                                        self.save_config();
                                                         ui.close_menu();
                                                     }
                                                 }
@@ -485,6 +467,7 @@ impl MyApp {
                     let status_message = Arc::clone(&self.status_message);
                     let selected_clone = selected.clone();
                     let ctx_clone = ctx.clone();
+                    let skip_injects_clone = self.config.skip_injects_delay.clone();
 
                     {
                         let mut status = status_message.lock().unwrap();
@@ -495,7 +478,9 @@ impl MyApp {
 
                     thread::spawn(move || {
                         ctx_clone.request_repaint();
-                        thread::sleep(Duration::from_secs(1));
+                        if !skip_injects_clone {
+                            thread::sleep(Duration::from_secs(1));
+                        }
 
                         if !selected_clone.file_path.exists() {
                             {
@@ -508,6 +493,8 @@ impl MyApp {
                                 .download(selected_clone.file_path.to_string_lossy().to_string())
                             {
                                 Ok(_) => {
+                                    let mut status = status_message.lock().unwrap();
+                                    *status = "Downloaded.".to_string();
                                     ctx_clone.request_repaint();
                                 }
                                 Err(e) => {
@@ -519,22 +506,21 @@ impl MyApp {
                                     return;
                                 }
                             }
-                        } else {
-                            {
-                                let mut status = status_message.lock().unwrap();
-                                *status = "File already exists. Skipping download.".to_string();
-                            }
-                            ctx_clone.request_repaint();
                         }
 
-                        thread::sleep(Duration::from_secs(1));
+                        if !skip_injects_clone {
+                            thread::sleep(Duration::from_secs(1));
+                        }
 
                         {
                             let mut status = status_message.lock().unwrap();
                             *status = "Injecting...".to_string();
                         }
                         ctx_clone.request_repaint();
-                        thread::sleep(Duration::from_secs(1));
+
+                        if !skip_injects_clone {
+                            thread::sleep(Duration::from_secs(1));
+                        }
 
                         if let Some(target_process) =
                             OwnedProcess::find_first_by_name(&selected_clone.process)
@@ -602,21 +588,60 @@ impl MyApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("Settings");
             ui.separator();
+
             if ui
-                .checkbox(&mut self.show_only_favorites, "Show only favorite hacks")
+                .checkbox(
+                    &mut self.config.show_only_favorites,
+                    "Show only favorite hacks",
+                )
                 .on_hover_cursor(Clickable)
                 .changed()
             {
-                self.save_favorites();
+                self.save_config();
             }
+
             ui.add_space(10.0);
-            ui.label("Favorites Color:");
+
             if ui
-                .color_edit_button_srgba(&mut self.favorites_color)
+                .checkbox(
+                    &mut self.config.skip_injects_delay,
+                    "Skip injects delay (visual)",
+                )
                 .on_hover_cursor(Clickable)
                 .changed()
             {
-                self.save_favorites();
+                self.save_config();
+            }
+
+            ui.add_space(10.0);
+
+            ui.horizontal(|ui| {
+                ui.label("Favorites Color:");
+                if ui
+                    .color_edit_button_srgba(&mut self.config.favorites_color)
+                    .on_hover_cursor(Clickable)
+                    .changed()
+                {
+                    self.save_config();
+                }
+            });
+
+            ui.add_space(10.0);
+
+            ui.horizontal(|ui| {
+                ui.label("API Endpoint:");
+                if ui
+                    .text_edit_singleline(&mut self.config.api_endpoint)
+                    .changed()
+                {
+                    self.save_config();
+                }
+            });
+
+            ui.add_space(10.0);
+
+            if ui.cbutton("Reset settings").clicked() {
+                self.reset_config();
             }
         });
     }
@@ -662,6 +687,14 @@ impl App for MyApp {
                             .size(24.0)
                             .strong(),
                     );
+
+                    ui.label("API Endpoint (editable):");
+                    if ui
+                        .text_edit_singleline(&mut self.config.api_endpoint)
+                        .changed()
+                    {
+                        self.save_config();
+                    }
                 });
             });
             return;

@@ -1,6 +1,6 @@
+use std::{fs::File, io::copy};
+
 use reqwest;
-use std::fs::File;
-use std::io::copy;
 
 pub fn download_file(file: &str, destination: &str) -> Result<(), Box<dyn std::error::Error>> {
     let response = reqwest::blocking::get(format!(
