@@ -241,6 +241,7 @@ impl MyApp {
         egui::SidePanel::left("left_panel")
             .resizable(true)
             .default_width(200.0)
+            .max_width(300.0)
             .show(ctx, |ui| {
                 ui.add_space(5.0);
 
@@ -248,16 +249,17 @@ impl MyApp {
                     for (game_name, versions) in items_by_game {
                         ui.group(|ui| {
                             ui.with_layout(egui::Layout::top_down(egui::Align::Min), |ui| {
-                                ui.heading(game_name);
+                                ui.with_layout(egui::Layout::top_down_justified(egui::Align::Center), |ui|{ui.heading(game_name)});
                                 ui.separator();
                                 for (version, items) in versions {
                                     if !version.is_empty() {
-                                        ui.label(RichText::new(version).heading());
+                                        ui.with_layout(egui::Layout::top_down_justified(egui::Align::Center), |ui| {
+                                            ui.label(RichText::new(version).heading())
+                                        });
                                     }
 
                                     for item in items {
                                         let item_clone = item.clone();
-
                                         ui.horizontal(|ui| {
                                             let is_favorite = self.config.favorites.contains(&item.name);
                                             let label = if is_favorite {
@@ -266,6 +268,7 @@ impl MyApp {
                                             } else {
                                                 RichText::new(&item.name)
                                             };
+
                                             let response = ui.selectable_label(
                                                 self.selected_item.as_ref() == Some(&item),
                                                 label,
@@ -317,32 +320,39 @@ impl MyApp {
                                                     }
                                                 }
 
-                                                if ui.button_with_tooltip("Open in Explorer", "Open the file location in Explorer").clicked()
-                                                {
-                                                    if !Path::new(&file_path_owned).exists() {
-                                                        let mut status =
-                                                            status_message.lock().unwrap();
-                                                        *status =
-                                                            "Failed: File does not exist.".to_string();
-                                                        ctx_clone.request_repaint();
-                                                        return;
-                                                    }
-
-                                                    if let Err(e) = Command::new("explorer.exe")
-                                                        .arg(format!(
-                                                            "/select,{}",
-                                                            item.file_path.to_string_lossy()
-                                                        ))
-                                                        .spawn()
-                                                    {
-                                                        let mut status =
-                                                            self.status_message.lock().unwrap();
-                                                        *status = format!(
-                                                            "Failed to open Explorer: {}",
-                                                            e
-                                                        );
+                                                if Path::new(&file_path_owned).exists() {
+                                                    if ui.button_with_tooltip("Open in Explorer", "Open the file location in Explorer").clicked() {
+                                                        if let Err(e) = Command::new("explorer.exe")
+                                                            .arg(format!(
+                                                                "/select,{}",
+                                                                item.file_path.to_string_lossy()
+                                                            ))
+                                                            .spawn()
+                                                        {
+                                                            let mut status =
+                                                                self.status_message.lock().unwrap();
+                                                            *status = format!(
+                                                                "Failed to open Explorer: {}",
+                                                                e
+                                                            );
+                                                        }
                                                     }
                                                 }
+
+                                                if ui.button_with_tooltip("Uninstall", "Uninstall the selected item").clicked() {
+                                                        if let Err(e) = std::fs::remove_file(&file_path_owned) {
+                                                            let mut status =
+                                                                self.status_message.lock().unwrap();
+                                                            *status = format!(
+                                                                "Failed to uninstall: {}",
+                                                                e
+                                                            );
+                                                        } else {
+                                                            let mut status =
+                                                                self.status_message.lock().unwrap();
+                                                            *status = "Uninstall successful.".to_string();
+                                                        }
+                                                    }
 
                                                 if ui.button_with_tooltip("Reinstall", "Reinstall the selected item").clicked()
                                                 {
@@ -426,7 +436,8 @@ impl MyApp {
                 ui.horizontal(|ui| {
                     ui.heading(&selected.name);
                     ui.label(RichText::new(format!("by {}", selected.author)).color(theme_color));
-                    ui.hyperlink_to("(source)", &selected.source).on_hover_text(&selected.source)
+                    ui.hyperlink_to("(source)", &selected.source)
+                        .on_hover_text(&selected.source)
                 });
                 ui.separator();
                 ui.label(&selected.description);
