@@ -68,4 +68,37 @@ impl Hack {
             Ok(())
         }
     }
+
+    pub(crate) fn fetch_hacks(api_endpoint: &str) -> Result<Vec<Hack>, String> {
+        match reqwest::blocking::get(api_endpoint) {
+            Ok(res) => {
+                if res.status().is_success() {
+                    let parsed_hacks: Vec<HackApiResponse> =
+                        res.json().map_err(|e| e.to_string())?;
+                    if parsed_hacks.is_empty() {
+                        Err("No hacks available.".to_string())
+                    } else {
+                        Ok(parsed_hacks
+                            .into_iter()
+                            .map(|hack| {
+                                Hack::new(
+                                    &hack.name,
+                                    &hack.description,
+                                    &hack.author,
+                                    &hack.status,
+                                    &hack.file,
+                                    &hack.process,
+                                    &hack.source,
+                                    &hack.game,
+                                )
+                            })
+                            .collect())
+                    }
+                } else {
+                    Err(format!("API request failed with status: {}", res.status()))
+                }
+            }
+            Err(e) => Err(format!("Failed to connect to API: {}", e)),
+        }
+    }
 }

@@ -4,6 +4,7 @@ mod config;
 mod custom_widgets;
 mod downloader;
 mod hacks;
+mod inject;
 
 use std::{
     collections::BTreeMap,
@@ -12,18 +13,16 @@ use std::{
     process::Command,
     sync::{Arc, Mutex},
     thread,
-    time::Duration,
 };
 
 use config::Config;
 use custom_widgets::{Button, SelectableLabel};
-use dll_syringe::{process::OwnedProcess, Syringe};
 use eframe::{
     egui::{self, RichText, Spinner},
     App,
 };
 use egui::{CursorIcon::PointingHand as Clickable, Sense};
-use hacks::{Hack, HackApiResponse};
+use hacks::Hack;
 
 pub(crate) fn load_icon() -> egui::IconData {
     let (icon_rgba, icon_width, icon_height) = {
@@ -92,7 +91,7 @@ impl MyApp {
         let status_message = Arc::new(Mutex::new(String::new()));
         let inject_in_progress = Arc::new(std::sync::atomic::AtomicBool::new(false));
 
-        let items = match Self::fetch_hacks(&config.api_endpoint) {
+        let items = match hacks::Hack::fetch_hacks(&config.api_endpoint) {
             Ok(hacks) => hacks,
             Err(err) => {
                 return Self {
@@ -119,39 +118,6 @@ impl MyApp {
             tab: AppTab::default(),
             search_query: String::new(),
             config: config,
-        }
-    }
-
-    fn fetch_hacks(api_endpoint: &str) -> Result<Vec<Hack>, String> {
-        match reqwest::blocking::get(api_endpoint) {
-            Ok(res) => {
-                if res.status().is_success() {
-                    let parsed_hacks: Vec<HackApiResponse> =
-                        res.json().map_err(|e| e.to_string())?;
-                    if parsed_hacks.is_empty() {
-                        Err("No hacks available.".to_string())
-                    } else {
-                        Ok(parsed_hacks
-                            .into_iter()
-                            .map(|hack| {
-                                Hack::new(
-                                    &hack.name,
-                                    &hack.description,
-                                    &hack.author,
-                                    &hack.status,
-                                    &hack.file,
-                                    &hack.process,
-                                    &hack.source,
-                                    &hack.game,
-                                )
-                            })
-                            .collect())
-                    }
-                } else {
-                    Err(format!("API request failed with status: {}", res.status()))
-                }
-            }
-            Err(e) => Err(format!("Failed to connect to API: {}", e)),
         }
     }
 
@@ -448,87 +414,7 @@ impl MyApp {
                     .on_hover_text(&selected.file)
                     .clicked()
                 {
-                    let inject_in_progress = Arc::clone(&self.inject_in_progress);
-                    let status_message = Arc::clone(&self.status_message);
-                    let selected_clone = selected.clone();
-                    let ctx_clone = ctx.clone();
-                    let skip_injects_clone = self.config.skip_injects_delay.clone();
-
-                    {
-                        let mut status = status_message.lock().unwrap();
-                        *status = "Starting injection...".to_string();
-                    }
-
-                    inject_in_progress.store(true, std::sync::atomic::Ordering::SeqCst);
-
-                    thread::spawn(move || {
-                        ctx_clone.request_repaint();
-                        if !skip_injects_clone {
-                            thread::sleep(Duration::from_secs(1));
-                        }
-
-                        if !selected_clone.file_path.exists() {
-                            {
-                                let mut status = status_message.lock().unwrap();
-                                *status = "Downloading...".to_string();
-                            }
-                            ctx_clone.request_repaint();
-
-                            match selected_clone
-                                .download(selected_clone.file_path.to_string_lossy().to_string())
-                            {
-                                Ok(_) => {
-                                    let mut status = status_message.lock().unwrap();
-                                    *status = "Downloaded.".to_string();
-                                    ctx_clone.request_repaint();
-                                }
-                                Err(e) => {
-                                    let mut status = status_message.lock().unwrap();
-                                    *status = format!("{}", e);
-                                    inject_in_progress
-                                        .store(false, std::sync::atomic::Ordering::SeqCst);
-                                    ctx_clone.request_repaint();
-                                    return;
-                                }
-                            }
-                        }
-
-                        if !skip_injects_clone {
-                            thread::sleep(Duration::from_secs(1));
-                        }
-
-                        {
-                            let mut status = status_message.lock().unwrap();
-                            *status = "Injecting...".to_string();
-                        }
-                        ctx_clone.request_repaint();
-
-                        if !skip_injects_clone {
-                            thread::sleep(Duration::from_secs(1));
-                        }
-
-                        if let Some(target_process) =
-                            OwnedProcess::find_first_by_name(&selected_clone.process)
-                        {
-                            let syringe = Syringe::for_process(target_process);
-                            if let Err(e) = syringe.inject(selected_clone.file_path.clone()) {
-                                let mut status = status_message.lock().unwrap();
-                                *status = format!("Failed to inject: {}", e);
-                            } else {
-                                let mut status = status_message.lock().unwrap();
-                                *status = "Injection successful.".to_string();
-                            }
-                        } else {
-                            let mut status = status_message.lock().unwrap();
-                            *status = format!(
-                                "Failed to inject: Process '{}' not found.",
-                                selected_clone.process
-                            );
-                        }
-
-                        inject_in_progress.store(false, std::sync::atomic::Ordering::SeqCst);
-                        ctx_clone.request_repaint();
-                    });
+                    self.start_injection(selected.clone(), ctx.clone());
                 }
 
                 let inject_in_progress = self
