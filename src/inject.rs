@@ -1,8 +1,4 @@
-use std::{
-    sync::Arc,
-    thread,
-    time::Duration,
-};
+use std::{sync::Arc, thread, time::Duration};
 
 use dll_syringe::{process::OwnedProcess, Syringe};
 use eframe::egui::{self};
