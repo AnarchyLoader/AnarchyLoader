@@ -215,19 +215,24 @@ impl MyApp {
                     for (game_name, versions) in items_by_game {
                         ui.group(|ui| {
                             ui.with_layout(egui::Layout::top_down(egui::Align::Min), |ui| {
-                                ui.with_layout(egui::Layout::top_down_justified(egui::Align::Center), |ui|{ui.heading(game_name)});
+                                ui.with_layout(
+                                    egui::Layout::top_down_justified(egui::Align::Center),
+                                    |ui| ui.heading(game_name),
+                                );
                                 ui.separator();
                                 for (version, items) in versions {
                                     if !version.is_empty() {
-                                        ui.with_layout(egui::Layout::top_down_justified(egui::Align::Center), |ui| {
-                                            ui.label(RichText::new(version).heading())
-                                        });
+                                        ui.with_layout(
+                                            egui::Layout::top_down_justified(egui::Align::Center),
+                                            |ui| ui.label(RichText::new(version).heading()),
+                                        );
                                     }
 
                                     for item in items {
                                         let item_clone = item.clone();
                                         ui.horizontal(|ui| {
-                                            let is_favorite = self.config.favorites.contains(&item.name);
+                                            let is_favorite =
+                                                self.config.favorites.contains(&item.name);
                                             let label = if is_favorite {
                                                 RichText::new(&item.name)
                                                     .color(self.config.favorites_color)
@@ -259,7 +264,9 @@ impl MyApp {
                                                     if is_favorite {
                                                         self.config.favorites.remove(&item.name);
                                                     } else {
-                                                        self.config.favorites.insert(item.name.clone());
+                                                        self.config
+                                                            .favorites
+                                                            .insert(item.name.clone());
                                                     }
                                                     self.config.save_config();
                                                 }
@@ -268,6 +275,13 @@ impl MyApp {
                                             let file_path_owned = item.file_path.clone();
                                             let ctx_clone = ctx.clone();
                                             let status_message = Arc::clone(&self.status_message);
+
+                                            if response.clicked() {
+                                                self.selected_item = Some(item_clone.clone());
+                                                let mut status =
+                                                    self.status_message.lock().unwrap();
+                                                *status = String::new();
+                                            }
 
                                             response.context_menu(|ui| {
                                                 if is_favorite {
@@ -377,14 +391,7 @@ impl MyApp {
                                                     });
                                                 }
                                             });
-
-                                            if response.clicked() {
-                                                self.selected_item = Some(item_clone.clone());
-                                                let mut status =
-                                                    self.status_message.lock().unwrap();
-                                                *status = String::new();
-                                            }
-
+                                            
                                             response.on_hover_cursor(Clickable);
                                         });
                                     }
