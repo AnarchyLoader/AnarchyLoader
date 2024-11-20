@@ -155,7 +155,7 @@ checksum = "45862d1c77f2228b9e10bc609d5bc203d86ebc9b87ad8d5d5167a6c9abf739d9"
 
 [[package]]
 name = "anarchyloader"
-version = "1.0.3"
+version = "1.0.4"
 dependencies = [
  "dirs",
  "dll-syringe",
