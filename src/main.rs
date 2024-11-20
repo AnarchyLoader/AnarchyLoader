@@ -23,6 +23,7 @@ use eframe::{
 };
 use egui::{CursorIcon::PointingHand as Clickable, Sense};
 use hacks::Hack;
+use is_elevated::is_elevated;
 
 pub(crate) fn load_icon() -> egui::IconData {
     let (icon_rgba, icon_width, icon_height) = {
@@ -415,13 +416,26 @@ impl MyApp {
                 ui.separator();
                 ui.label(&selected.description);
 
+                if !is_elevated() && selected.game == "CSGO" {
+                    ui.label(
+                        RichText::new("for csgo hacks you need to run loader as admin!")
+                            .color(egui::Color32::RED),
+                    );
+                }
+
                 if ui
                     .button(format!("Inject {}", selected.name))
                     .on_hover_cursor(Clickable)
                     .on_hover_text(&selected.file)
                     .clicked()
                 {
-                    self.start_injection(selected.clone(), ctx.clone());
+                    if selected.game != "CSGO" {
+                        self.start_injection(selected.clone(), ctx.clone());
+                    } else {
+                        if is_elevated() {
+                            self.manual_map_injection(selected.clone(), ctx.clone());
+                        }
+                    }
                 }
 
                 let inject_in_progress = self
