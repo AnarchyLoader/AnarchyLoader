@@ -1,0 +1,85 @@
+body {
+    margin: 0;
+    padding: 0;
+    background-color: black;
+    color: white;
+    font-family: monospace;
+}
+
+.background-video {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1000;
+    object-fit: cover;
+    filter: brightness(0.3);
+    transition: all 1s;
+}
+
+.background-img {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: -999;
+    display: none;
+    filter: brightness(0.1);
+    transition: all 1s;
+}
+
+.center {
+    margin: 0;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.warn {
+    opacity: 0;
+    transition: all 500ms;
+    font-size: x-large;
+}
+
+.gui {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-direction: column;
+
+    margin: 0;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    opacity: 0;
+    transition: all 300ms;
+    width: 500px;
+    height: 300px;
+    background-color: rgba(255, 255, 255, 0.048);
+    border-radius: 10px;
+    pointer-events: none;
+    backdrop-filter: blur(10px);
+}
+
+.gui img {
+    height: 100px;
+    transition: all 300ms;
+    opacity: 0;
+}
+
+.buttons {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    margin-bottom: 1rem;
+}
+
+.buttons a {
+    padding: 0.5rem;
+}
