@@ -23,7 +23,7 @@ fn default_favorites_color() -> egui::Color32 {
 }
 
 fn default_api_endpoint() -> String {
-    "https://anarchy.collapseloader.org/api/hacks/".to_string()
+    "https://api.anarchy.my/api/hacks/".to_string()
 }
 
 fn default_cdn_endpoint() -> String {

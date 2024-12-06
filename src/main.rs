@@ -560,7 +560,7 @@ impl MyApp {
             ui.add_space(10.0);
             ui.horizontal(|ui| {
                 if ui.cbutton("Visit Website").clicked() {
-                    let _ = opener::open("https://anarchy.collapseloader.org");
+                    let _ = opener::open("https://anarchy.my");
                 }
                 if ui.cbutton("Github Repository").clicked() {
                     let _ = opener::open("https://github.com/AnarchyLoader/AnarchyLoader");
