@@ -39,6 +39,11 @@ rustup default nightly
 cargo build --release
 ```
 
+## Credits
+* [egui](https://github.com/emilk/egui)
+* [dll-syringe](https://github.com/OpenByteDev/dll-syringe)
+* [manual-map-injector](https://github.com/TheCruZ/Simple-Manual-Map-Injector)
+
 ## License
 
 This project is licensed under the GPL 3.0 License. See the [LICENSE](https://github.com/AnarchyLoader/AnarchyLoader/blob/main/LICENSE) file for details.
