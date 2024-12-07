@@ -42,7 +42,7 @@ cargo build --release
 ## Credits
 * [egui](https://github.com/emilk/egui)
 * [dll-syringe](https://github.com/OpenByteDev/dll-syringe)
-* [manual-map-injector](https://github.com/TheCruZ/Simple-Manual-Map-Injector)
+* [CSGOInjector](https://github.com/Brassinolide/CSGOInjector)
 
 ## License
 
