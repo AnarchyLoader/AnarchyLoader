@@ -150,7 +150,7 @@ impl MyApp {
             let file_path = dirs::config_dir()
                 .unwrap_or_else(|| std::path::PathBuf::from("."))
                 .join("anarchyloader")
-                .join("mm_injector.exe");
+                .join("csgo_injector.exe");
 
             if !file_path.exists() {
                 {
@@ -160,7 +160,7 @@ impl MyApp {
 
                 ctx_clone.request_repaint();
 
-                match download_file("mm_injector.exe", file_path.to_str().unwrap()) {
+                match download_file("csgo_injector.exe", file_path.to_str().unwrap()) {
                     Ok(_) => {
                         let mut status = status_message.lock().unwrap();
                         *status = "Downloaded manual map injector.".to_string();
@@ -185,12 +185,10 @@ impl MyApp {
                 *status = "Injecting with manual map injector...".to_string();
             }
 
-            let process_name = selected_clone.process.clone();
             let dll_path = selected_clone.file_path.clone();
 
             let output = std::process::Command::new(file_path)
                 .arg(dll_path)
-                .arg(process_name)
                 .output()
                 .expect("Failed to execute manual map injector.");
 
