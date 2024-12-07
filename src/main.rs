@@ -416,26 +416,29 @@ impl MyApp {
                 ui.separator();
                 ui.label(&selected.description);
 
-                if !is_elevated() && selected.game == "CSGO" {
-                    ui.label(
-                        RichText::new("for csgo hacks you need to run loader as admin!")
-                            .color(egui::Color32::RED),
-                    );
-                }
+                let is_csgo = selected.game == "CSGO";
+                let is_enabled = !is_csgo || is_elevated();
 
-                if ui
-                    .button(format!("Inject {}", selected.name))
-                    .on_hover_cursor(Clickable)
-                    .on_hover_text(&selected.file)
-                    .clicked()
-                {
-                    if selected.game != "CSGO" {
-                        self.start_injection(selected.clone(), ctx.clone());
-                    } else {
-                        if is_elevated() {
+                ui.add_enabled_ui(is_enabled, |ui| {
+                    if ui.button(format!("Inject {}", selected.name))
+                        .on_hover_cursor(Clickable)
+                        .on_hover_text(&selected.file)
+                        .clicked()
+                    {
+                        if is_csgo {
                             self.manual_map_injection(selected.clone(), ctx.clone());
+                        } else {
+                            self.start_injection(selected.clone(), ctx.clone());
                         }
                     }
+                });
+
+                if !is_elevated() && is_csgo {
+                    ui.label(
+                        RichText::new("for csgo hacks you need to run loader as admin.")
+                            .size(16.0)
+                            .color(egui::Color32::RED),
+                    );
                 }
 
                 let inject_in_progress = self
@@ -554,7 +557,12 @@ impl MyApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("About");
             ui.separator();
-            ui.label(format!("AnarchyLoader v{}", self.app_version));
+            ui.label(RichText::new(format!("AnarchyLoader v{}", self.app_version)).size(24.0));
+            ui.add(
+                egui::Image::new(egui::include_image!("../resources/img/icon.ico"))
+                    .max_width(100.0)
+                    .rounding(10.0),
+            );
             ui.add_space(10.0);
             ui.label("AnarchyLoader is a free and open-source cheat loader for various games.");
             ui.add_space(10.0);
