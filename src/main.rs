@@ -417,27 +417,24 @@ impl MyApp {
                 ui.label(&selected.description);
 
                 let is_csgo = selected.game == "CSGO";
-                let is_enabled = !is_csgo || is_elevated();
 
-                ui.add_enabled_ui(is_enabled, |ui| {
-                    if ui.button(format!("Inject {}", selected.name))
-                        .on_hover_cursor(Clickable)
-                        .on_hover_text(&selected.file)
-                        .clicked()
-                    {
-                        if is_csgo {
-                            self.manual_map_injection(selected.clone(), ctx.clone());
-                        } else {
-                            self.start_injection(selected.clone(), ctx.clone());
-                        }
+                if ui.button(format!("Inject {}", selected.name))
+                    .on_hover_cursor(Clickable)
+                    .on_hover_text(&selected.file)
+                    .clicked()
+                {
+                    if is_csgo {
+                        self.manual_map_injection(selected.clone(), ctx.clone());
+                    } else {
+                        self.start_injection(selected.clone(), ctx.clone());
                     }
-                });
-
-                if !is_elevated() && is_csgo {
+                }
+                
+                if !is_elevated() && is_csgo && !self.config.hide_csgo_warning {
                     ui.label(
-                        RichText::new("for csgo hacks you need to run loader as admin.")
-                            .size(16.0)
-                            .color(egui::Color32::RED),
+                        RichText::new("If you encounter an error stating that csgo.exe is not found\ntry running the loader as an administrator.")
+                            .size(11.0)
+                            .color(egui::Color32::YELLOW),
                     );
                 }
 
@@ -503,6 +500,19 @@ impl MyApp {
                 .checkbox(
                     &mut self.config.skip_injects_delay,
                     "Skip injects delay (visual)",
+                )
+                .on_hover_cursor(Clickable)
+                .changed()
+            {
+                self.config.save_config();
+            }
+
+            ui.add_space(10.0);
+
+            if ui
+                .checkbox(
+                    &mut self.config.hide_csgo_warning,
+                    "Hide CSGO warning"
                 )
                 .on_hover_cursor(Clickable)
                 .changed()
