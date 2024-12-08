@@ -42,7 +42,6 @@ cargo build --release
 ## Credits
 * [egui](https://github.com/emilk/egui)
 * [dll-syringe](https://github.com/OpenByteDev/dll-syringe)
-* [CSGOInjector](https://github.com/Brassinolide/CSGOInjector)
 
 Contributions are welcome! Please open an issue or submit a pull request on GitHub.
 
