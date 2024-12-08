@@ -1,5 +1,5 @@
-window.onload = function() {
-    const video = document.querySelector('.background-video');    
+window.onload = function () {
+    const video = document.querySelector('.background-video');
     const img = document.querySelector('.background-img');
     const warn = document.querySelector('.warn');
     var showen = false;
@@ -24,11 +24,11 @@ window.onload = function() {
 
 function handleGui() {
     console.log("Showing GUI");
-    
+
     const gui = document.querySelector('.gui');
     const warn = document.querySelector('.warn');
     const logo = document.querySelector('.logo');
-    
+
     if (gui.style.opacity == 0) {
         warn.style.opacity = 0;
         gui.style.opacity = 1;
