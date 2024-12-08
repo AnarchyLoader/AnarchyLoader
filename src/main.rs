@@ -567,14 +567,16 @@ impl MyApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("About");
             ui.separator();
-            ui.label(RichText::new(format!("AnarchyLoader v{}", self.app_version)).size(24.0));
             ui.add(
                 egui::Image::new(egui::include_image!("../resources/img/icon.ico"))
                     .max_width(100.0)
                     .rounding(10.0),
             );
+            ui.label(RichText::new(format!("v{}", self.app_version)).size(15.0));
             ui.add_space(10.0);
-            ui.label("AnarchyLoader is a free and open-source cheat loader for various games.");
+            ui.label(RichText::new("AnarchyLoader is a free and open-source cheat loader for various games.").size(16.0));
+            ui.add_space(5.0);
+            ui.hyperlink_to("by dest4590", "https://github.com/dest4590");
             ui.add_space(10.0);
             ui.horizontal(|ui| {
                 if ui.cbutton("Visit Website").clicked() {
