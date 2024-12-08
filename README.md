@@ -5,6 +5,7 @@
 </div>
 
 ## Showcase
+
 <div align="center">
     <img src="https://github.com/user-attachments/assets/c00e3cf2-4853-497e-a455-4cd0a539c735" width=500>
 </div>
@@ -40,8 +41,9 @@ cargo build --release
 ```
 
 ## Credits
-* [egui](https://github.com/emilk/egui)
-* [dll-syringe](https://github.com/OpenByteDev/dll-syringe)
+
+-   [egui](https://github.com/emilk/egui)
+-   [dll-syringe](https://github.com/OpenByteDev/dll-syringe)
 
 Contributions are welcome! Please open an issue or submit a pull request on GitHub.
 

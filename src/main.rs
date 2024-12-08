@@ -122,6 +122,7 @@ impl MyApp {
         }
     }
 
+    // MARK: Top panel
     fn render_top_panel(&mut self, ctx: &egui::Context) {
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
             ui.add_space(5.0);
@@ -159,6 +160,7 @@ impl MyApp {
         self.config.save_config();
     }
 
+    // MARK: - Home tab
     fn render_home_tab(&mut self, ctx: &egui::Context, theme_color: egui::Color32) {
         let mut items_by_game: BTreeMap<String, BTreeMap<String, Vec<Hack>>> = BTreeMap::new();
 
@@ -205,6 +207,7 @@ impl MyApp {
             !versions.is_empty()
         });
 
+        // MARK: Left panel
         egui::SidePanel::left("left_panel")
             .resizable(true)
             .default_width(200.0)
@@ -284,6 +287,7 @@ impl MyApp {
                                                 *status = String::new();
                                             }
 
+                                            // MARK: Context menu
                                             response.context_menu(|ui| {
                                                 if is_favorite {
                                                     if ui.cbutton("Remove from favorites").clicked()
@@ -403,7 +407,8 @@ impl MyApp {
                     }
                 });
             });
-
+        
+        // MARK: Selected hack panel
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.add_space(10.0);
             if let Some(selected) = &self.selected_item {
@@ -478,6 +483,7 @@ impl MyApp {
         });
     }
 
+    // MARK: - Settings Tab
     fn render_settings_tab(&mut self, ctx: &egui::Context) {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("Settings");
@@ -510,10 +516,7 @@ impl MyApp {
             ui.add_space(10.0);
 
             if ui
-                .checkbox(
-                    &mut self.config.hide_csgo_warning,
-                    "Hide CSGO warning"
-                )
+                .checkbox(&mut self.config.hide_csgo_warning, "Hide CSGO warning")
                 .on_hover_cursor(Clickable)
                 .changed()
             {
@@ -560,9 +563,17 @@ impl MyApp {
             if ui.cbutton("Reset settings").clicked() {
                 self.reset_config();
             }
+
+            if ui.cbutton("Open loader folder").clicked() {
+                let downloads_dir = dirs::config_dir()
+                .unwrap_or_else(|| std::path::PathBuf::from("."))
+                .join("anarchyloader");
+                let _ = opener::open(downloads_dir);
+            }
         });
     }
 
+    // MARK: - About Tab
     fn render_about_tab(&mut self, ctx: &egui::Context) {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("About");
@@ -574,7 +585,12 @@ impl MyApp {
             );
             ui.label(RichText::new(format!("v{}", self.app_version)).size(15.0));
             ui.add_space(10.0);
-            ui.label(RichText::new("AnarchyLoader is a free and open-source cheat loader for various games.").size(16.0));
+            ui.label(
+                RichText::new(
+                    "AnarchyLoader is a free and open-source cheat loader for various games.",
+                )
+                .size(16.0),
+            );
             ui.add_space(5.0);
             ui.hyperlink_to("by dest4590", "https://github.com/dest4590");
             ui.add_space(10.0);

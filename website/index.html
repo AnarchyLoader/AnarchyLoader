@@ -1,33 +1,37 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AnarchyLoader</title>
-    <link rel="stylesheet" href="static/css/styles.css">
-    <script src="static/js/script.js"></script>
-    <link rel="icon" href="static/assets/logo.png">
-</head>
-<body>
-    <video autoplay muted class="background-video">
-        <source src="static/assets/background.mp4" type="video/mp4">
-    </video>
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>AnarchyLoader</title>
+        <link rel="stylesheet" href="static/css/styles.css" />
+        <script src="static/js/script.js"></script>
+        <link rel="icon" href="static/assets/logo.png" />
+    </head>
+    <body>
+        <video autoplay muted class="background-video">
+            <source src="static/assets/background.mp4" type="video/mp4" />
+        </video>
 
-    <img src="static/assets/background.png" class="background-img">
+        <img src="static/assets/background.png" class="background-img" />
 
-    <div class="warn center">
-        <h1>PRESS INSERT.</h1>
-    </div>
-
-    <div class="gui">
-        <h1>Downloader</h1>
-
-        <img src="static/assets/logo.png" class="logo">
-
-        <div class="buttons">
-            <a href="#release" onclick="downloadRelease()">Download latest release</a>
-            <a href="#nightly" onclick="downloadNightly()">Download nightly version</a>
+        <div class="warn center">
+            <h1>PRESS INSERT.</h1>
         </div>
-    </div>
-</body>
+
+        <div class="gui">
+            <h1>Downloader</h1>
+
+            <img src="static/assets/logo.png" class="logo" />
+
+            <div class="buttons">
+                <a href="#release" onclick="downloadRelease()"
+                    >Download latest release</a
+                >
+                <a href="#nightly" onclick="downloadNightly()"
+                    >Download nightly version</a
+                >
+            </div>
+        </div>
+    </body>
 </html>
