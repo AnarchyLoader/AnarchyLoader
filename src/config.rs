@@ -16,6 +16,8 @@ pub struct Config {
     pub api_endpoint: String,
     #[serde(default = "default_cdn_endpoint")]
     pub cdn_endpoint: String,
+    #[serde(default = "default_hide_csgo_warning")]
+    pub hide_csgo_warning: bool,
 }
 
 fn default_favorites_color() -> egui::Color32 {
@@ -30,6 +32,10 @@ fn default_cdn_endpoint() -> String {
     "https://cdn.collapseloader.org/anarchy/".to_string()
 }
 
+fn default_hide_csgo_warning() -> bool {
+    false
+}
+
 impl Default for Config {
     fn default() -> Self {
         Config {
@@ -39,6 +45,7 @@ impl Default for Config {
             skip_injects_delay: false,
             api_endpoint: default_api_endpoint(),
             cdn_endpoint: default_cdn_endpoint(),
+            hide_csgo_warning: default_hide_csgo_warning(),
         }
     }
 }
