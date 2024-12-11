@@ -1,4 +1,10 @@
-use std::{sync::Arc, thread, time::Duration};
+use std::{
+    path::PathBuf,
+    process::Command,
+    sync::{mpsc::Sender, Arc},
+    thread,
+    time::Duration,
+};
 
 use dll_syringe::{process::OwnedProcess, Syringe};
 use eframe::egui::{self};
@@ -6,7 +12,12 @@ use eframe::egui::{self};
 use crate::{downloader::download_file, Hack, MyApp};
 
 impl MyApp {
-    pub fn start_injection(&self, selected: Hack, ctx: egui::Context) {
+    pub fn start_injection(
+        &self,
+        selected: Hack,
+        ctx: egui::Context,
+        error_sender: Sender<String>,
+    ) {
         let inject_in_progress = Arc::clone(&self.inject_in_progress);
         let status_message = Arc::clone(&self.status_message);
         let selected_clone = selected.clone();
@@ -46,7 +57,7 @@ impl MyApp {
                         *status = format!("{}", e);
                         inject_in_progress.store(false, std::sync::atomic::Ordering::SeqCst);
                         ctx_clone.request_repaint();
-                        return;
+                        let _ = error_sender.send(format!("Failed to inject: {}", e));
                     }
                 }
             }
@@ -71,9 +82,15 @@ impl MyApp {
                 if let Err(e) = syringe.inject(selected_clone.file_path.clone()) {
                     let mut status = status_message.lock().unwrap();
                     *status = format!("Failed to inject: {}", e);
+                    let _ = error_sender.send(format!("Failed to inject: {}", e));
+                    Ok::<(), ()>(())
                 } else {
                     let mut status = status_message.lock().unwrap();
                     *status = "Injection successful.".to_string();
+                    inject_in_progress.store(false, std::sync::atomic::Ordering::SeqCst);
+                    let _ =
+                        error_sender.send(format!("SUCCESS: {}", selected_clone.name).to_string());
+                    Ok(())
                 }
             } else {
                 let mut status = status_message.lock().unwrap();
@@ -81,19 +98,28 @@ impl MyApp {
                     "Failed to inject: Process '{}' not found.",
                     selected_clone.process
                 );
+                inject_in_progress.store(false, std::sync::atomic::Ordering::SeqCst);
+                ctx_clone.request_repaint();
+                let _ = error_sender.send(format!(
+                    "Failed to inject: Process '{}' not found.",
+                    selected_clone.process
+                ));
+                Ok(())
             }
-
-            inject_in_progress.store(false, std::sync::atomic::Ordering::SeqCst);
-            ctx_clone.request_repaint();
         });
     }
 
-    pub fn manual_map_injection(&self, selected: Hack, ctx: egui::Context) {
+    pub fn manual_map_injection(
+        &self,
+        selected: Hack,
+        ctx: egui::Context,
+        error_sender: Sender<String>,
+    ) {
         let inject_in_progress = Arc::clone(&self.inject_in_progress);
         let status_message = Arc::clone(&self.status_message);
         let selected_clone = selected.clone();
         let ctx_clone = ctx.clone();
-        let skip_injects_clone = self.config.skip_injects_delay.clone();
+        let skip_injects_clone = self.config.skip_injects_delay;
 
         {
             let mut status = status_message.lock().unwrap();
@@ -128,6 +154,7 @@ impl MyApp {
                         *status = format!("{}", e);
                         inject_in_progress.store(false, std::sync::atomic::Ordering::SeqCst);
                         ctx_clone.request_repaint();
+                        let _ = error_sender.send(format!("Failed to download: {}", e));
                         return;
                     }
                 }
@@ -148,7 +175,7 @@ impl MyApp {
             }
 
             let file_path = dirs::config_dir()
-                .unwrap_or_else(|| std::path::PathBuf::from("."))
+                .unwrap_or_else(|| PathBuf::from("."))
                 .join("anarchyloader")
                 .join("csgo_injector.exe");
 
@@ -171,6 +198,8 @@ impl MyApp {
                         *status = format!("Failed to download manual map injector: {}", e);
                         inject_in_progress.store(false, std::sync::atomic::Ordering::SeqCst);
                         ctx_clone.request_repaint();
+                        let _ = error_sender
+                            .send(format!("Failed to download manual map injector: {}", e));
                         return;
                     }
                 }
@@ -183,25 +212,32 @@ impl MyApp {
             {
                 let mut status = status_message.lock().unwrap();
                 *status = "Injecting with manual map injector...".to_string();
+                ctx_clone.request_repaint();
             }
 
-            let dll_path = selected_clone.file_path.clone();
+            let dll_path = selected_clone.file_path;
 
-            let output = std::process::Command::new(file_path)
-                .arg(dll_path)
-                .output()
-                .expect("Failed to execute manual map injector.");
+            let output = Command::new(file_path).arg(dll_path).output();
 
-            if output.status.success() {
-                let mut status = status_message.lock().unwrap();
-                *status = "Injection successful.".to_string();
-            } else {
-                let mut status = status_message.lock().unwrap();
-                *status = format!(
-                    "Failed to inject: {}",
-                    String::from_utf8_lossy(&output.stdout)
-                        .replace("Press any key to continue . . . \r\n", "")
-                );
+            match output {
+                Ok(output) => {
+                    if output.status.success() {
+                        let mut status = status_message.lock().unwrap();
+                        *status = "Injection successful.".to_string();
+                        let _ = error_sender
+                            .send(format!("SUCCESS: {}", selected_clone.name).to_string());
+                    } else {
+                        let mut status = status_message.lock().unwrap();
+                        let error_message = String::from_utf8_lossy(&output.stderr).to_string();
+                        *status = format!("Failed to inject: {}", error_message);
+                        let _ = error_sender.send(format!("Failed to inject: {}", error_message));
+                    }
+                }
+                Err(e) => {
+                    let mut status = status_message.lock().unwrap();
+                    *status = format!("Failed to execute injector: {}", e);
+                    let _ = error_sender.send(format!("Failed to execute injector: {}", e));
+                }
             }
 
             inject_in_progress.store(false, std::sync::atomic::Ordering::SeqCst);
