@@ -44,6 +44,7 @@ cargo build --release
 
 -   [egui](https://github.com/emilk/egui)
 -   [dll-syringe](https://github.com/OpenByteDev/dll-syringe)
+-   [egui-notify](https://github.com/ItsEthra/egui-notify)
 
 Contributions are welcome! Please open an issue or submit a pull request on GitHub.
 

@@ -14,7 +14,7 @@ pub(crate) struct HackApiResponse {
     pub game: String,
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Debug)]
 pub(crate) struct Hack {
     pub name: String,
     pub description: String,

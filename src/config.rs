@@ -2,7 +2,7 @@ use std::{collections::HashSet, fs, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Config {
     #[serde(default)]
     pub favorites: HashSet<String>,
@@ -16,6 +16,8 @@ pub struct Config {
     pub api_endpoint: String,
     #[serde(default = "default_cdn_endpoint")]
     pub cdn_endpoint: String,
+    #[serde(default = "default_csgo_injector")]
+    pub csgo_injector: String,
     #[serde(default = "default_hide_csgo_warning")]
     pub hide_csgo_warning: bool,
 }
@@ -32,6 +34,10 @@ fn default_cdn_endpoint() -> String {
     "https://cdn.collapseloader.org/anarchy/".to_string()
 }
 
+fn default_csgo_injector() -> String {
+    "csgo_injector.exe".to_string()
+}
+
 fn default_hide_csgo_warning() -> bool {
     false
 }
@@ -46,6 +52,7 @@ impl Default for Config {
             api_endpoint: default_api_endpoint(),
             cdn_endpoint: default_cdn_endpoint(),
             hide_csgo_warning: default_hide_csgo_warning(),
+            csgo_injector: default_csgo_injector(),
         }
     }
 }
