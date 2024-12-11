@@ -71,6 +71,7 @@ enum AppTab {
     Home,
     Settings,
     About,
+    Debug
 }
 
 impl Default for AppTab {
@@ -80,8 +81,8 @@ impl Default for AppTab {
 }
 
 struct MyApp {
-    items: Vec<Hack>,
-    selected_item: Option<Hack>,
+    hacks: Vec<Hack>,
+    selected_hack: Option<Hack>,
     status_message: Arc<Mutex<String>>,
     parse_error: Option<String>,
     app_version: String,
@@ -103,12 +104,12 @@ impl MyApp {
         let status_message = Arc::new(Mutex::new(String::new()));
         let inject_in_progress = Arc::new(std::sync::atomic::AtomicBool::new(false));
 
-        let items = match hacks::Hack::fetch_hacks(&config.api_endpoint) {
+        let hacks = match hacks::Hack::fetch_hacks(&config.api_endpoint) {
             Ok(hacks) => hacks,
             Err(err) => {
                 return Self {
-                    items: Vec::new(),
-                    selected_item: None,
+                    hacks: Vec::new(),
+                    selected_hack: None,
                     status_message,
                     parse_error: Some(err),
                     app_version: env!("CARGO_PKG_VERSION").to_string(),
@@ -125,8 +126,8 @@ impl MyApp {
         };
 
         Self {
-            items,
-            selected_item: None,
+            hacks,
+            selected_hack: None,
             status_message,
             parse_error: None,
             app_version: env!("CARGO_PKG_VERSION").to_string(),
@@ -163,6 +164,14 @@ impl MyApp {
                     .clicked()
                 {
                     self.tab = AppTab::About;
+                }
+                if ctx.input_mut(|i| i.modifiers.alt) {
+                    if ui
+                        .cselectable_label(self.tab == AppTab::Debug, "Debug")
+                        .clicked()
+                    {
+                        self.tab = AppTab::Debug;
+                    }
                 }
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Min), |ui| {
                     ui.add(
@@ -201,11 +210,11 @@ impl MyApp {
         }
 
         if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape)) {
-            self.selected_item = None;
+            self.selected_hack = None;
         }
 
         if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Enter)) {
-            if let Some(selected) = &self.selected_item {
+            if let Some(selected) = &self.selected_hack {
                 if selected.game == "CSGO" {
                     self.manual_map_injection(
                         selected.clone(),
@@ -221,7 +230,7 @@ impl MyApp {
         if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::F5)) {
             self.main_menu_message = "Fetching hacks...".to_string();
             ctx.request_repaint();
-            self.items = match hacks::Hack::fetch_hacks(&self.config.api_endpoint) {
+            self.hacks = match hacks::Hack::fetch_hacks(&self.config.api_endpoint) {
                 Ok(hacks) => {
                     self.main_menu_message = "Please select a cheat from the list.".to_string();
                     ctx.request_repaint();
@@ -233,25 +242,23 @@ impl MyApp {
                 }
             };
 
-            self.toasts
-                .info("Hacks refreshed.")
-                .duration(Some(Duration::from_secs(2)));
+            self.toasts.info("Hacks refreshed.");
         }
 
-        let mut items_by_game: BTreeMap<String, BTreeMap<String, Vec<Hack>>> = BTreeMap::new();
+        let mut hacks_by_game: BTreeMap<String, BTreeMap<String, Vec<Hack>>> = BTreeMap::new();
 
-        for item in self.items.clone() {
-            if self.config.show_only_favorites && !self.config.favorites.contains(&item.name) {
+        for hack in self.hacks.clone() {
+            if self.config.show_only_favorites && !self.config.favorites.contains(&hack.name) {
                 continue;
             }
 
             if self.search_query.is_empty()
-                || item
+                || hack
                     .name
                     .to_lowercase()
                     .contains(&self.search_query.to_lowercase())
             {
-                let game = item.game.clone();
+                let game = hack.game.clone();
                 if game.starts_with("CSS") {
                     let mut parts = game.split_whitespace();
                     let game_name = parts.next().unwrap_or("CSS").to_string();
@@ -261,25 +268,25 @@ impl MyApp {
                     } else {
                         version
                     };
-                    items_by_game
+                    hacks_by_game
                         .entry(game_name)
                         .or_insert_with(BTreeMap::new)
                         .entry(version)
                         .or_insert_with(Vec::new)
-                        .push(item);
+                        .push(hack);
                 } else {
-                    items_by_game
+                    hacks_by_game
                         .entry(game.clone())
                         .or_insert_with(BTreeMap::new)
                         .entry("".to_string())
                         .or_insert_with(Vec::new)
-                        .push(item);
+                        .push(hack);
                 }
             }
         }
 
-        items_by_game.retain(|_, versions| {
-            versions.retain(|_, items| !items.is_empty());
+        hacks_by_game.retain(|_, versions| {
+            versions.retain(|_, hacks| !hacks.is_empty());
             !versions.is_empty()
         });
 
@@ -292,7 +299,7 @@ impl MyApp {
                 ui.add_space(5.0);
 
                 egui::ScrollArea::vertical().show(ui, |ui| {
-                    for (game_name, versions) in items_by_game {
+                    for (game_name, versions) in hacks_by_game {
                         ui.group(|ui| {
                             ui.with_layout(egui::Layout::top_down(egui::Align::Min), |ui| {
                                 ui.with_layout(
@@ -300,7 +307,7 @@ impl MyApp {
                                     |ui| ui.heading(game_name),
                                 );
                                 ui.separator();
-                                for (version, items) in versions {
+                                for (version, hacks) in versions {
                                     if !version.is_empty() {
                                         ui.with_layout(
                                             egui::Layout::top_down_justified(egui::Align::Center),
@@ -308,20 +315,20 @@ impl MyApp {
                                         );
                                     }
 
-                                    for item in items {
-                                        let item_clone = item.clone();
+                                    for hack in hacks {
+                                        let hack_clone = hack.clone();
                                         ui.horizontal(|ui| {
                                             let is_favorite =
-                                                self.config.favorites.contains(&item.name);
+                                                self.config.favorites.contains(&hack.name);
                                             let label = if is_favorite {
-                                                RichText::new(&item.name)
+                                                RichText::new(&hack.name)
                                                     .color(self.config.favorites_color)
                                             } else {
-                                                RichText::new(&item.name)
+                                                RichText::new(&hack.name)
                                             };
 
                                             let response = ui.selectable_label(
-                                                self.selected_item.as_ref() == Some(&item),
+                                                self.selected_hack.as_ref() == Some(&hack),
                                                 label,
                                             );
 
@@ -342,22 +349,22 @@ impl MyApp {
                                                     .clicked()
                                                 {
                                                     if is_favorite {
-                                                        self.config.favorites.remove(&item.name);
+                                                        self.config.favorites.remove(&hack.name);
                                                     } else {
                                                         self.config
                                                             .favorites
-                                                            .insert(item.name.clone());
+                                                            .insert(hack.name.clone());
                                                     }
                                                     self.config.save_config();
                                                 }
                                             }
 
-                                            let file_path_owned = item.file_path.clone();
+                                            let file_path_owned = hack.file_path.clone();
                                             let ctx_clone = ctx.clone();
                                             let status_message = Arc::clone(&self.status_message);
 
                                             if response.clicked() {
-                                                self.selected_item = Some(item_clone.clone());
+                                                self.selected_hack = Some(hack_clone.clone());
                                                 let mut status =
                                                     self.status_message.lock().unwrap();
                                                 *status = String::new();
@@ -368,15 +375,17 @@ impl MyApp {
                                                 if is_favorite {
                                                     if ui.cbutton("Remove from favorites").clicked()
                                                     {
-                                                        self.config.favorites.remove(&item.name);
+                                                        self.config.favorites.remove(&hack.name);
                                                         self.config.save_config();
+                                                        self.toasts.info(format!("Removed {} from favorites.", hack.name));
                                                         ui.close_menu();
                                                     }
                                                 } else {
                                                     if ui.cbutton("Add to favorites").clicked()
                                                     {
-                                                        self.config.favorites.insert(item.name.clone());
+                                                        self.config.favorites.insert(hack.name.clone());
                                                         self.config.save_config();
+                                                        self.toasts.info(format!("Added {} to favorites.", hack.name));
                                                         ui.close_menu();
                                                     }
                                                 }
@@ -386,7 +395,7 @@ impl MyApp {
                                                         if let Err(e) = Command::new("explorer.exe")
                                                             .arg(format!(
                                                                 "/select,{}",
-                                                                item.file_path.to_string_lossy()
+                                                                hack.file_path.to_string_lossy()
                                                             ))
                                                             .spawn()
                                                         {
@@ -396,11 +405,12 @@ impl MyApp {
                                                                 "Failed to open Explorer: {}",
                                                                 e
                                                             );
+                                                            self.toasts.error(format!("Failed to open Explorer: {}", e));
                                                         }
                                                     }
                                                 }
 
-                                                if ui.button_with_tooltip("Uninstall", "Uninstall the selected item").clicked() {
+                                                if ui.button_with_tooltip("Uninstall", "Uninstall the selected hack").clicked() {
                                                         if let Err(e) = std::fs::remove_file(&file_path_owned) {
                                                             let mut status =
                                                                 self.status_message.lock().unwrap();
@@ -415,7 +425,7 @@ impl MyApp {
                                                         }
                                                     }
 
-                                                if ui.button_with_tooltip("Reinstall", "Reinstall the selected item").clicked()
+                                                if ui.button_with_tooltip("Reinstall", "Reinstall the selected hack").clicked()
                                                 {
                                                     thread::spawn(move || {
                                                         if !Path::new(&file_path_owned).exists() {
@@ -447,7 +457,7 @@ impl MyApp {
                                                             return;
                                                         }
 
-                                                        match item.download(
+                                                        match hack.download(
                                                             file_path_owned
                                                                 .to_string_lossy()
                                                                 .to_string(),
@@ -486,7 +496,7 @@ impl MyApp {
         // MARK: Selected hack panel
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.add_space(10.0);
-            if let Some(selected) = &self.selected_item {
+            if let Some(selected) = &self.selected_hack {
                 let is_csgo = selected.game == "CSGO";
 
                 ui.horizontal(|ui| {
@@ -507,7 +517,7 @@ impl MyApp {
                 {
                     self.toasts
                         .custom(format!("Injecting {}", selected.name), "⌛".to_string(), egui::Color32::from_rgb(150, 200, 210))
-                        .duration(Some(Duration::from_secs(4)));
+                        .duration(Some(Duration::from_secs(2)));
                     if is_csgo {
                         self.manual_map_injection(selected.clone(), ctx.clone(), self.error_sender.clone());
                     } else {
@@ -640,10 +650,21 @@ impl MyApp {
                     }
                 });
 
+                ui.horizontal(|ui| {
+                    ui.label("CSGO Injector:");
+                    if ui
+                        .text_edit_singleline(&mut self.config.csgo_injector)
+                        .changed()
+                    {
+                        self.config.save_config();
+                    }
+                });
+
                 ui.add_space(10.0);
 
                 if ui.cbutton("Reset settings").clicked() {
                     self.reset_config();
+                    self.toasts.success("Settings reset.");
                 }
 
                 if ui.cbutton("Open loader folder").clicked() {
@@ -654,6 +675,7 @@ impl MyApp {
                 }
             });
         });
+        self.toasts.show(ctx);
     }
 
     // MARK: About Tab
@@ -662,11 +684,17 @@ impl MyApp {
             egui::ScrollArea::vertical().show(ui, |ui| {
                 ui.heading("About");
                 ui.separator();
-                ui.add(
-                    egui::Image::new(egui::include_image!("../resources/img/icon.ico"))
-                        .max_width(100.0)
-                        .rounding(10.0),
-                );
+                if ui
+                    .add(
+                        egui::Image::new(egui::include_image!("../resources/img/icon.ico"))
+                            .max_width(100.0)
+                            .rounding(10.0)
+                            .sense(Sense::click()),
+                    )
+                    .clicked()
+                {
+                    self.toasts.info("Hello there!");
+                }
                 ui.label(RichText::new(format!("v{}", self.app_version)).size(15.0));
                 ui.add_space(10.0);
                 ui.label(
@@ -693,14 +721,67 @@ impl MyApp {
                 ui.label("F5 - Refresh hacks");
                 ui.label("Enter - Inject selected hack");
                 ui.label("Escape - Deselect hack");
+                ui.label("Hold Alt - Debug tab");
             });
         });
+        self.toasts.show(ctx);
+    }
+
+    fn render_debug_tab(&mut self, ctx: &egui::Context) {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            egui::ScrollArea::vertical().show(ui, |ui| {
+                ui.add_space(10.0);
+                ui.heading("Debug");
+                ui.separator();
+
+                let debug_info = vec![
+                    ("Config:", format!("{:#?}", self.config)),
+                    ("Hacks:", format!("{:#?}", self.hacks)),
+                    ("Selected Hack:", format!("{:#?}", self.selected_hack)),
+                    ("Status Message:", format!("{:#?}", self.status_message)),
+                    ("Parse Error:", format!("{:#?}", self.parse_error)),
+                    ("Inject in Progress:", format!("{:#?}", self.inject_in_progress)),
+                    ("Search Query:", format!("{:#?}", self.search_query)),
+                    ("Main Menu Message:", format!("{:#?}", self.main_menu_message)),
+                    ("App Version:", format!("{:#?}", self.app_version)),
+
+                ];
+
+                for (label, value) in &debug_info {
+                    if label.starts_with("Hacks") {
+                        ui.collapsing(*label, |ui| {
+                            for hack in &self.hacks {
+                                ui.monospace(format!("{:#?}", hack));
+                            }
+                        });
+                        continue;
+                    } else {
+                        ui.label(*label);
+                        ui.monospace(value);
+                    }
+                    
+                    ui.add_space(10.0);
+                }
+
+                if ui.cbutton("Copy debug info").on_hover_cursor(Clickable).clicked() {
+                    let debug_info = debug_info
+                        .iter()
+                        .map(|(label, value)| format!("{}: {}\n", label, value))
+                        .collect::<String>();
+                    ui.output_mut(|o| o.copied_text = debug_info);
+                    self.toasts.success("Debug info copied to clipboard.");
+                }
+            });
+        });
+        self.toasts.show(ctx);
     }
 }
 
 impl App for MyApp {
     // MARK: Global render
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        egui_extras::install_image_loaders(ctx);
+
         let is_dark_mode = ctx.style().visuals.dark_mode;
         let theme_color = if is_dark_mode {
             egui::Color32::LIGHT_GRAY
@@ -737,6 +818,7 @@ impl App for MyApp {
             AppTab::Home => self.render_home_tab(ctx, theme_color),
             AppTab::Settings => self.render_settings_tab(ctx),
             AppTab::About => self.render_about_tab(ctx),
+            AppTab::Debug => self.render_debug_tab(ctx),
         }
     }
 }

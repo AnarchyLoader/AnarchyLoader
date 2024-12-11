@@ -100,10 +100,8 @@ impl MyApp {
                 );
                 inject_in_progress.store(false, std::sync::atomic::Ordering::SeqCst);
                 ctx_clone.request_repaint();
-                let _ = error_sender.send(format!(
-                    "Failed to inject: Process '{}' not found.",
-                    selected_clone.process
-                ));
+                let _ =
+                    error_sender.send(format!("Process '{}' not found.", selected_clone.process));
                 Ok(())
             }
         });
@@ -120,6 +118,7 @@ impl MyApp {
         let selected_clone = selected.clone();
         let ctx_clone = ctx.clone();
         let skip_injects_clone = self.config.skip_injects_delay;
+        let injector = self.config.csgo_injector.clone();
 
         {
             let mut status = status_message.lock().unwrap();
@@ -177,7 +176,7 @@ impl MyApp {
             let file_path = dirs::config_dir()
                 .unwrap_or_else(|| PathBuf::from("."))
                 .join("anarchyloader")
-                .join("csgo_injector.exe");
+                .join(injector.clone());
 
             if !file_path.exists() {
                 {
@@ -187,7 +186,7 @@ impl MyApp {
 
                 ctx_clone.request_repaint();
 
-                match download_file("csgo_injector.exe", file_path.to_str().unwrap()) {
+                match download_file(&injector, file_path.to_str().unwrap()) {
                     Ok(_) => {
                         let mut status = status_message.lock().unwrap();
                         *status = "Downloaded manual map injector.".to_string();
