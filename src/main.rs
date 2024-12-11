@@ -11,8 +11,12 @@ use std::{
     env, fs,
     path::Path,
     process::Command,
-    sync::{Arc, Mutex},
+    sync::{
+        mpsc::{self, Receiver, Sender, TryRecvError},
+        Arc, Mutex,
+    },
     thread,
+    time::Duration,
 };
 
 use config::Config;
@@ -22,6 +26,7 @@ use eframe::{
     App,
 };
 use egui::{CursorIcon::PointingHand as Clickable, Sense};
+use egui_notify::Toasts;
 use hacks::Hack;
 use is_elevated::is_elevated;
 
@@ -83,11 +88,17 @@ struct MyApp {
     inject_in_progress: Arc<std::sync::atomic::AtomicBool>,
     tab: AppTab,
     search_query: String,
+    main_menu_message: String,
     config: Config,
+    toasts: Toasts,
+    error_sender: Sender<String>,
+    error_receiver: Receiver<String>,
 }
 
 impl MyApp {
+    // MARK: Init
     fn new() -> Self {
+        let (error_sender, error_receiver) = mpsc::channel();
         let config = Config::load_config();
         let status_message = Arc::new(Mutex::new(String::new()));
         let inject_in_progress = Arc::new(std::sync::atomic::AtomicBool::new(false));
@@ -104,7 +115,11 @@ impl MyApp {
                     inject_in_progress,
                     tab: AppTab::default(),
                     search_query: String::new(),
+                    main_menu_message: "Please select a cheat from the list.".to_string(),
                     config: config,
+                    toasts: Toasts::default(),
+                    error_sender: error_sender,
+                    error_receiver: error_receiver,
                 }
             }
         };
@@ -118,7 +133,11 @@ impl MyApp {
             inject_in_progress,
             tab: AppTab::default(),
             search_query: String::new(),
+            main_menu_message: "Please select a cheat from the list.".to_string(),
             config: config,
+            toasts: Toasts::default(),
+            error_sender: error_sender,
+            error_receiver: error_receiver,
         }
     }
 
@@ -160,8 +179,65 @@ impl MyApp {
         self.config.save_config();
     }
 
-    // MARK: - Home tab
+    // MARK: Home tab
     fn render_home_tab(&mut self, ctx: &egui::Context, theme_color: egui::Color32) {
+        match self.error_receiver.try_recv() {
+            Ok(error) => {
+                if error.starts_with("SUCCESS: ") {
+                    let name = error.trim_start_matches("SUCCESS: ").to_string();
+                    self.toasts
+                        .success(format!("Successfully injected {}", name))
+                        .duration(Some(Duration::from_secs(4)));
+                } else {
+                    self.toasts
+                        .error(error)
+                        .duration(Some(Duration::from_secs(7)));
+                }
+            }
+            Err(TryRecvError::Empty) => {}
+            Err(e) => {
+                eprintln!("Error receiving from channel: {:?}", e);
+            }
+        }
+
+        if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape)) {
+            self.selected_item = None;
+        }
+
+        if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Enter)) {
+            if let Some(selected) = &self.selected_item {
+                if selected.game == "CSGO" {
+                    self.manual_map_injection(
+                        selected.clone(),
+                        ctx.clone(),
+                        self.error_sender.clone(),
+                    );
+                } else {
+                    self.start_injection(selected.clone(), ctx.clone(), self.error_sender.clone());
+                }
+            }
+        }
+
+        if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::F5)) {
+            self.main_menu_message = "Fetching hacks...".to_string();
+            ctx.request_repaint();
+            self.items = match hacks::Hack::fetch_hacks(&self.config.api_endpoint) {
+                Ok(hacks) => {
+                    self.main_menu_message = "Please select a cheat from the list.".to_string();
+                    ctx.request_repaint();
+                    hacks
+                }
+                Err(_err) => {
+                    self.main_menu_message = "Failed to fetch hacks.".to_string();
+                    Vec::new()
+                }
+            };
+
+            self.toasts
+                .info("Hacks refreshed.")
+                .duration(Some(Duration::from_secs(2)));
+        }
+
         let mut items_by_game: BTreeMap<String, BTreeMap<String, Vec<Hack>>> = BTreeMap::new();
 
         for item in self.items.clone() {
@@ -396,7 +472,6 @@ impl MyApp {
                                                     });
                                                 }
                                             });
-                                            
                                             response.on_hover_cursor(Clickable);
                                         });
                                     }
@@ -407,11 +482,13 @@ impl MyApp {
                     }
                 });
             });
-        
+
         // MARK: Selected hack panel
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.add_space(10.0);
             if let Some(selected) = &self.selected_item {
+                let is_csgo = selected.game == "CSGO";
+
                 ui.horizontal(|ui| {
                     ui.heading(&selected.name);
                     ui.label(RichText::new(format!("by {}", selected.author)).color(theme_color));
@@ -421,23 +498,25 @@ impl MyApp {
                 ui.separator();
                 ui.label(&selected.description);
 
-                let is_csgo = selected.game == "CSGO";
-
+                ui.add_space(5.0);
+                // MARK: Inject button
                 if ui.button(format!("Inject {}", selected.name))
                     .on_hover_cursor(Clickable)
                     .on_hover_text(&selected.file)
                     .clicked()
                 {
+                    self.toasts
+                        .custom(format!("Injecting {}", selected.name), "⌛".to_string(), egui::Color32::from_rgb(150, 200, 210))
+                        .duration(Some(Duration::from_secs(4)));
                     if is_csgo {
-                        self.manual_map_injection(selected.clone(), ctx.clone());
+                        self.manual_map_injection(selected.clone(), ctx.clone(), self.error_sender.clone());
                     } else {
-                        self.start_injection(selected.clone(), ctx.clone());
+                        self.start_injection(selected.clone(), ctx.clone(), self.error_sender.clone());
                     }
                 }
-                
                 if !is_elevated() && is_csgo && !self.config.hide_csgo_warning {
                     ui.label(
-                        RichText::new("If you encounter an error stating that csgo.exe is not found\ntry running the loader as an administrator.")
+                        RichText::new("If you encounter an error stating that csgo.exe is not found try running the loader as an administrator\nYou can disable this warning in the settings.")
                             .size(11.0)
                             .color(egui::Color32::YELLOW),
                     );
@@ -477,139 +556,151 @@ impl MyApp {
             } else {
                 ui.vertical_centered(|ui| {
                     ui.add_space(150.0);
-                    ui.label("Please select a cheat from the list.");
+                    ui.label(self.main_menu_message.clone());
                 });
             }
         });
+
+        self.toasts.show(ctx);
     }
 
-    // MARK: - Settings Tab
+    // MARK: Settings Tab
     fn render_settings_tab(&mut self, ctx: &egui::Context) {
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("Settings");
-            ui.separator();
+            egui::ScrollArea::vertical().show(ui, |ui| {
+                ui.heading("Settings");
+                ui.separator();
 
-            if ui
-                .checkbox(
-                    &mut self.config.show_only_favorites,
-                    "Show only favorite hacks",
-                )
-                .on_hover_cursor(Clickable)
-                .changed()
-            {
-                self.config.save_config();
-            }
-
-            ui.add_space(10.0);
-
-            if ui
-                .checkbox(
-                    &mut self.config.skip_injects_delay,
-                    "Skip injects delay (visual)",
-                )
-                .on_hover_cursor(Clickable)
-                .changed()
-            {
-                self.config.save_config();
-            }
-
-            ui.add_space(10.0);
-
-            if ui
-                .checkbox(&mut self.config.hide_csgo_warning, "Hide CSGO warning")
-                .on_hover_cursor(Clickable)
-                .changed()
-            {
-                self.config.save_config();
-            }
-
-            ui.add_space(10.0);
-
-            ui.horizontal(|ui| {
-                ui.label("Favorites Color:");
                 if ui
-                    .color_edit_button_srgba(&mut self.config.favorites_color)
+                    .checkbox(
+                        &mut self.config.show_only_favorites,
+                        "Show only favorite hacks",
+                    )
                     .on_hover_cursor(Clickable)
                     .changed()
                 {
                     self.config.save_config();
                 }
-            });
 
-            ui.add_space(10.0);
+                ui.add_space(10.0);
 
-            ui.horizontal(|ui| {
-                ui.label("API Endpoint:");
                 if ui
-                    .text_edit_singleline(&mut self.config.api_endpoint)
+                    .checkbox(
+                        &mut self.config.skip_injects_delay,
+                        "Skip injects delay (visual)",
+                    )
+                    .on_hover_cursor(Clickable)
                     .changed()
                 {
                     self.config.save_config();
                 }
-            });
 
-            ui.horizontal(|ui| {
-                ui.label("CDN Endpoint:");
+                ui.add_space(10.0);
+
                 if ui
-                    .text_edit_singleline(&mut self.config.cdn_endpoint)
+                    .checkbox(&mut self.config.hide_csgo_warning, "Hide CSGO warning")
+                    .on_hover_cursor(Clickable)
                     .changed()
                 {
                     self.config.save_config();
                 }
+
+                ui.add_space(10.0);
+
+                ui.horizontal(|ui| {
+                    ui.label("Favorites Color:");
+                    if ui
+                        .color_edit_button_srgba(&mut self.config.favorites_color)
+                        .on_hover_cursor(Clickable)
+                        .changed()
+                    {
+                        self.config.save_config();
+                    }
+                });
+
+                ui.add_space(10.0);
+
+                ui.horizontal(|ui| {
+                    ui.label("API Endpoint:");
+                    if ui
+                        .text_edit_singleline(&mut self.config.api_endpoint)
+                        .changed()
+                    {
+                        self.config.save_config();
+                    }
+                });
+
+                ui.horizontal(|ui| {
+                    ui.label("CDN Endpoint:");
+                    if ui
+                        .text_edit_singleline(&mut self.config.cdn_endpoint)
+                        .changed()
+                    {
+                        self.config.save_config();
+                    }
+                });
+
+                ui.add_space(10.0);
+
+                if ui.cbutton("Reset settings").clicked() {
+                    self.reset_config();
+                }
+
+                if ui.cbutton("Open loader folder").clicked() {
+                    let downloads_dir = dirs::config_dir()
+                        .unwrap_or_else(|| std::path::PathBuf::from("."))
+                        .join("anarchyloader");
+                    let _ = opener::open(downloads_dir);
+                }
             });
-
-            ui.add_space(10.0);
-
-            if ui.cbutton("Reset settings").clicked() {
-                self.reset_config();
-            }
-
-            if ui.cbutton("Open loader folder").clicked() {
-                let downloads_dir = dirs::config_dir()
-                .unwrap_or_else(|| std::path::PathBuf::from("."))
-                .join("anarchyloader");
-                let _ = opener::open(downloads_dir);
-            }
         });
     }
 
-    // MARK: - About Tab
+    // MARK: About Tab
     fn render_about_tab(&mut self, ctx: &egui::Context) {
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("About");
-            ui.separator();
-            ui.add(
-                egui::Image::new(egui::include_image!("../resources/img/icon.ico"))
-                    .max_width(100.0)
-                    .rounding(10.0),
-            );
-            ui.label(RichText::new(format!("v{}", self.app_version)).size(15.0));
-            ui.add_space(10.0);
-            ui.label(
-                RichText::new(
-                    "AnarchyLoader is a free and open-source cheat loader for various games.",
-                )
-                .size(16.0),
-            );
-            ui.add_space(5.0);
-            ui.hyperlink_to("by dest4590", "https://github.com/dest4590");
-            ui.add_space(10.0);
-            ui.horizontal(|ui| {
-                if ui.cbutton("Visit Website").clicked() {
-                    let _ = opener::open("https://anarchy.my");
-                }
-                if ui.cbutton("Github Repository").clicked() {
-                    let _ = opener::open("https://github.com/AnarchyLoader/AnarchyLoader");
-                }
+            egui::ScrollArea::vertical().show(ui, |ui| {
+                ui.heading("About");
+                ui.separator();
+                ui.add(
+                    egui::Image::new(egui::include_image!("../resources/img/icon.ico"))
+                        .max_width(100.0)
+                        .rounding(10.0),
+                );
+                ui.label(RichText::new(format!("v{}", self.app_version)).size(15.0));
+                ui.add_space(10.0);
+                ui.label(
+                    RichText::new(
+                        "AnarchyLoader is a free and open-source cheat loader for various games.",
+                    )
+                    .size(16.0),
+                );
+                ui.add_space(5.0);
+                ui.hyperlink_to("by dest4590", "https://github.com/dest4590")
+                    .on_hover_text("https://github.com/dest4590");
+                ui.add_space(10.0);
+                ui.horizontal(|ui| {
+                    if ui.cbutton("Visit Website").clicked() {
+                        let _ = opener::open("https://anarchy.my");
+                    }
+                    if ui.cbutton("Github Repository").clicked() {
+                        let _ = opener::open("https://github.com/AnarchyLoader/AnarchyLoader");
+                    }
+                });
+
+                ui.add_space(5.0);
+                ui.label("Keybinds:");
+                ui.label("F5 - Refresh hacks");
+                ui.label("Enter - Inject selected hack");
+                ui.label("Escape - Deselect hack");
             });
         });
     }
 }
 
 impl App for MyApp {
+    // MARK: Global render
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui_extras::install_image_loaders(ctx);
-
         let is_dark_mode = ctx.style().visuals.dark_mode;
         let theme_color = if is_dark_mode {
             egui::Color32::LIGHT_GRAY
