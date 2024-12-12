@@ -18,7 +18,7 @@ pub struct Config {
     pub cdn_endpoint: String,
     #[serde(default = "default_csgo_injector")]
     pub csgo_injector: String,
-    #[serde(default = "default_hide_csgo_warning")]
+    #[serde(default)]
     pub hide_csgo_warning: bool,
 }
 
@@ -38,10 +38,6 @@ fn default_csgo_injector() -> String {
     "csgo_injector.exe".to_string()
 }
 
-fn default_hide_csgo_warning() -> bool {
-    false
-}
-
 impl Default for Config {
     fn default() -> Self {
         Config {
@@ -51,7 +47,7 @@ impl Default for Config {
             skip_injects_delay: false,
             api_endpoint: default_api_endpoint(),
             cdn_endpoint: default_cdn_endpoint(),
-            hide_csgo_warning: default_hide_csgo_warning(),
+            hide_csgo_warning: false,
             csgo_injector: default_csgo_injector(),
         }
     }

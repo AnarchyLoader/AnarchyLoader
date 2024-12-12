@@ -27,3 +27,15 @@ impl SelectableLabel for egui::Ui {
             .on_hover_cursor(Clickable)
     }
 }
+
+pub trait Hyperlink {
+    fn clink(&mut self, text: &str, url: &str) -> egui::Response;
+}
+
+impl Hyperlink for egui::Ui {
+    fn clink(&mut self, text: &str, url: &str) -> egui::Response {
+        self.hyperlink_to(text, url)
+            .on_hover_cursor(Clickable)
+            .on_hover_text(url)
+    }
+}
