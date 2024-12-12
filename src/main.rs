@@ -5,30 +5,27 @@ mod custom_widgets;
 mod downloader;
 mod hacks;
 mod inject;
+mod tabs;
 
 use std::{
     collections::BTreeMap,
-    env, fs,
-    path::Path,
-    process::Command,
+    env,
     sync::{
         mpsc::{self, Receiver, Sender, TryRecvError},
         Arc, Mutex,
     },
-    thread,
     time::Duration,
 };
 
 use config::Config;
-use custom_widgets::{Button, SelectableLabel};
 use eframe::{
-    egui::{self, RichText, Spinner},
+    egui::{self, RichText},
     App,
 };
 use egui::{CursorIcon::PointingHand as Clickable, Sense};
 use egui_notify::Toasts;
 use hacks::Hack;
-use is_elevated::is_elevated;
+use tabs::top_panel::AppTab;
 
 pub(crate) fn load_icon() -> egui::IconData {
     let (icon_rgba, icon_width, icon_height) = {
@@ -66,20 +63,6 @@ fn main() {
     .unwrap();
 }
 
-#[derive(Debug, Clone, PartialEq)]
-enum AppTab {
-    Home,
-    Settings,
-    About,
-    Debug
-}
-
-impl Default for AppTab {
-    fn default() -> Self {
-        AppTab::Home
-    }
-}
-
 struct MyApp {
     hacks: Vec<Hack>,
     selected_hack: Option<Hack>,
@@ -92,8 +75,8 @@ struct MyApp {
     main_menu_message: String,
     config: Config,
     toasts: Toasts,
-    error_sender: Sender<String>,
-    error_receiver: Receiver<String>,
+    message_sender: Sender<String>,
+    message_receiver: Receiver<String>,
 }
 
 impl MyApp {
@@ -119,8 +102,8 @@ impl MyApp {
                     main_menu_message: "Please select a cheat from the list.".to_string(),
                     config: config,
                     toasts: Toasts::default(),
-                    error_sender: error_sender,
-                    error_receiver: error_receiver,
+                    message_sender: error_sender,
+                    message_receiver: error_receiver,
                 }
             }
         };
@@ -137,50 +120,9 @@ impl MyApp {
             main_menu_message: "Please select a cheat from the list.".to_string(),
             config: config,
             toasts: Toasts::default(),
-            error_sender: error_sender,
-            error_receiver: error_receiver,
+            message_sender: error_sender,
+            message_receiver: error_receiver,
         }
-    }
-
-    // MARK: Top panel
-    fn render_top_panel(&mut self, ctx: &egui::Context) {
-        egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
-            ui.add_space(5.0);
-            ui.horizontal(|ui| {
-                if ui
-                    .cselectable_label(self.tab == AppTab::Home, "Home")
-                    .clicked()
-                {
-                    self.tab = AppTab::Home;
-                }
-                if ui
-                    .cselectable_label(self.tab == AppTab::Settings, "Settings")
-                    .clicked()
-                {
-                    self.tab = AppTab::Settings;
-                }
-                if ui
-                    .cselectable_label(self.tab == AppTab::About, "About")
-                    .clicked()
-                {
-                    self.tab = AppTab::About;
-                }
-                if ctx.input_mut(|i| i.modifiers.alt) {
-                    if ui
-                        .cselectable_label(self.tab == AppTab::Debug, "Debug")
-                        .clicked()
-                    {
-                        self.tab = AppTab::Debug;
-                    }
-                }
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Min), |ui| {
-                    ui.add(
-                        egui::TextEdit::singleline(&mut self.search_query).hint_text("Search..."),
-                    );
-                });
-            });
-            ui.add_space(5.0);
-        });
     }
 
     fn reset_config(&mut self) {
@@ -190,7 +132,7 @@ impl MyApp {
 
     // MARK: Home tab
     fn render_home_tab(&mut self, ctx: &egui::Context, theme_color: egui::Color32) {
-        match self.error_receiver.try_recv() {
+        match self.message_receiver.try_recv() {
             Ok(error) => {
                 if error.starts_with("SUCCESS: ") {
                     let name = error.trim_start_matches("SUCCESS: ").to_string();
@@ -209,41 +151,7 @@ impl MyApp {
             }
         }
 
-        if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape)) {
-            self.selected_hack = None;
-        }
-
-        if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Enter)) {
-            if let Some(selected) = &self.selected_hack {
-                if selected.game == "CSGO" {
-                    self.manual_map_injection(
-                        selected.clone(),
-                        ctx.clone(),
-                        self.error_sender.clone(),
-                    );
-                } else {
-                    self.start_injection(selected.clone(), ctx.clone(), self.error_sender.clone());
-                }
-            }
-        }
-
-        if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::F5)) {
-            self.main_menu_message = "Fetching hacks...".to_string();
-            ctx.request_repaint();
-            self.hacks = match hacks::Hack::fetch_hacks(&self.config.api_endpoint) {
-                Ok(hacks) => {
-                    self.main_menu_message = "Please select a cheat from the list.".to_string();
-                    ctx.request_repaint();
-                    hacks
-                }
-                Err(_err) => {
-                    self.main_menu_message = "Failed to fetch hacks.".to_string();
-                    Vec::new()
-                }
-            };
-
-            self.toasts.info("Hacks refreshed.");
-        }
+        self.handle_key_events(ctx);
 
         let mut hacks_by_game: BTreeMap<String, BTreeMap<String, Vec<Hack>>> = BTreeMap::new();
 
@@ -299,6 +207,7 @@ impl MyApp {
                 ui.add_space(5.0);
 
                 egui::ScrollArea::vertical().show(ui, |ui| {
+                    ui.style_mut().interaction.selectable_labels = false;
                     for (game_name, versions) in hacks_by_game {
                         ui.group(|ui| {
                             ui.with_layout(egui::Layout::top_down(egui::Align::Min), |ui| {
@@ -359,10 +268,6 @@ impl MyApp {
                                                 }
                                             }
 
-                                            let file_path_owned = hack.file_path.clone();
-                                            let ctx_clone = ctx.clone();
-                                            let status_message = Arc::clone(&self.status_message);
-
                                             if response.clicked() {
                                                 self.selected_hack = Some(hack_clone.clone());
                                                 let mut status =
@@ -370,118 +275,8 @@ impl MyApp {
                                                 *status = String::new();
                                             }
 
-                                            // MARK: Context menu
-                                            response.context_menu(|ui| {
-                                                if is_favorite {
-                                                    if ui.cbutton("Remove from favorites").clicked()
-                                                    {
-                                                        self.config.favorites.remove(&hack.name);
-                                                        self.config.save_config();
-                                                        self.toasts.info(format!("Removed {} from favorites.", hack.name));
-                                                        ui.close_menu();
-                                                    }
-                                                } else {
-                                                    if ui.cbutton("Add to favorites").clicked()
-                                                    {
-                                                        self.config.favorites.insert(hack.name.clone());
-                                                        self.config.save_config();
-                                                        self.toasts.info(format!("Added {} to favorites.", hack.name));
-                                                        ui.close_menu();
-                                                    }
-                                                }
+                                            self.context_menu(&response, ctx, &hack);
 
-                                                if Path::new(&file_path_owned).exists() {
-                                                    if ui.button_with_tooltip("Open in Explorer", "Open the file location in Explorer").clicked() {
-                                                        if let Err(e) = Command::new("explorer.exe")
-                                                            .arg(format!(
-                                                                "/select,{}",
-                                                                hack.file_path.to_string_lossy()
-                                                            ))
-                                                            .spawn()
-                                                        {
-                                                            let mut status =
-                                                                self.status_message.lock().unwrap();
-                                                            *status = format!(
-                                                                "Failed to open Explorer: {}",
-                                                                e
-                                                            );
-                                                            self.toasts.error(format!("Failed to open Explorer: {}", e));
-                                                        }
-                                                    }
-                                                }
-
-                                                if ui.button_with_tooltip("Uninstall", "Uninstall the selected hack").clicked() {
-                                                        if let Err(e) = std::fs::remove_file(&file_path_owned) {
-                                                            let mut status =
-                                                                self.status_message.lock().unwrap();
-                                                            *status = format!(
-                                                                "Failed to uninstall: {}",
-                                                                e
-                                                            );
-                                                        } else {
-                                                            let mut status =
-                                                                self.status_message.lock().unwrap();
-                                                            *status = "Uninstall successful.".to_string();
-                                                        }
-                                                    }
-
-                                                if ui.button_with_tooltip("Reinstall", "Reinstall the selected hack").clicked()
-                                                {
-                                                    thread::spawn(move || {
-                                                        if !Path::new(&file_path_owned).exists() {
-                                                            let mut status =
-                                                                status_message.lock().unwrap();
-                                                            *status =
-                                                                "Failed to reinstall: file does not exist.".to_string();
-                                                            ctx_clone.request_repaint();
-                                                            return;
-                                                        }
-
-                                                        {
-                                                            let mut status =
-                                                                status_message.lock().unwrap();
-                                                            *status = "Reinstalling...".to_string();
-                                                            ctx_clone.request_repaint();
-                                                        }
-
-                                                        if let Err(e) =
-                                                            fs::remove_file(&file_path_owned)
-                                                        {
-                                                            let mut status =
-                                                                status_message.lock().unwrap();
-                                                            *status = format!(
-                                                                "Failed to delete file: {}",
-                                                                e
-                                                            );
-                                                            ctx_clone.request_repaint();
-                                                            return;
-                                                        }
-
-                                                        match hack.download(
-                                                            file_path_owned
-                                                                .to_string_lossy()
-                                                                .to_string(),
-                                                        ) {
-                                                            Ok(_) => {
-                                                                let mut status =
-                                                                    status_message.lock().unwrap();
-                                                                *status =
-                                                                    "Reinstalled.".to_string();
-                                                                ctx_clone.request_repaint();
-                                                            }
-                                                            Err(e) => {
-                                                                let mut status =
-                                                                    status_message.lock().unwrap();
-                                                                *status = format!(
-                                                                    "Failed to reinstall: {}",
-                                                                    e
-                                                                );
-                                                                ctx_clone.request_repaint();
-                                                            }
-                                                        }
-                                                    });
-                                                }
-                                            });
                                             response.on_hover_cursor(Clickable);
                                         });
                                     }
@@ -496,73 +291,8 @@ impl MyApp {
         // MARK: Selected hack panel
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.add_space(10.0);
-            if let Some(selected) = &self.selected_hack {
-                let is_csgo = selected.game == "CSGO";
-
-                ui.horizontal(|ui| {
-                    ui.heading(&selected.name);
-                    ui.label(RichText::new(format!("by {}", selected.author)).color(theme_color));
-                    ui.hyperlink_to("(source)", &selected.source)
-                        .on_hover_text(&selected.source)
-                });
-                ui.separator();
-                ui.label(&selected.description);
-
-                ui.add_space(5.0);
-                // MARK: Inject button
-                if ui.button(format!("Inject {}", selected.name))
-                    .on_hover_cursor(Clickable)
-                    .on_hover_text(&selected.file)
-                    .clicked()
-                {
-                    self.toasts
-                        .custom(format!("Injecting {}", selected.name), "⌛".to_string(), egui::Color32::from_rgb(150, 200, 210))
-                        .duration(Some(Duration::from_secs(2)));
-                    if is_csgo {
-                        self.manual_map_injection(selected.clone(), ctx.clone(), self.error_sender.clone());
-                    } else {
-                        self.start_injection(selected.clone(), ctx.clone(), self.error_sender.clone());
-                    }
-                }
-                if !is_elevated() && is_csgo && !self.config.hide_csgo_warning {
-                    ui.label(
-                        RichText::new("If you encounter an error stating that csgo.exe is not found try running the loader as an administrator\nYou can disable this warning in the settings.")
-                            .size(11.0)
-                            .color(egui::Color32::YELLOW),
-                    );
-                }
-
-                let inject_in_progress = self
-                    .inject_in_progress
-                    .load(std::sync::atomic::Ordering::SeqCst);
-
-                if inject_in_progress {
-                    ui.add_space(10.0);
-                    let status = self.status_message.lock().unwrap().clone();
-                    ui.horizontal(|ui| {
-                        ui.add(Spinner::new());
-                        ui.add_space(5.0);
-                        ui.label(
-                            RichText::new(&status).color(if status.starts_with("Failed") {
-                                egui::Color32::RED
-                            } else {
-                                theme_color
-                            }),
-                        );
-                        ctx.request_repaint();
-                    });
-                } else {
-                    ui.add_space(10.0);
-                    let status = self.status_message.lock().unwrap().clone();
-                    if !status.is_empty() {
-                        let color = if status.starts_with("Failed") {
-                            egui::Color32::RED
-                        } else {
-                            theme_color
-                        };
-                        ui.label(RichText::new(&status).color(color));
-                    }
-                }
+            if let Some(selected) = self.selected_hack.clone() {
+                self.display_hack_details(ui, ctx, &selected, theme_color);
             } else {
                 ui.vertical_centered(|ui| {
                     ui.add_space(150.0);
@@ -571,208 +301,6 @@ impl MyApp {
             }
         });
 
-        self.toasts.show(ctx);
-    }
-
-    // MARK: Settings Tab
-    fn render_settings_tab(&mut self, ctx: &egui::Context) {
-        egui::CentralPanel::default().show(ctx, |ui| {
-            egui::ScrollArea::vertical().show(ui, |ui| {
-                ui.heading("Settings");
-                ui.separator();
-
-                if ui
-                    .checkbox(
-                        &mut self.config.show_only_favorites,
-                        "Show only favorite hacks",
-                    )
-                    .on_hover_cursor(Clickable)
-                    .changed()
-                {
-                    self.config.save_config();
-                }
-
-                ui.add_space(10.0);
-
-                if ui
-                    .checkbox(
-                        &mut self.config.skip_injects_delay,
-                        "Skip injects delay (visual)",
-                    )
-                    .on_hover_cursor(Clickable)
-                    .changed()
-                {
-                    self.config.save_config();
-                }
-
-                ui.add_space(10.0);
-
-                if ui
-                    .checkbox(&mut self.config.hide_csgo_warning, "Hide CSGO warning")
-                    .on_hover_cursor(Clickable)
-                    .changed()
-                {
-                    self.config.save_config();
-                }
-
-                ui.add_space(10.0);
-
-                ui.horizontal(|ui| {
-                    ui.label("Favorites Color:");
-                    if ui
-                        .color_edit_button_srgba(&mut self.config.favorites_color)
-                        .on_hover_cursor(Clickable)
-                        .changed()
-                    {
-                        self.config.save_config();
-                    }
-                });
-
-                ui.add_space(10.0);
-
-                ui.horizontal(|ui| {
-                    ui.label("API Endpoint:");
-                    if ui
-                        .text_edit_singleline(&mut self.config.api_endpoint)
-                        .changed()
-                    {
-                        self.config.save_config();
-                    }
-                });
-
-                ui.horizontal(|ui| {
-                    ui.label("CDN Endpoint:");
-                    if ui
-                        .text_edit_singleline(&mut self.config.cdn_endpoint)
-                        .changed()
-                    {
-                        self.config.save_config();
-                    }
-                });
-
-                ui.horizontal(|ui| {
-                    ui.label("CSGO Injector:");
-                    if ui
-                        .text_edit_singleline(&mut self.config.csgo_injector)
-                        .changed()
-                    {
-                        self.config.save_config();
-                    }
-                });
-
-                ui.add_space(10.0);
-
-                if ui.cbutton("Reset settings").clicked() {
-                    self.reset_config();
-                    self.toasts.success("Settings reset.");
-                }
-
-                if ui.cbutton("Open loader folder").clicked() {
-                    let downloads_dir = dirs::config_dir()
-                        .unwrap_or_else(|| std::path::PathBuf::from("."))
-                        .join("anarchyloader");
-                    let _ = opener::open(downloads_dir);
-                }
-            });
-        });
-        self.toasts.show(ctx);
-    }
-
-    // MARK: About Tab
-    fn render_about_tab(&mut self, ctx: &egui::Context) {
-        egui::CentralPanel::default().show(ctx, |ui| {
-            egui::ScrollArea::vertical().show(ui, |ui| {
-                ui.heading("About");
-                ui.separator();
-                if ui
-                    .add(
-                        egui::Image::new(egui::include_image!("../resources/img/icon.ico"))
-                            .max_width(100.0)
-                            .rounding(10.0)
-                            .sense(Sense::click()),
-                    )
-                    .clicked()
-                {
-                    self.toasts.info("Hello there!");
-                }
-                ui.label(RichText::new(format!("v{}", self.app_version)).size(15.0));
-                ui.add_space(10.0);
-                ui.label(
-                    RichText::new(
-                        "AnarchyLoader is a free and open-source cheat loader for various games.",
-                    )
-                    .size(16.0),
-                );
-                ui.add_space(5.0);
-                ui.hyperlink_to("by dest4590", "https://github.com/dest4590")
-                    .on_hover_text("https://github.com/dest4590");
-                ui.add_space(10.0);
-                ui.horizontal(|ui| {
-                    if ui.cbutton("Visit Website").clicked() {
-                        let _ = opener::open("https://anarchy.my");
-                    }
-                    if ui.cbutton("Github Repository").clicked() {
-                        let _ = opener::open("https://github.com/AnarchyLoader/AnarchyLoader");
-                    }
-                });
-
-                ui.add_space(5.0);
-                ui.label("Keybinds:");
-                ui.label("F5 - Refresh hacks");
-                ui.label("Enter - Inject selected hack");
-                ui.label("Escape - Deselect hack");
-                ui.label("Hold Alt - Debug tab");
-            });
-        });
-        self.toasts.show(ctx);
-    }
-
-    fn render_debug_tab(&mut self, ctx: &egui::Context) {
-        egui::CentralPanel::default().show(ctx, |ui| {
-            egui::ScrollArea::vertical().show(ui, |ui| {
-                ui.add_space(10.0);
-                ui.heading("Debug");
-                ui.separator();
-
-                let debug_info = vec![
-                    ("Config:", format!("{:#?}", self.config)),
-                    ("Hacks:", format!("{:#?}", self.hacks)),
-                    ("Selected Hack:", format!("{:#?}", self.selected_hack)),
-                    ("Status Message:", format!("{:#?}", self.status_message)),
-                    ("Parse Error:", format!("{:#?}", self.parse_error)),
-                    ("Inject in Progress:", format!("{:#?}", self.inject_in_progress)),
-                    ("Search Query:", format!("{:#?}", self.search_query)),
-                    ("Main Menu Message:", format!("{:#?}", self.main_menu_message)),
-                    ("App Version:", format!("{:#?}", self.app_version)),
-
-                ];
-
-                for (label, value) in &debug_info {
-                    if label.starts_with("Hacks") {
-                        ui.collapsing(*label, |ui| {
-                            for hack in &self.hacks {
-                                ui.monospace(format!("{:#?}", hack));
-                            }
-                        });
-                        continue;
-                    } else {
-                        ui.label(*label);
-                        ui.monospace(value);
-                    }
-                    
-                    ui.add_space(10.0);
-                }
-
-                if ui.cbutton("Copy debug info").on_hover_cursor(Clickable).clicked() {
-                    let debug_info = debug_info
-                        .iter()
-                        .map(|(label, value)| format!("{}: {}\n", label, value))
-                        .collect::<String>();
-                    ui.output_mut(|o| o.copied_text = debug_info);
-                    self.toasts.success("Debug info copied to clipboard.");
-                }
-            });
-        });
         self.toasts.show(ctx);
     }
 }
