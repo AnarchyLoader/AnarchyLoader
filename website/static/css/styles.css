@@ -18,19 +18,6 @@ body {
     transition: all 1s;
 }
 
-.background-img {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    z-index: -999;
-    display: none;
-    filter: brightness(0.1);
-    transition: all 1s;
-}
-
 .center {
     margin: 0;
     position: absolute;
@@ -66,10 +53,21 @@ body {
     backdrop-filter: blur(10px);
 }
 
+.gui h1 {
+    user-select: none;
+}
+
+.gui-mobile {
+    width: calc(500px / 2);
+    height: calc(300px / 2);
+}
+
 .gui img {
     height: 100px;
     transition: all 300ms;
     opacity: 0;
+    pointer-events: none;
+    user-select: none;
 }
 
 .buttons {
@@ -82,4 +80,23 @@ body {
 
 .buttons a {
     padding: 0.5rem;
+    text-align: center;
+    color: white;
+    text-decoration: none;
+    font-size: 1.5rem;
+    transition: all 300ms;
+}
+
+.buttons a:nth-child(1) {
+    margin-bottom: 1rem;
+}
+
+.buttons a:hover {
+    color: #ff0000;
+}
+
+.disabled {
+    color: gray;
+    pointer-events: none;
+    cursor: not-allowed;
 }

@@ -1,29 +1,60 @@
-window.onload = function () {
-    const video = document.querySelector('.background-video');
-    const img = document.querySelector('.background-img');
-    const warn = document.querySelector('.warn');
-    var showen = false;
+function isMobile() {
+    const toMatch = [
+        /Android/i,
+        /webOS/i,
+        /iPhone/i,
+        /iPad/i,
+        /iPod/i,
+        /BlackBerry/i,
+        /Windows Phone/i,
+    ];
 
-    video.addEventListener('ended', () => {
-        video.style.display = 'none';
-        img.style.display = 'block';
-    });
-
-    setTimeout(() => {
-        warn.style.opacity = 1;
-        video.style.filter = "brightness(0.1)";
-        showen = true;
-    }, 2000);
-
-    document.addEventListener('keydown', (event) => {
-        if (event.key === 'Insert' && showen) {
-            handleGui();
-        }
+    return toMatch.some((toMatchItem) => {
+        return navigator.userAgent.match(toMatchItem);
     });
 }
 
+window.onload = function () {
+    console.log("Is mobile: " + isMobile());
+
+    if (!isMobile()) {
+        setRelease();
+        setNightly();
+
+        const video = document.querySelector('.background-video');
+        const warn = document.querySelector('.warn');
+        var showen = false;
+
+        video.addEventListener('ended', () => {
+            video.src = 'static/assets/background_loop.mp4';
+            video.loop = true;
+        });
+
+        setTimeout(() => {
+            warn.style.opacity = 1;
+            video.style.filter = 'brightness(0.1)';
+            showen = true;
+        }, 2000);
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Insert' && showen) {
+                handleGui();
+            }
+        });
+    } else {
+        const video = document.querySelector('.background-video');
+        const gui = document.querySelector('.gui');
+        video.src = 'static/assets/background_loop.mp4';
+        video.loop = true;
+        
+        gui.classList.add('gui-mobile');
+
+        handleGui();
+    } 
+};
+
 function handleGui() {
-    console.log("Showing GUI");
+    console.log('Showing GUI');
 
     const gui = document.querySelector('.gui');
     const warn = document.querySelector('.warn');
@@ -35,7 +66,7 @@ function handleGui() {
         gui.style.pointerEvents = 'auto';
 
         setTimeout(() => {
-            gui.style.height = "400px";
+            gui.style.height = '400px';
         }, 300);
 
         setTimeout(() => {
@@ -57,24 +88,30 @@ async function fetchJSON(url) {
     }
 }
 
-async function downloadRelease() {
-    console.log("Downloading release build...");
-    const data = await fetchJSON("https://api.github.com/repos/AnarchyLoader/AnarchyLoader/releases/latest");
+async function setRelease() {
+    const data = await fetchJSON(
+        'https://api.github.com/repos/AnarchyLoader/AnarchyLoader/releases/latest'
+    );
     const downloadUrl = data?.assets?.[0]?.browser_download_url ?? '';
+    const downloadButton = document.querySelector('#release');
     if (downloadUrl) {
-        window.open(downloadUrl, '_blank');
+        downloadButton.href = downloadUrl
     } else {
-        console.error('No release build available');
+        downloadButton.classList.add('disabled');
     }
 }
 
-async function downloadNightly() {
-    console.log("Downloading nightly build...");
-    const data = await fetchJSON("https://api.github.com/repos/AnarchyLoader/AnarchyLoader/releases");
-    const downloadUrl = data?.find(release => release.prerelease)?.assets?.[0]?.browser_download_url ?? '';
+async function setNightly() {
+    const data = await fetchJSON(
+        'https://api.github.com/repos/AnarchyLoader/AnarchyLoader/releases'
+    );
+    const downloadUrl =
+        data?.find((release) => release.prerelease)?.assets?.[0]
+            ?.browser_download_url ?? '';
+    const downloadButton = document.querySelector('#nightly');
     if (downloadUrl) {
-        window.open(downloadUrl, '_blank');
+        downloadButton.href = downloadUrl;
     } else {
-        console.error('No nightly build available');
+        downloadButton.classList.add('disabled');
     }
 }
