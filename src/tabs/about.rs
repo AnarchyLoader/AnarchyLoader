@@ -1,6 +1,9 @@
 use egui::{RichText, Sense};
 
-use crate::{custom_widgets::{Button, Hyperlink}, MyApp};
+use crate::{
+    custom_widgets::{Button, Hyperlink},
+    MyApp,
+};
 
 impl MyApp {
     pub fn render_about_tab(&mut self, ctx: &egui::Context) {

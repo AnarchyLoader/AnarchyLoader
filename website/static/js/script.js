@@ -15,7 +15,7 @@ function isMobile() {
 }
 
 window.onload = function () {
-    console.log("Is mobile: " + isMobile());
+    console.log('Is mobile: ' + isMobile());
 
     if (!isMobile()) {
         setRelease();
@@ -46,11 +46,11 @@ window.onload = function () {
         const gui = document.querySelector('.gui');
         video.src = 'static/assets/background_loop.mp4';
         video.loop = true;
-        
+
         gui.classList.add('gui-mobile');
 
         handleGui();
-    } 
+    }
 };
 
 function handleGui() {
@@ -95,7 +95,7 @@ async function setRelease() {
     const downloadUrl = data?.assets?.[0]?.browser_download_url ?? '';
     const downloadButton = document.querySelector('#release');
     if (downloadUrl) {
-        downloadButton.href = downloadUrl
+        downloadButton.href = downloadUrl;
     } else {
         downloadButton.classList.add('disabled');
     }

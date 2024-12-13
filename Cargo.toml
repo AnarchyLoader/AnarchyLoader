@@ -18,11 +18,10 @@ is_elevated = "0.1.2"
 egui-notify = "0.17.0"
 egui_extras = { version = "0.29.1", features = ["all_loaders"] }
 
-[target.'cfg(windows)'.build-dependencies]
-winres = "0.1.12"
-
 [build-dependencies]
 proc-macro2 = "1.0.92"
+embed-resource = "3.0.1"
+winres = "0.1.12"
 
 [profile.release]
 codegen-units = 1

@@ -161,7 +161,7 @@ impl MyApp {
                     ui.close_menu();
                 }
             }
-            
+
             // show only if file exists
             if Path::new(&file_path_owned).exists() {
                 if ui
