@@ -1,12 +1,8 @@
 #[cfg(target_os = "windows")]
+extern crate embed_resource;
+
 fn main() {
-    if let Err(e) = winres::WindowsResource::new()
-        .set_icon("resources\\img\\icon.ico")
-        .compile()
-    {
-        eprintln!("{}", e);
-        std::process::exit(1);
-    }
+    let _ = embed_resource::compile("resources.rc", embed_resource::NONE);
 }
 
 #[cfg(not(target_os = "windows"))]
