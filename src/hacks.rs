@@ -69,21 +69,31 @@ impl Hack {
         }
     }
 
-    pub(crate) fn fetch_hacks(api_endpoint: &str) -> Result<Vec<Hack>, String> {
-        match reqwest::blocking::get(api_endpoint) {
+    pub(crate) fn fetch_hacks(api_endpoint: &str, lowercase: bool) -> Result<Vec<Hack>, String> {
+        match ureq::get(api_endpoint).call() {
             Ok(res) => {
-                if res.status().is_success() {
+                if res.status() == 200 {
                     let parsed_hacks: Vec<HackApiResponse> =
-                        res.json().map_err(|e| e.to_string())?;
+                        res.into_json().map_err(|e| e.to_string())?;
                     if parsed_hacks.is_empty() {
                         Err("No hacks available.".to_string())
                     } else {
                         Ok(parsed_hacks
                             .into_iter()
                             .map(|hack| {
+                                let name = if lowercase {
+                                    hack.name.to_lowercase()
+                                } else {
+                                    hack.name.clone()
+                                };
+                                let description = if lowercase {
+                                    hack.description.to_lowercase()
+                                } else {
+                                    hack.description.clone()
+                                };
                                 Hack::new(
-                                    &hack.name,
-                                    &hack.description,
+                                    &name,
+                                    &description,
                                     &hack.author,
                                     &hack.status,
                                     &hack.file,
@@ -101,4 +111,8 @@ impl Hack {
             Err(e) => Err(format!("Failed to connect to API: {}", e)),
         }
     }
+}
+
+pub(crate) fn get_hack_by_name(hacks: &[Hack], name: &str) -> Option<Hack> {
+    hacks.iter().find(|&hack| hack.name == name).cloned()
 }

@@ -6,7 +6,6 @@ impl MyApp {
     pub fn render_debug_tab(&mut self, ctx: &egui::Context) {
         egui::CentralPanel::default().show(ctx, |ui| {
             egui::ScrollArea::vertical().show(ui, |ui| {
-                ui.add_space(10.0);
                 ui.heading("Debug");
                 ui.separator();
 
@@ -51,6 +50,7 @@ impl MyApp {
                 {
                     let debug_info = debug_info
                         .iter()
+                        .filter(|(label, _)| !label.starts_with("Hacks"))
                         .map(|(label, value)| format!("{}: {}\n", label, value))
                         .collect::<String>();
                     ui.output_mut(|o| o.copied_text = debug_info);
@@ -58,6 +58,8 @@ impl MyApp {
                 }
             });
         });
-        self.toasts.show(ctx);
+        if !self.config.disable_notifications {
+            self.toasts.show(ctx);
+        }
     }
 }

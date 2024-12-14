@@ -5,6 +5,7 @@ mod custom_widgets;
 mod downloader;
 mod hacks;
 mod inject;
+mod steam;
 mod tabs;
 
 use std::{
@@ -24,7 +25,7 @@ use eframe::{
 };
 use egui::{CursorIcon::PointingHand as Clickable, Sense};
 use egui_notify::Toasts;
-use hacks::Hack;
+use hacks::{get_hack_by_name, Hack};
 use tabs::top_panel::AppTab;
 
 pub(crate) fn load_icon() -> egui::IconData {
@@ -77,38 +78,37 @@ struct MyApp {
     toasts: Toasts,
     message_sender: Sender<String>,
     message_receiver: Receiver<String>,
+    is_injector_valid: bool,
+    account: steam::SteamAccount,
+}
+
+fn default_main_menu_message() -> String {
+    format!(
+        "Hello {}!\nPlease select a cheat from the list.",
+        whoami::username()
+    )
 }
 
 impl MyApp {
     // MARK: Init
     fn new() -> Self {
-        let (error_sender, error_receiver) = mpsc::channel();
+        let (message_sender, message_receiver) = mpsc::channel();
         let config = Config::load_config();
         let status_message = Arc::new(Mutex::new(String::new()));
         let inject_in_progress = Arc::new(std::sync::atomic::AtomicBool::new(false));
 
-        let hacks = match hacks::Hack::fetch_hacks(&config.api_endpoint) {
-            Ok(hacks) => hacks,
+        let hacks = hacks::Hack::fetch_hacks(&config.api_endpoint, config.lowercase_hacks)
+            .unwrap_or_default();
+
+        let account = match steam::SteamAccount::new() {
+            Ok(account) => account,
             Err(err) => {
-                return Self {
-                    hacks: Vec::new(),
-                    selected_hack: None,
-                    status_message,
-                    parse_error: Some(err),
-                    app_version: env!("CARGO_PKG_VERSION").to_string(),
-                    inject_in_progress,
-                    tab: AppTab::default(),
-                    search_query: String::new(),
-                    main_menu_message: "Please select a cheat from the list.".to_string(),
-                    config: config,
-                    toasts: Toasts::default(),
-                    message_sender: error_sender,
-                    message_receiver: error_receiver,
-                }
+                eprintln!("Error getting Steam account: {}", err);
+                steam::SteamAccount::default()
             }
         };
 
-        Self {
+        let mut app = Self {
             hacks,
             selected_hack: None,
             status_message,
@@ -117,12 +117,21 @@ impl MyApp {
             inject_in_progress,
             tab: AppTab::default(),
             search_query: String::new(),
-            main_menu_message: "Please select a cheat from the list.".to_string(),
-            config: config,
+            main_menu_message: default_main_menu_message(),
+            config,
             toasts: Toasts::default(),
-            message_sender: error_sender,
-            message_receiver: error_receiver,
-        }
+            message_sender,
+            message_receiver,
+            is_injector_valid: false,
+            account,
+        };
+
+        app.is_injector_valid = match app.compare_hashes() {
+            Ok(valid) => valid,
+            Err(_) => true,
+        };
+
+        app
     }
 
     fn reset_config(&mut self) {
@@ -142,7 +151,7 @@ impl MyApp {
                 } else {
                     self.toasts
                         .error(error)
-                        .duration(Some(Duration::from_secs(7)));
+                        .duration(Some(Duration::from_secs(4)));
                 }
             }
             Err(TryRecvError::Empty) => {}
@@ -197,6 +206,10 @@ impl MyApp {
             versions.retain(|_, hacks| !hacks.is_empty());
             !versions.is_empty()
         });
+
+        if self.config.selected_hack != "" && self.config.automatically_select_hack {
+            self.selected_hack = get_hack_by_name(&self.hacks, &self.config.selected_hack);
+        }
 
         // MARK: Left panel
         egui::SidePanel::left("left_panel")
@@ -268,8 +281,13 @@ impl MyApp {
                                                 }
                                             }
 
+                                            // MARK: Hack clicked
                                             if response.clicked() {
                                                 self.selected_hack = Some(hack_clone.clone());
+
+                                                self.config.selected_hack = hack_clone.name.clone();
+                                                self.config.save_config();
+
                                                 let mut status =
                                                     self.status_message.lock().unwrap();
                                                 *status = String::new();
@@ -294,14 +312,16 @@ impl MyApp {
             if let Some(selected) = self.selected_hack.clone() {
                 self.display_hack_details(ui, ctx, &selected, theme_color);
             } else {
-                ui.vertical_centered(|ui| {
+                ui.vertical_centered_justified(|ui| {
                     ui.add_space(150.0);
                     ui.label(self.main_menu_message.clone());
                 });
             }
         });
 
-        self.toasts.show(ctx);
+        if !self.config.disable_notifications {
+            self.toasts.show(ctx);
+        }
     }
 }
 
