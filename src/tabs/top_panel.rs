@@ -37,7 +37,7 @@ impl MyApp {
                 {
                     self.tab = AppTab::About;
                 }
-                if ctx.input_mut(|i| i.modifiers.alt) {
+                if ctx.input_mut(|i| i.modifiers.shift) || self.tab == AppTab::Debug {
                     if ui
                         .cselectable_label(self.tab == AppTab::Debug, "Debug")
                         .clicked()

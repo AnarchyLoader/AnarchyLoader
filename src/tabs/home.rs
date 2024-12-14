@@ -1,15 +1,17 @@
 use std::{fs, path::Path, process::Command, sync::Arc, thread, time::Duration};
 
-use egui::{CursorIcon::PointingHand as Clickable, RichText, Spinner};
+use egui::{CursorIcon::PointingHand as Clickable, RichText, Spinner, TextStyle};
 use is_elevated::is_elevated;
 
 use crate::{
-    custom_widgets::Button,
+    custom_widgets::{Button, Hyperlink},
+    default_main_menu_message,
     hacks::{self, Hack},
     MyApp,
 };
 
 impl MyApp {
+    // MARK: Key events
     pub fn handle_key_events(&mut self, ctx: &egui::Context) {
         if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape)) {
             self.selected_hack = None;
@@ -36,9 +38,12 @@ impl MyApp {
         if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::F5)) {
             self.main_menu_message = "Fetching hacks...".to_string();
             ctx.request_repaint();
-            self.hacks = match hacks::Hack::fetch_hacks(&self.config.api_endpoint) {
+            self.hacks = match hacks::Hack::fetch_hacks(
+                &self.config.api_endpoint,
+                self.config.lowercase_hacks,
+            ) {
                 Ok(hacks) => {
-                    self.main_menu_message = "Please select a cheat from the list.".to_string();
+                    self.main_menu_message = default_main_menu_message();
                     ctx.request_repaint();
                     hacks
                 }
@@ -52,6 +57,7 @@ impl MyApp {
         }
     }
 
+    // MARK: Hack details
     pub fn display_hack_details(
         &mut self,
         ui: &mut egui::Ui,
@@ -60,17 +66,29 @@ impl MyApp {
         theme_color: egui::Color32,
     ) {
         let is_csgo = selected.game == "CSGO";
+        let _is_cs2 = selected.game == "CS2";
 
         ui.horizontal(|ui| {
             ui.heading(&selected.name);
             ui.label(RichText::new(format!("by {}", selected.author)).color(theme_color));
-            ui.hyperlink_to("(source)", &selected.source)
-                .on_hover_text(&selected.source)
+            ui.clink("(source)", &selected.source);
         });
         ui.separator();
         ui.label(&selected.description);
 
-        ui.add_space(5.0);
+        if !self.config.hide_steam_account {
+            ui.horizontal_wrapped(|ui| {
+                let width = ui.fonts(|f| f.glyph_width(&TextStyle::Body.resolve(ui.style()), ' '));
+                ui.spacing_mut().item_spacing.x = width;
+
+                ui.label(format!("Currently logged in as (steam):"));
+                ui.label(RichText::new(&self.account.name).color(theme_color))
+                    .on_hover_text_at_pointer(&self.account.username);
+                ui.label("(hover to view username)")
+                    .on_hover_text_at_pointer(&self.account.username);
+            });
+        }
+
         // MARK: Inject button
         if ui
             .button(format!("Inject {}", selected.name))
@@ -96,10 +114,9 @@ impl MyApp {
             }
         }
         if !is_elevated() && is_csgo && !self.config.hide_csgo_warning {
-            ui.label(
-                        RichText::new("If you encounter an error stating that csgo.exe is not found try running the loader as an administrator\nYou can disable this warning in the settings.")
-                            .size(11.0)
-                            .color(egui::Color32::YELLOW),
+            ui.label(RichText::new("If you encounter an error stating that csgo.exe is not found try running the loader as an administrator\nYou can disable this warning in the settings.")
+                    .size(11.0)
+                    .color(egui::Color32::YELLOW),
                     );
         }
 

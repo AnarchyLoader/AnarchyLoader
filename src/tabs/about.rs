@@ -1,4 +1,4 @@
-use egui::{RichText, Sense};
+use egui::{RichText, Sense, TextStyle};
 
 use crate::{
     custom_widgets::{Button, Hyperlink},
@@ -31,7 +31,11 @@ impl MyApp {
                     .size(16.0),
                 );
                 ui.add_space(5.0);
-                ui.horizontal(|ui| {
+                ui.horizontal_wrapped(|ui| {
+                    let width =
+                        ui.fonts(|f| f.glyph_width(&TextStyle::Body.resolve(ui.style()), ' '));
+                    ui.spacing_mut().item_spacing.x = width;
+
                     ui.clink("Made with egui", "https://www.github.com/emilk/egui/");
                     ui.clink("by dest4590", "https://github.com/dest4590");
                 });
@@ -46,13 +50,22 @@ impl MyApp {
                 });
 
                 ui.add_space(5.0);
+
+                let keybinds = vec![
+                    ("F5", "Refresh hacks"),
+                    ("Enter", "Inject selected hack"),
+                    ("Escape", "Deselect hack"),
+                    ("Hold Shift", "Debug tab"),
+                ];
+
                 ui.label("Keybinds:");
-                ui.label("F5 - Refresh hacks");
-                ui.label("Enter - Inject selected hack");
-                ui.label("Escape - Deselect hack");
-                ui.label("Hold Alt - Debug tab");
+                for (key, action) in &keybinds {
+                    ui.label(format!("{}: {}", key, action));
+                }
             });
         });
-        self.toasts.show(ctx);
+        if !self.config.disable_notifications {
+            self.toasts.show(ctx);
+        }
     }
 }

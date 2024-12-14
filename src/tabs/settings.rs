@@ -1,6 +1,11 @@
-use egui::CursorIcon::PointingHand as Clickable;
+use egui::{CursorIcon::PointingHand as Clickable, RichText};
+use egui_modal::Modal;
 
-use crate::{custom_widgets::Button, MyApp};
+use crate::{
+    config::{default_api_endpoint, default_cdn_endpoint, default_csgo_injector},
+    custom_widgets::{CheckBox, TextEdit},
+    hacks, MyApp,
+};
 
 impl MyApp {
     pub fn render_settings_tab(&mut self, ctx: &egui::Context) {
@@ -9,39 +14,95 @@ impl MyApp {
                 ui.heading("Settings");
                 ui.separator();
 
-                if ui
-                    .checkbox(
-                        &mut self.config.show_only_favorites,
-                        "Show only favorite hacks",
-                    )
-                    .on_hover_cursor(Clickable)
-                    .changed()
-                {
-                    self.config.save_config();
-                }
+                // MARK: - Display Options
+                ui.group(|ui| {
+                    ui.label("Display Options:");
+                    ui.add_space(5.0);
+
+                    if ui
+                        .ccheckbox(
+                            &mut self.config.show_only_favorites,
+                            "Show only favorite hacks",
+                        )
+                        .changed()
+                    {
+                        self.config.save_config();
+                    }
+                    if ui
+                        .ccheckbox(&mut self.config.lowercase_hacks, "Lowercase hack names")
+                        .changed()
+                    {
+                        self.hacks = match hacks::Hack::fetch_hacks(
+                            &self.config.api_endpoint,
+                            self.config.lowercase_hacks,
+                        ) {
+                            Ok(hacks) => hacks,
+                            Err(_err) => {
+                                self.main_menu_message = "Failed to fetch hacks.".to_string();
+                                Vec::new()
+                            }
+                        };
+
+                        self.toasts.info("Hacks refreshed.");
+                        self.config.save_config();
+                    };
+                    if ui
+                        .ccheckbox(&mut self.config.hide_steam_account, "Hide Steam account")
+                        .changed()
+                    {
+                        self.config.save_config();
+                    }
+                });
 
                 ui.add_space(10.0);
 
-                if ui
-                    .checkbox(
-                        &mut self.config.skip_injects_delay,
-                        "Skip injects delay (visual)",
-                    )
-                    .on_hover_cursor(Clickable)
-                    .changed()
-                {
-                    self.config.save_config();
-                }
+                // MARK: - Injection/Delay Options
+                ui.group(|ui| {
+                    ui.label("Injection/Delay Options:");
+                    ui.add_space(5.0);
+
+                    if ui
+                        .ccheckbox(
+                            &mut self.config.skip_injects_delay,
+                            "Skip injects delay (visual)",
+                        )
+                        .changed()
+                    {
+                        self.config.save_config();
+                    }
+                    if ui
+                        .ccheckbox(
+                            &mut self.config.automatically_select_hack,
+                            "Automatically select hack after inject",
+                        )
+                        .changed()
+                    {
+                        self.config.save_config();
+                    }
+                });
 
                 ui.add_space(10.0);
 
-                if ui
-                    .checkbox(&mut self.config.hide_csgo_warning, "Hide CSGO warning")
-                    .on_hover_cursor(Clickable)
-                    .changed()
-                {
-                    self.config.save_config();
-                }
+                // MARK: - Notifications/Warnings
+                ui.group(|ui| {
+                    ui.label("Notifications/Warnings:");
+                    ui.add_space(5.0);
+                    if ui
+                        .ccheckbox(&mut self.config.hide_csgo_warning, "Hide CSGO warning")
+                        .changed()
+                    {
+                        self.config.save_config();
+                    }
+                    if ui
+                        .ccheckbox(
+                            &mut self.config.disable_notifications,
+                            "Disable notifications",
+                        )
+                        .changed()
+                    {
+                        self.config.save_config();
+                    }
+                });
 
                 ui.add_space(10.0);
 
@@ -58,30 +119,38 @@ impl MyApp {
 
                 ui.add_space(10.0);
 
+                ui.label("Right-click the input field to reset these text settings.");
+
+                ui.add_space(2.0);
+
                 ui.horizontal(|ui| {
                     ui.label("API Endpoint:");
                     if ui
-                        .text_edit_singleline(&mut self.config.api_endpoint)
+                        .ctext_edit(&mut self.config.api_endpoint, default_api_endpoint())
                         .changed()
                     {
                         self.config.save_config();
                     }
                 });
+
+                ui.add_space(2.0);
 
                 ui.horizontal(|ui| {
                     ui.label("CDN Endpoint:");
                     if ui
-                        .text_edit_singleline(&mut self.config.cdn_endpoint)
+                        .ctext_edit(&mut self.config.cdn_endpoint, default_cdn_endpoint())
                         .changed()
                     {
                         self.config.save_config();
                     }
                 });
 
+                ui.add_space(2.0);
+
                 ui.horizontal(|ui| {
-                    ui.label("CSGO Injector:");
+                    ui.label("CS:GO/CS2 Injector:");
                     if ui
-                        .text_edit_singleline(&mut self.config.csgo_injector)
+                        .ctext_edit(&mut self.config.csgo_injector, default_csgo_injector())
                         .changed()
                     {
                         self.config.save_config();
@@ -91,20 +160,42 @@ impl MyApp {
                 ui.add_space(10.0);
 
                 ui.horizontal(|ui| {
-                    if ui.cbutton("Reset settings").clicked() {
-                        self.reset_config();
-                        self.toasts.success("Settings reset.");
-                    }
-
-                    if ui.cbutton("Open loader folder").clicked() {
+                    if ui.button("Open loader folder").clicked() {
                         let downloads_dir = dirs::config_dir()
                             .unwrap_or_else(|| std::path::PathBuf::from("."))
                             .join("anarchyloader");
                         let _ = opener::open(downloads_dir);
                     }
+
+                    let modal = Modal::new(ctx, "confirm_dialog");
+
+                    modal.show(|ui| {
+                        ui.label("Are you sure you want to reset the settings?");
+                        ui.horizontal(|ui| {
+                            if ui
+                                .button(RichText::new("Reset").color(egui::Color32::LIGHT_RED))
+                                .on_hover_cursor(Clickable)
+                                .clicked()
+                            {
+                                self.reset_config();
+                                self.toasts.success("Settings reset.");
+                                modal.close();
+                            }
+
+                            if ui.button("Cancel").on_hover_cursor(Clickable).clicked() {
+                                modal.close();
+                            }
+                        });
+                    });
+
+                    if ui.button(RichText::new("Reset settings")).clicked() {
+                        modal.open();
+                    }
                 });
             });
         });
-        self.toasts.show(ctx);
+        if !self.config.disable_notifications {
+            self.toasts.show(ctx); // Make sure toasts is implemented
+        }
     }
 }

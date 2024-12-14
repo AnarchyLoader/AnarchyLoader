@@ -8,6 +8,7 @@ use std::{
 
 use dll_syringe::{process::OwnedProcess, Syringe};
 use eframe::egui::{self};
+use md5::Digest;
 
 use crate::{downloader::download_file, Hack, MyApp};
 
@@ -107,17 +108,52 @@ impl MyApp {
         });
     }
 
+    fn fetch_local_hash(&self) -> Result<String, Box<dyn std::error::Error>> {
+        let file_path = dirs::config_dir()
+            .unwrap_or_else(|| PathBuf::from("."))
+            .join("anarchyloader")
+            .join(self.config.csgo_injector.clone());
+        let file_bytes = std::fs::read(file_path)?;
+        let mut hasher = md5::Md5::new();
+        hasher.update(&file_bytes);
+        let result = hasher.finalize();
+        Ok(format!("{:x}", result).to_uppercase())
+    }
+
+    fn fetch_remote_hash(&mut self) -> Result<String, Box<dyn std::error::Error>> {
+        let response = ureq::get(
+            "https://raw.githubusercontent.com/AnarchyLoader/AnarchyInjector/refs/heads/main/hash.txt",
+        )
+        .call()?;
+
+        if response.status() == 200 {
+            let hash = response.into_string()?.replace("\n", "");
+            Ok(hash)
+        } else {
+            self.toasts.error("Failed to get hash from remote server.");
+            return Err(format!("Cannot get hash: {}", response.status()).into());
+        }
+    }
+
+    pub fn compare_hashes(&mut self) -> Result<bool, Box<dyn std::error::Error>> {
+        let local_hash = self.fetch_local_hash()?;
+        let remote_hash = self.fetch_remote_hash()?;
+        Ok(local_hash == remote_hash)
+    }
+
+    // MARK: Manual map injection
     pub fn manual_map_injection(
-        &self,
+        &mut self,
         selected: Hack,
         ctx: egui::Context,
         message_sender: Sender<String>,
     ) {
         let inject_in_progress = Arc::clone(&self.inject_in_progress);
         let status_message = Arc::clone(&self.status_message);
+        let is_injector = self.is_injector_valid.clone();
         let selected_clone = selected.clone();
         let ctx_clone = ctx.clone();
-        let skip_injects_clone = self.config.skip_injects_delay;
+        let skip_inject_delay = self.config.skip_injects_delay;
         let injector = self.config.csgo_injector.clone();
 
         {
@@ -129,14 +165,14 @@ impl MyApp {
 
         thread::spawn(move || {
             ctx_clone.request_repaint();
-            if !skip_injects_clone {
+            if !skip_inject_delay {
                 thread::sleep(Duration::from_secs(1));
             }
 
             if !selected_clone.file_path.exists() {
                 {
                     let mut status = status_message.lock().unwrap();
-                    *status = "Downloading...".to_string();
+                    *status = format!("Downloading {}...", selected_clone.name);
                 }
                 ctx_clone.request_repaint();
 
@@ -159,7 +195,7 @@ impl MyApp {
                 }
             }
 
-            if !skip_injects_clone {
+            if !skip_inject_delay {
                 thread::sleep(Duration::from_secs(1));
             }
 
@@ -169,7 +205,7 @@ impl MyApp {
             }
             ctx_clone.request_repaint();
 
-            if !skip_injects_clone {
+            if !skip_inject_delay {
                 thread::sleep(Duration::from_secs(1));
             }
 
@@ -178,13 +214,23 @@ impl MyApp {
                 .join("anarchyloader")
                 .join(injector.clone());
 
-            if !file_path.exists() {
+            if !file_path.exists() || !is_injector {
                 {
                     let mut status = status_message.lock().unwrap();
-                    *status = "Downloading manual map injector...".to_string();
+                    if !is_injector {
+                        *status =
+                            "Re-downloading manual map injector because hashes don't match..."
+                                .to_string();
+                    } else {
+                        *status = "Downloading manual map injector...".to_string();
+                    }
                 }
 
                 ctx_clone.request_repaint();
+
+                if !skip_inject_delay {
+                    thread::sleep(Duration::from_secs(2));
+                }
 
                 match download_file(&injector, file_path.to_str().unwrap()) {
                     Ok(_) => {
@@ -204,7 +250,7 @@ impl MyApp {
                 }
             }
 
-            if !skip_injects_clone {
+            if !skip_inject_delay {
                 thread::sleep(Duration::from_secs(1));
             }
 
@@ -226,10 +272,18 @@ impl MyApp {
                         let _ = message_sender
                             .send(format!("SUCCESS: {}", selected_clone.name).to_string());
                     } else {
-                        let mut status = status_message.lock().unwrap();
                         let error_message = String::from_utf8_lossy(&output.stderr).to_string();
-                        *status = format!("Failed to inject: {}", error_message);
-                        let _ = message_sender.send(format!("Failed to inject: {}", error_message));
+                        let formatted_error_message = error_message
+                            .split_whitespace()
+                            .collect::<Vec<&str>>()
+                            .chunks(7)
+                            .map(|chunk| chunk.join(" "))
+                            .collect::<Vec<String>>()
+                            .join("\n");
+
+                        let mut status = status_message.lock().unwrap();
+                        *status = format!("Failed to inject: {}", formatted_error_message);
+                        let _ = message_sender.send(format!("Failed to inject: {}", formatted_error_message));
                     }
                 }
                 Err(e) => {
