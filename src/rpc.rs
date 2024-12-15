@@ -49,7 +49,11 @@ impl Rpc {
                             if let Err(e) = c.set_activity(
                                 activity::Activity::new()
                                     .state(&current_state)
-                                    .details(&current_details),
+                                    .details(&current_details)
+                                    .assets(
+                                        activity::Assets::new()
+                                            .large_image("https://i.imgur.com/Xxe3XOs.gif"),
+                                    ),
                             ) {
                                 eprintln!("Failed to set Discord RPC activity: {}", e);
                             }
