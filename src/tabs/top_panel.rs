@@ -24,24 +24,21 @@ impl MyApp {
                     .clicked()
                 {
                     self.tab = AppTab::Home;
-                    self.rpc.details = "Selecting a hack".to_string();
-                    self.rpc.update();
+                    self.rpc.update(None, Some("Selecting a hack"));
                 }
                 if ui
                     .cselectable_label(self.tab == AppTab::Settings, "Settings")
                     .clicked()
                 {
                     self.tab = AppTab::Settings;
-                    self.rpc.details = "Configuring settings".to_string();
-                    self.rpc.update();
+                    self.rpc.update(None, Some("Configuring settings"));
                 }
                 if ui
                     .cselectable_label(self.tab == AppTab::About, "About")
                     .clicked()
                 {
                     self.tab = AppTab::About;
-                    self.rpc.details = "Reading about".to_string();
-                    self.rpc.update();
+                    self.rpc.update(None, Some("Reading about"));
                 }
                 if ctx.input_mut(|i| i.modifiers.shift) || self.tab == AppTab::Debug {
                     if ui
@@ -49,8 +46,7 @@ impl MyApp {
                         .clicked()
                     {
                         self.tab = AppTab::Debug;
-                        self.rpc.details = "🪲 Debugging".to_string();
-                        self.rpc.update();
+                        self.rpc.update(None, Some("🪲 Debugging"));
                     }
                 }
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Min), |ui| {

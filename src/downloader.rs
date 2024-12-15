@@ -4,8 +4,25 @@ use crate::config::Config;
 
 pub fn download_file(file: &str, destination: &str) -> Result<(), Box<dyn std::error::Error>> {
     let config = Config::load_config();
-    let url = format!("{}{}", config.cdn_endpoint, file);
-    let response = ureq::get(&url).call()?;
+
+    let mut url = format!("{}{}", config.cdn_endpoint, file);
+    let mut response = ureq::get(&url).call();
+
+    if response.is_err() || response.as_ref().unwrap().status() != 200 {
+        println!("Primary CDN endpoint unavailable, trying fallback...");
+        url = format!("{}{}", config.cdn_fallback_endpoint, file);
+        response = ureq::get(&url).call();
+
+        if response.is_err() {
+            return Err(format!(
+                "Failed to download from both CDN endpoints: {:?}",
+                response.err()
+            )
+            .into());
+        }
+    }
+
+    let response = response.unwrap();
 
     if response.status() == 200 {
         let mut file = File::create(destination)?;
