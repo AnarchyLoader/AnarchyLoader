@@ -2,7 +2,7 @@ use egui::{CursorIcon::PointingHand as Clickable, RichText};
 use egui_modal::Modal;
 
 use crate::{
-    config::{default_api_endpoint, default_cdn_endpoint, default_csgo_injector},
+    config::{default_api_endpoint, default_cdn_endpoint},
     custom_widgets::{CheckBox, TextEdit},
     hacks, MyApp,
 };
@@ -139,18 +139,6 @@ impl MyApp {
                     ui.label("CDN Endpoint:");
                     if ui
                         .ctext_edit(&mut self.config.cdn_endpoint, default_cdn_endpoint())
-                        .changed()
-                    {
-                        self.config.save_config();
-                    }
-                });
-
-                ui.add_space(2.0);
-
-                ui.horizontal(|ui| {
-                    ui.label("CS:GO/CS2 Injector:");
-                    if ui
-                        .ctext_edit(&mut self.config.csgo_injector, default_csgo_injector())
                         .changed()
                     {
                         self.config.save_config();

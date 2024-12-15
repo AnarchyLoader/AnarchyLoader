@@ -1,10 +1,9 @@
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-
 mod config;
 mod custom_widgets;
 mod downloader;
 mod hacks;
 mod inject;
+mod rpc;
 mod steam;
 mod tabs;
 
@@ -78,8 +77,8 @@ struct MyApp {
     toasts: Toasts,
     message_sender: Sender<String>,
     message_receiver: Receiver<String>,
-    is_injector_valid: bool,
     account: steam::SteamAccount,
+    rpc: rpc::Rpc,
 }
 
 fn default_main_menu_message() -> String {
@@ -102,13 +101,18 @@ impl MyApp {
 
         let account = match steam::SteamAccount::new() {
             Ok(account) => account,
-            Err(err) => {
-                eprintln!("Error getting Steam account: {}", err);
-                steam::SteamAccount::default()
-            }
+            Err(_) => steam::SteamAccount::default(),
         };
 
-        let mut app = Self {
+        let mut rpc = rpc::Rpc::default();
+
+        if let Err(e) = rpc.start() {
+            eprintln!("Failed to start RPC: {:?}", e);
+        } else {
+            rpc.update();
+        }
+
+        Self {
             hacks,
             selected_hack: None,
             status_message,
@@ -122,16 +126,9 @@ impl MyApp {
             toasts: Toasts::default(),
             message_sender,
             message_receiver,
-            is_injector_valid: false,
             account,
-        };
-
-        app.is_injector_valid = match app.compare_hashes() {
-            Ok(valid) => valid,
-            Err(_) => true,
-        };
-
-        app
+            rpc,
+        }
     }
 
     fn reset_config(&mut self) {
@@ -142,17 +139,20 @@ impl MyApp {
     // MARK: Home tab
     fn render_home_tab(&mut self, ctx: &egui::Context, theme_color: egui::Color32) {
         match self.message_receiver.try_recv() {
-            Ok(error) => {
-                if error.starts_with("SUCCESS: ") {
-                    let name = error.trim_start_matches("SUCCESS: ").to_string();
+            Ok(message) => {
+                if message.starts_with("SUCCESS: ") {
+                    let name = message.trim_start_matches("SUCCESS: ").to_string();
                     self.toasts
                         .success(format!("Successfully injected {}", name))
                         .duration(Some(Duration::from_secs(4)));
                 } else {
                     self.toasts
-                        .error(error)
+                        .error(message)
                         .duration(Some(Duration::from_secs(4)));
                 }
+
+                self.rpc.details = rpc::Rpc::default().details.clone();
+                self.rpc.update();
             }
             Err(TryRecvError::Empty) => {}
             Err(e) => {
@@ -291,6 +291,10 @@ impl MyApp {
                                                 let mut status =
                                                     self.status_message.lock().unwrap();
                                                 *status = String::new();
+
+                                                self.rpc.details =
+                                                    format!("Selected {}", hack_clone.name);
+                                                self.rpc.update();
                                             }
 
                                             self.context_menu(&response, ctx, &hack);

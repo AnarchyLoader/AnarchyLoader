@@ -8,13 +8,12 @@ use std::{
 
 use dll_syringe::{process::OwnedProcess, Syringe};
 use eframe::egui::{self};
-use md5::Digest;
 
 use crate::{downloader::download_file, Hack, MyApp};
 
 impl MyApp {
     pub fn start_injection(
-        &self,
+        &mut self,
         selected: Hack,
         ctx: egui::Context,
         message_sender: Sender<String>,
@@ -108,39 +107,6 @@ impl MyApp {
         });
     }
 
-    fn fetch_local_hash(&self) -> Result<String, Box<dyn std::error::Error>> {
-        let file_path = dirs::config_dir()
-            .unwrap_or_else(|| PathBuf::from("."))
-            .join("anarchyloader")
-            .join(self.config.csgo_injector.clone());
-        let file_bytes = std::fs::read(file_path)?;
-        let mut hasher = md5::Md5::new();
-        hasher.update(&file_bytes);
-        let result = hasher.finalize();
-        Ok(format!("{:x}", result).to_uppercase())
-    }
-
-    fn fetch_remote_hash(&mut self) -> Result<String, Box<dyn std::error::Error>> {
-        let response = ureq::get(
-            "https://raw.githubusercontent.com/AnarchyLoader/AnarchyInjector/refs/heads/main/hash.txt",
-        )
-        .call()?;
-
-        if response.status() == 200 {
-            let hash = response.into_string()?.replace("\n", "");
-            Ok(hash)
-        } else {
-            self.toasts.error("Failed to get hash from remote server.");
-            return Err(format!("Cannot get hash: {}", response.status()).into());
-        }
-    }
-
-    pub fn compare_hashes(&mut self) -> Result<bool, Box<dyn std::error::Error>> {
-        let local_hash = self.fetch_local_hash()?;
-        let remote_hash = self.fetch_remote_hash()?;
-        Ok(local_hash == remote_hash)
-    }
-
     // MARK: Manual map injection
     pub fn manual_map_injection(
         &mut self,
@@ -150,11 +116,9 @@ impl MyApp {
     ) {
         let inject_in_progress = Arc::clone(&self.inject_in_progress);
         let status_message = Arc::clone(&self.status_message);
-        let is_injector = self.is_injector_valid.clone();
         let selected_clone = selected.clone();
         let ctx_clone = ctx.clone();
         let skip_inject_delay = self.config.skip_injects_delay;
-        let injector = self.config.csgo_injector.clone();
 
         {
             let mut status = status_message.lock().unwrap();
@@ -209,21 +173,22 @@ impl MyApp {
                 thread::sleep(Duration::from_secs(1));
             }
 
+            let is_cs2 = selected_clone.process.eq_ignore_ascii_case("cs2.exe");
+            let injector_process = if is_cs2 {
+                "AnarchyInjector_x64.exe"
+            } else {
+                "AnarchyInjector_x86.exe"
+            };
+
             let file_path = dirs::config_dir()
                 .unwrap_or_else(|| PathBuf::from("."))
                 .join("anarchyloader")
-                .join(injector.clone());
+                .join(injector_process);
 
-            if !file_path.exists() || !is_injector {
+            if !file_path.exists() {
                 {
                     let mut status = status_message.lock().unwrap();
-                    if !is_injector {
-                        *status =
-                            "Re-downloading manual map injector because hashes don't match..."
-                                .to_string();
-                    } else {
-                        *status = "Downloading manual map injector...".to_string();
-                    }
+                    *status = "Downloading manual map injector...".to_string();
                 }
 
                 ctx_clone.request_repaint();
@@ -232,7 +197,7 @@ impl MyApp {
                     thread::sleep(Duration::from_secs(2));
                 }
 
-                match download_file(&injector, file_path.to_str().unwrap()) {
+                match download_file(&injector_process, file_path.to_str().unwrap()) {
                     Ok(_) => {
                         let mut status = status_message.lock().unwrap();
                         *status = "Downloaded manual map injector.".to_string();
@@ -281,9 +246,10 @@ impl MyApp {
                             .collect::<Vec<String>>()
                             .join("\n");
 
+                        let _ = message_sender.send(formatted_error_message.clone());
+
                         let mut status = status_message.lock().unwrap();
-                        *status = format!("Failed to inject: {}", formatted_error_message);
-                        let _ = message_sender.send(format!("Failed to inject: {}", formatted_error_message));
+                        *status = formatted_error_message;
                     }
                 }
                 Err(e) => {
