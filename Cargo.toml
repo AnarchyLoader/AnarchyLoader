@@ -21,6 +21,7 @@ egui-modal = "0.5.0"
 vdf-reader = "0.2.0"
 whoami = "1.5.2"
 discord-rich-presence = "0.2.5"
+egui_alignments = "0.3.0"
 
 [build-dependencies]
 embed-resource = "3.0.1"

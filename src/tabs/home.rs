@@ -1,6 +1,7 @@
 use std::{fs, path::Path, process::Command, sync::Arc, thread, time::Duration};
 
 use egui::{CursorIcon::PointingHand as Clickable, RichText, Spinner, TextStyle};
+use egui_alignments::top_horizontal;
 use is_elevated::is_elevated;
 
 use crate::{
@@ -67,11 +68,12 @@ impl MyApp {
     ) {
         let is_csgo = selected.game == "CSGO";
         let is_cs2 = selected.game == "CS2";
-
-        ui.horizontal(|ui| {
-            ui.heading(&selected.name);
-            ui.label(RichText::new(format!("by {}", selected.author)).color(theme_color));
-            ui.clink("(source)", &selected.source);
+        top_horizontal(ui, |ui| {
+            ui.horizontal(|ui| {
+                ui.heading(&selected.name);
+                ui.label(RichText::new(format!("by {}", selected.author)).color(theme_color));
+                ui.clink("(source)", &selected.source);
+            });
         });
         ui.separator();
         ui.label(&selected.description);
@@ -83,19 +85,34 @@ impl MyApp {
 
                 ui.label(format!("Currently logged in as (steam):"));
                 ui.label(RichText::new(&self.account.name).color(theme_color))
-                    .on_hover_text_at_pointer(&self.account.username);
+                    .on_hover_text_at_pointer(&self.account.username)
+                    .on_hover_cursor(egui::CursorIcon::Help);
+
                 ui.label("(hover to view username)")
-                    .on_hover_text_at_pointer(&self.account.username);
+                    .on_hover_text_at_pointer(&self.account.username)
+                    .on_hover_cursor(egui::CursorIcon::Help);
             });
         }
 
         // MARK: Inject button
-        if ui
-            .button(format!("Inject {}", selected.name))
-            .on_hover_cursor(Clickable)
-            .on_hover_text(&selected.file)
-            .clicked()
-        {
+        let is_32bit = std::mem::size_of::<usize>() == 4;
+        let is_cs2_32bit = is_32bit && selected.game == "CS2";
+        let inject_button = ui
+            .add_enabled_ui(!is_cs2_32bit, |ui| {
+                ui.button(format!("Inject {}", selected.name))
+                    .on_hover_cursor(Clickable)
+                    .on_hover_text(&selected.file)
+            })
+            .inner;
+
+        if is_32bit {
+            ui.label(
+                RichText::new("32-bit detected, cs2 hacks are not supported.")
+                    .color(egui::Color32::RED),
+            );
+        }
+
+        if inject_button.clicked() && !is_cs2_32bit {
             self.toasts
                 .custom(
                     format!("Injecting {}", selected.name),
@@ -104,8 +121,8 @@ impl MyApp {
                 )
                 .duration(Some(Duration::from_secs(2)));
 
-            self.rpc.details = format!("Injecting {}", selected.name);
-            self.rpc.update();
+            self.rpc
+                .update(None, Some(&format!("Injecting {}", selected.name)));
 
             if is_csgo || is_cs2 {
                 self.manual_map_injection(
@@ -117,8 +134,8 @@ impl MyApp {
                 self.start_injection(selected.clone(), ctx.clone(), self.message_sender.clone());
             }
         }
-        if !is_elevated() && is_csgo && !self.config.hide_csgo_warning {
-            ui.label(RichText::new("If you encounter an error stating that csgo.exe is not found try running the loader as an administrator\nYou can disable this warning in the settings.")
+        if !is_elevated() && is_csgo || is_cs2 && !self.config.hide_csgo_warning {
+            ui.label(RichText::new("If you encounter an error stating that csgo.exe/cs2.exe is not found try running the loader as an administrator\nYou can disable this warning in the settings.")
                     .size(11.0)
                     .color(egui::Color32::YELLOW),
                     );

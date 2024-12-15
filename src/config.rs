@@ -20,6 +20,8 @@ pub struct Config {
     pub api_endpoint: String,
     #[serde(default = "default_cdn_endpoint")]
     pub cdn_endpoint: String,
+    #[serde(default = "default_cdn_fallback_endpoint")]
+    pub cdn_fallback_endpoint: String,
     #[serde(default)]
     pub hide_csgo_warning: bool,
     #[serde(default)]
@@ -42,6 +44,10 @@ pub(crate) fn default_cdn_endpoint() -> String {
     "https://cdn.collapseloader.org/anarchy/".to_string()
 }
 
+pub(crate) fn default_cdn_fallback_endpoint() -> String {
+    "https://cdn-ru.collapseloader.org/anarchy/".to_string()
+}
+
 fn selected_hack() -> String {
     "".to_string()
 }
@@ -58,6 +64,7 @@ impl Default for Config {
             lowercase_hacks: false,
             api_endpoint: default_api_endpoint(),
             cdn_endpoint: default_cdn_endpoint(),
+            cdn_fallback_endpoint: default_cdn_fallback_endpoint(),
             hide_csgo_warning: false,
             hide_steam_account: false,
             disable_notifications: false,

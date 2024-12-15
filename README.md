@@ -45,6 +45,10 @@ cargo build --release
 -   [egui](https://github.com/emilk/egui)
 -   [dll-syringe](https://github.com/OpenByteDev/dll-syringe)
 -   [egui-notify](https://github.com/ItsEthra/egui-notify)
+-   [egui_alignments](https://github.com/a-littlebit/egui_alignments)
+-   [egui-modal](https://github.com/n00kii/egui-modal)
+-   [vdf_reader](https://github.com/icewind1991/vdf-reader)
+-   [discord-rich-presence](https://github.com/vionya/discord-rich-presence)
 
 Contributions are welcome! Please open an issue or submit a pull request on GitHub.
 

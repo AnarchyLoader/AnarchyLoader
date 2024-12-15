@@ -25,8 +25,10 @@ use eframe::{
     App,
 };
 use egui::{CursorIcon::PointingHand as Clickable, Sense};
+use egui_alignments::center_vertical;
 use egui_notify::Toasts;
 use hacks::{get_hack_by_name, Hack};
+use rpc::Rpc;
 use tabs::top_panel::AppTab;
 
 pub(crate) fn load_icon() -> egui::IconData {
@@ -106,13 +108,11 @@ impl MyApp {
             Err(_) => steam::SteamAccount::default(),
         };
 
-        let mut rpc = rpc::Rpc::default();
-
-        if let Err(e) = rpc.start() {
-            eprintln!("Failed to start RPC: {:?}", e);
-        } else {
-            rpc.update();
-        }
+        let rpc = Rpc::new();
+        rpc.update(
+            Some(&format!("v{}", env!("CARGO_PKG_VERSION"))),
+            Some("Selecting a hack"),
+        );
 
         Self {
             hacks,
@@ -153,8 +153,10 @@ impl MyApp {
                         .duration(Some(Duration::from_secs(4)));
                 }
 
-                self.rpc.details = rpc::Rpc::default().details.clone();
-                self.rpc.update();
+                self.rpc.update(
+                    Some(&format!("v{}", env!("CARGO_PKG_VERSION"))),
+                    Some("Selecting a hack"),
+                );
             }
             Err(TryRecvError::Empty) => {}
             Err(e) => {
@@ -171,36 +173,29 @@ impl MyApp {
                 continue;
             }
 
-            if self.search_query.is_empty()
-                || hack
-                    .name
-                    .to_lowercase()
-                    .contains(&self.search_query.to_lowercase())
-            {
-                let game = hack.game.clone();
-                if game.starts_with("CSS") {
-                    let mut parts = game.split_whitespace();
-                    let game_name = parts.next().unwrap_or("CSS").to_string();
-                    let version = parts.collect::<Vec<&str>>().join(" ");
-                    let version = if version.is_empty() {
-                        "Unknown version".to_string()
-                    } else {
-                        version
-                    };
-                    hacks_by_game
-                        .entry(game_name)
-                        .or_insert_with(BTreeMap::new)
-                        .entry(version)
-                        .or_insert_with(Vec::new)
-                        .push(hack);
+            let game = hack.game.clone();
+            if game.starts_with("CSS") {
+                let mut parts = game.split_whitespace();
+                let game_name = parts.next().unwrap_or("CSS").to_string();
+                let version = parts.collect::<Vec<&str>>().join(" ");
+                let version = if version.is_empty() {
+                    "Unknown version".to_string()
                 } else {
-                    hacks_by_game
-                        .entry(game.clone())
-                        .or_insert_with(BTreeMap::new)
-                        .entry("".to_string())
-                        .or_insert_with(Vec::new)
-                        .push(hack);
-                }
+                    version
+                };
+                hacks_by_game
+                    .entry(game_name)
+                    .or_insert_with(BTreeMap::new)
+                    .entry(version)
+                    .or_insert_with(Vec::new)
+                    .push(hack);
+            } else {
+                hacks_by_game
+                    .entry(game.clone())
+                    .or_insert_with(BTreeMap::new)
+                    .entry("".to_string())
+                    .or_insert_with(Vec::new)
+                    .push(hack);
             }
         }
 
@@ -244,12 +239,29 @@ impl MyApp {
                                         ui.horizontal(|ui| {
                                             let is_favorite =
                                                 self.config.favorites.contains(&hack.name);
-                                            let label = if is_favorite {
+
+                                            let mut label = if is_favorite {
                                                 RichText::new(&hack.name)
                                                     .color(self.config.favorites_color)
                                             } else {
                                                 RichText::new(&hack.name)
                                             };
+
+                                            if !self.search_query.is_empty() {
+                                                let lowercase_name = hack.name.to_lowercase();
+                                                let lowercase_query =
+                                                    self.search_query.to_lowercase();
+                                                let mut search_index = 0;
+                                                while let Some(index) = lowercase_name
+                                                    [search_index..]
+                                                    .find(&lowercase_query)
+                                                {
+                                                    let start = search_index + index;
+                                                    let end = start + lowercase_query.len();
+                                                    label = label.strong().underline();
+                                                    search_index = end;
+                                                }
+                                            }
 
                                             let response = ui.selectable_label(
                                                 self.selected_hack.as_ref() == Some(&hack),
@@ -283,7 +295,6 @@ impl MyApp {
                                                 }
                                             }
 
-                                            // MARK: Hack clicked
                                             if response.clicked() {
                                                 self.selected_hack = Some(hack_clone.clone());
 
@@ -294,9 +305,10 @@ impl MyApp {
                                                     self.status_message.lock().unwrap();
                                                 *status = String::new();
 
-                                                self.rpc.details =
-                                                    format!("Selected {}", hack_clone.name);
-                                                self.rpc.update();
+                                                self.rpc.update(
+                                                    None,
+                                                    Some(&format!("Selected {}", hack_clone.name)),
+                                                );
                                             }
 
                                             self.context_menu(&response, ctx, &hack);
@@ -318,8 +330,7 @@ impl MyApp {
             if let Some(selected) = self.selected_hack.clone() {
                 self.display_hack_details(ui, ctx, &selected, theme_color);
             } else {
-                ui.vertical_centered_justified(|ui| {
-                    ui.add_space(150.0);
+                center_vertical(ui, |ui| {
                     ui.label(self.main_menu_message.clone());
                 });
             }

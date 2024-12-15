@@ -164,6 +164,7 @@ dependencies = [
  "egui",
  "egui-modal",
  "egui-notify",
+ "egui_alignments",
  "egui_extras",
  "embed-resource",
  "image",
@@ -1201,6 +1202,15 @@ dependencies = [
  "web-time",
  "webbrowser",
  "winit",
+]
+
+[[package]]
+name = "egui_alignments"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e776aa97863075232c3ed8e94bc03602c718133e17710f3fe2baa37a57385dc8"
+dependencies = [
+ "egui",
 ]
 
 [[package]]
