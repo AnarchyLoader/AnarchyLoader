@@ -66,7 +66,7 @@ impl MyApp {
         theme_color: egui::Color32,
     ) {
         let is_csgo = selected.game == "CSGO";
-        let _is_cs2 = selected.game == "CS2";
+        let is_cs2 = selected.game == "CS2";
 
         ui.horizontal(|ui| {
             ui.heading(&selected.name);
@@ -103,7 +103,11 @@ impl MyApp {
                     egui::Color32::from_rgb(150, 200, 210),
                 )
                 .duration(Some(Duration::from_secs(2)));
-            if is_csgo {
+
+            self.rpc.details = format!("Injecting {}", selected.name);
+            self.rpc.update();
+
+            if is_csgo || is_cs2 {
                 self.manual_map_injection(
                     selected.clone(),
                     ctx.clone(),
@@ -125,7 +129,7 @@ impl MyApp {
             .load(std::sync::atomic::Ordering::SeqCst);
 
         if inject_in_progress {
-            ui.add_space(10.0);
+            ui.add_space(5.0);
             let status = self.status_message.lock().unwrap().clone();
             ui.horizontal(|ui| {
                 ui.add(Spinner::new());
@@ -140,10 +144,10 @@ impl MyApp {
                 ctx.request_repaint();
             });
         } else {
-            ui.add_space(10.0);
+            ui.add_space(5.0);
             let status = self.status_message.lock().unwrap().clone();
             if !status.is_empty() {
-                let color = if status.starts_with("Failed") {
+                let color = if status.starts_with("Failed") || status.starts_with("Error") {
                     egui::Color32::RED
                 } else {
                     theme_color
