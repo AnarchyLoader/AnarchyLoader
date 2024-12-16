@@ -124,6 +124,8 @@ impl MyApp {
             self.rpc
                 .update(None, Some(&format!("Injecting {}", selected.name)));
 
+            log::info!("Injecting {}", selected.name);
+
             if is_csgo || is_cs2 {
                 self.manual_map_injection(
                     selected.clone(),

@@ -199,8 +199,5 @@ impl MyApp {
                     });
                 });
         });
-        if !self.config.disable_notifications {
-            self.toasts.show(ctx); // Make sure toasts is implemented
-        }
     }
 }

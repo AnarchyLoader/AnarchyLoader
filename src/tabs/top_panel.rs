@@ -5,6 +5,7 @@ pub enum AppTab {
     Home,
     Settings,
     About,
+    Logs,
     Debug,
 }
 
@@ -40,6 +41,14 @@ impl MyApp {
                     self.tab = AppTab::About;
                     self.rpc.update(None, Some("Reading about"));
                 }
+                if ui
+                    .cselectable_label(self.tab == AppTab::Logs, "Logs")
+                    .clicked()
+                {
+                    self.tab = AppTab::Logs;
+                    self.rpc.update(None, Some("Viewing Logs"));
+                }
+
                 if ctx.input_mut(|i| i.modifiers.shift) || self.tab == AppTab::Debug {
                     if ui
                         .cselectable_label(self.tab == AppTab::Debug, "Debug")
@@ -49,6 +58,7 @@ impl MyApp {
                         self.rpc.update(None, Some("🪲 Debugging"));
                     }
                 }
+
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Min), |ui| {
                     ui.add(
                         egui::TextEdit::singleline(&mut self.search_query).hint_text("Search..."),
@@ -57,5 +67,9 @@ impl MyApp {
             });
             ui.add_space(5.0);
         });
+
+        if !self.config.disable_notifications {
+            self.toasts.show(ctx);
+        }
     }
 }

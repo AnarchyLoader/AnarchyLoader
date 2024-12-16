@@ -60,8 +60,5 @@ impl MyApp {
                     }
                 });
         });
-        if !self.config.disable_notifications {
-            self.toasts.show(ctx);
-        }
     }
 }
