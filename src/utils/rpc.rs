@@ -23,12 +23,12 @@ impl Rpc {
                 Ok(mut c) => match c.connect() {
                     Ok(_) => Some(c),
                     Err(e) => {
-                        eprintln!("Failed to connect to Discord RPC: {}", e);
+                        log::error!("Failed to connect to Discord RPC: {}", e);
                         None
                     }
                 },
                 Err(e) => {
-                    eprintln!("Failed to create Discord RPC client: {}", e);
+                    log::error!("Failed to create Discord RPC client: {}", e);
                     None
                 }
             };
@@ -55,13 +55,13 @@ impl Rpc {
                                             .large_image("https://i.imgur.com/Xxe3XOs.gif"),
                                     ),
                             ) {
-                                eprintln!("Failed to set Discord RPC activity: {}", e);
+                                log::error!("Failed to set Discord RPC activity: {}", e);
                             }
                         }
                     }
                     Ok(RpcUpdate::Shutdown) => break,
                     Err(e) => {
-                        eprintln!("RPC channel error: {}", e);
+                        log::error!("RPC channel error: {}", e);
                         break;
                     }
                 }
@@ -69,7 +69,7 @@ impl Rpc {
 
             if let Some(mut c) = client {
                 if let Err(e) = c.close() {
-                    eprintln!("Failed to close Discord RPC connection: {}", e);
+                    log::error!("Failed to close Discord RPC connection: {}", e);
                 }
             }
         });
@@ -84,7 +84,7 @@ impl Rpc {
         };
 
         if let Err(e) = self.sender.send(update) {
-            eprintln!("Failed to send RPC update: {}", e);
+            log::error!("Failed to send RPC update: {}", e);
         }
     }
 }

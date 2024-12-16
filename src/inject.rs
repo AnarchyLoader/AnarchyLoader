@@ -9,7 +9,7 @@ use std::{
 use dll_syringe::{process::OwnedProcess, Syringe};
 use eframe::egui::{self};
 
-use crate::{downloader::download_file, Hack, MyApp};
+use crate::{utils::downloader::download_file, Hack, MyApp};
 
 impl MyApp {
     pub fn start_injection(
