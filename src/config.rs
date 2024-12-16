@@ -30,6 +30,8 @@ pub struct Config {
     pub disable_notifications: bool,
     #[serde(default = "selected_hack")]
     pub selected_hack: String,
+    #[serde(default = "default_log_level")]
+    pub log_level: log::Level,
 }
 
 fn default_favorites_color() -> egui::Color32 {
@@ -46,6 +48,10 @@ pub(crate) fn default_cdn_endpoint() -> String {
 
 pub(crate) fn default_cdn_fallback_endpoint() -> String {
     "https://cdn-ru.collapseloader.org/anarchy/".to_string()
+}
+
+pub(crate) fn default_log_level() -> log::Level {
+    log::Level::Info
 }
 
 fn selected_hack() -> String {
@@ -69,6 +75,7 @@ impl Default for Config {
             hide_steam_account: false,
             disable_notifications: false,
             selected_hack: selected_hack(),
+            log_level: default_log_level(),
         }
     }
 }

@@ -5,6 +5,7 @@ mod custom_widgets;
 mod downloader;
 mod hacks;
 mod inject;
+mod logger;
 mod rpc;
 mod steam;
 mod tabs;
@@ -14,7 +15,7 @@ use std::{
     env,
     sync::{
         mpsc::{self, Receiver, Sender, TryRecvError},
-        Arc, Mutex,
+        Arc, Mutex, OnceLock,
     },
     time::Duration,
 };
@@ -28,6 +29,7 @@ use egui::{CursorIcon::PointingHand as Clickable, Sense};
 use egui_alignments::center_vertical;
 use egui_notify::Toasts;
 use hacks::{get_hack_by_name, Hack};
+use logger::MyLogger;
 use rpc::Rpc;
 use tabs::top_panel::AppTab;
 
@@ -83,6 +85,8 @@ struct MyApp {
     message_receiver: Receiver<String>,
     account: steam::SteamAccount,
     rpc: rpc::Rpc,
+    log_buffer: Arc<Mutex<String>>,
+    logger: logger::MyLogger,
 }
 
 fn default_main_menu_message() -> String {
@@ -91,6 +95,8 @@ fn default_main_menu_message() -> String {
         whoami::username()
     )
 }
+
+static LOGGER: OnceLock<MyLogger> = OnceLock::new();
 
 impl MyApp {
     // MARK: Init
@@ -114,6 +120,13 @@ impl MyApp {
             Some("Selecting a hack"),
         );
 
+        let logger = MyLogger::init();
+        let log_buffer = logger.buffer.clone();
+
+        log::set_max_level(config.log_level.to_level_filter());
+
+        log::info!("AnarchyLoader v{}", env!("CARGO_PKG_VERSION"));
+
         Self {
             hacks,
             selected_hack: None,
@@ -130,6 +143,8 @@ impl MyApp {
             message_receiver,
             account,
             rpc,
+            log_buffer,
+            logger: logger.clone(),
         }
     }
 
@@ -335,10 +350,6 @@ impl MyApp {
                 });
             }
         });
-
-        if !self.config.disable_notifications {
-            self.toasts.show(ctx);
-        }
     }
 }
 
@@ -383,6 +394,7 @@ impl App for MyApp {
             AppTab::Home => self.render_home_tab(ctx, theme_color),
             AppTab::Settings => self.render_settings_tab(ctx),
             AppTab::About => self.render_about_tab(ctx),
+            AppTab::Logs => self.render_logs_tab(ctx),
             AppTab::Debug => self.render_debug_tab(ctx),
         }
     }

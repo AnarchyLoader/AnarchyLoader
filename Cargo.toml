@@ -22,6 +22,9 @@ vdf-reader = "0.2.0"
 whoami = "1.5.2"
 discord-rich-presence = "0.2.5"
 egui_alignments = "0.3.0"
+chrono = "0.4.39"
+log = { version = "0.4.22", features = ["serde"] }
+simplelog = "0.12.2"
 
 [build-dependencies]
 embed-resource = "3.0.1"
