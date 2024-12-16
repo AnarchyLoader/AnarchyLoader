@@ -3,7 +3,7 @@ use egui_modal::Modal;
 
 use crate::{
     config::{default_api_endpoint, default_cdn_endpoint, default_cdn_fallback_endpoint},
-    custom_widgets::{CheckBox, TextEdit},
+    custom_widgets::{Button, CheckBox, TextEdit},
     hacks, MyApp,
 };
 
@@ -170,6 +170,14 @@ impl MyApp {
                                 .unwrap_or_else(|| std::path::PathBuf::from("."))
                                 .join("anarchyloader");
                             let _ = opener::open(downloads_dir);
+                        }
+
+                        if ui.cbutton("Open log file").clicked() {
+                            let log_file = dirs::config_dir()
+                                .unwrap_or_else(|| std::path::PathBuf::from("."))
+                                .join("anarchyloader")
+                                .join("anarchyloader.log");
+                            let _ = opener::open(log_file);
                         }
 
                         let modal = Modal::new(ctx, "confirm_dialog");

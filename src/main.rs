@@ -2,13 +2,10 @@
 
 mod config;
 mod custom_widgets;
-mod downloader;
 mod hacks;
 mod inject;
-mod logger;
-mod rpc;
-mod steam;
 mod tabs;
+mod utils;
 
 use std::{
     collections::BTreeMap,
@@ -29,9 +26,8 @@ use egui::{CursorIcon::PointingHand as Clickable, Sense};
 use egui_alignments::center_vertical;
 use egui_notify::Toasts;
 use hacks::{get_hack_by_name, Hack};
-use logger::MyLogger;
-use rpc::Rpc;
 use tabs::top_panel::AppTab;
+use utils::{logger::MyLogger, rpc::Rpc, steam::SteamAccount};
 
 pub(crate) fn load_icon() -> egui::IconData {
     let (icon_rgba, icon_width, icon_height) = {
@@ -83,10 +79,10 @@ struct MyApp {
     toasts: Toasts,
     message_sender: Sender<String>,
     message_receiver: Receiver<String>,
-    account: steam::SteamAccount,
-    rpc: rpc::Rpc,
+    account: SteamAccount,
+    rpc: Rpc,
     log_buffer: Arc<Mutex<String>>,
-    logger: logger::MyLogger,
+    logger: MyLogger,
 }
 
 fn default_main_menu_message() -> String {
@@ -109,9 +105,9 @@ impl MyApp {
         let hacks = hacks::Hack::fetch_hacks(&config.api_endpoint, config.lowercase_hacks)
             .unwrap_or_default();
 
-        let account = match steam::SteamAccount::new() {
+        let account = match SteamAccount::new() {
             Ok(account) => account,
-            Err(_) => steam::SteamAccount::default(),
+            Err(_) => SteamAccount::default(),
         };
 
         let rpc = Rpc::new();
@@ -175,7 +171,7 @@ impl MyApp {
             }
             Err(TryRecvError::Empty) => {}
             Err(e) => {
-                eprintln!("Error receiving from channel: {:?}", e);
+                log::error!("Error receiving from channel: {:?}", e);
             }
         }
 

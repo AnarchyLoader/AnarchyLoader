@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-use crate::downloader::download_file;
+use crate::utils::downloader::download_file;
 
 #[derive(Deserialize, Debug, Clone, PartialEq)]
 pub(crate) struct HackApiResponse {
@@ -56,12 +56,8 @@ impl Hack {
 
     pub(crate) fn download(&self, file_path: String) -> Result<(), String> {
         if !std::path::Path::new(&file_path).exists() {
-            println!("Downloading {}...", self.name);
             match download_file(&self.file, &file_path) {
-                Ok(_) => {
-                    println!("Downloaded {}!", self.name);
-                    Ok(())
-                }
+                Ok(_) => Ok(()),
                 Err(e) => Err(format!("Failed to download file: {}", e)),
             }
         } else {
@@ -78,6 +74,7 @@ impl Hack {
                     if parsed_hacks.is_empty() {
                         Err("No hacks available.".to_string())
                     } else {
+                        log::info!("Fetched {} hacks from API.", parsed_hacks.len());
                         Ok(parsed_hacks
                             .into_iter()
                             .map(|hack| {

@@ -28,6 +28,8 @@ pub struct Config {
     pub hide_steam_account: bool,
     #[serde(default)]
     pub disable_notifications: bool,
+    #[serde(default)]
+    pub disable_rpc: bool,
     #[serde(default = "selected_hack")]
     pub selected_hack: String,
     #[serde(default = "default_log_level")]
@@ -74,6 +76,7 @@ impl Default for Config {
             hide_csgo_warning: false,
             hide_steam_account: false,
             disable_notifications: false,
+            disable_rpc: false,
             selected_hack: selected_hack(),
             log_level: default_log_level(),
         }
