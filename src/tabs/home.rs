@@ -136,7 +136,7 @@ impl MyApp {
                 self.start_injection(selected.clone(), ctx.clone(), self.message_sender.clone());
             }
         }
-        if !is_elevated() && is_csgo || is_cs2 && !self.config.hide_csgo_warning {
+        if !is_elevated() && (is_csgo || is_cs2) && !self.config.hide_csgo_warning {
             ui.label(RichText::new("If you encounter an error stating that csgo.exe/cs2.exe is not found try running the loader as an administrator\nYou can disable this warning in the settings.")
                     .size(11.0)
                     .color(egui::Color32::YELLOW),
