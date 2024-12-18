@@ -165,7 +165,7 @@ impl MyApp {
                     ui.add_space(10.0);
 
                     ui.horizontal(|ui| {
-                        if ui.button("Open loader folder").clicked() {
+                        if ui.cbutton("Open loader folder").clicked() {
                             let downloads_dir = dirs::config_dir()
                                 .unwrap_or_else(|| std::path::PathBuf::from("."))
                                 .join("anarchyloader");
@@ -201,7 +201,7 @@ impl MyApp {
                             });
                         });
 
-                        if ui.button(RichText::new("Reset settings")).clicked() {
+                        if ui.cbutton(RichText::new("Reset settings")).clicked() {
                             modal.open();
                         }
                     });
