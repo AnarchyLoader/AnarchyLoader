@@ -2,12 +2,13 @@ use std::{fs, path::Path, process::Command, sync::Arc, thread, time::Duration};
 
 use egui::{CursorIcon::PointingHand as Clickable, RichText, Spinner, TextStyle};
 use egui_alignments::top_horizontal;
+use egui_modal::Modal;
 use is_elevated::is_elevated;
 
 use crate::{
     custom_widgets::{Button, Hyperlink},
     default_main_menu_message,
-    hacks::{self, Hack},
+    hacks::{self, get_all_processes, Hack},
     MyApp,
 };
 
@@ -55,6 +56,97 @@ impl MyApp {
             };
 
             self.toasts.info("Hacks refreshed.");
+        }
+    }
+
+    pub fn handle_dnd(&mut self, ctx: &egui::Context) {
+        let modal = Modal::new(ctx, "dnd_modal");
+
+        modal.show(|ui| {
+            ui.heading("Select process:");
+            let processes = get_all_processes(&self.hacks);
+            let dropped_filename = self
+                .dropped_file
+                .path
+                .as_ref()
+                .and_then(|p| p.file_name())
+                .unwrap_or_default()
+                .to_string_lossy()
+                .to_string();
+
+            egui::ComboBox::from_id_salt("Process")
+                .selected_text(if self.selected_process_dnd.is_empty() {
+                    "".to_string()
+                } else {
+                    self.selected_process_dnd.clone()
+                })
+                .show_ui(ui, |ui| {
+                    for process in &processes {
+                        ui.selectable_value(
+                            &mut self.selected_process_dnd,
+                            process.to_string(),
+                            process.clone(),
+                        )
+                        .on_hover_cursor(Clickable);
+                    }
+                })
+                .response
+                .on_hover_cursor(Clickable);
+
+            let is_csgo = self.selected_process_dnd == "csgo.exe";
+            let is_cs2 = self.selected_process_dnd == "cs2.exe";
+
+            if ui
+                .cbutton(format!("Inject a {}", dropped_filename))
+                .clicked()
+            {
+                if self.selected_process_dnd.is_empty() {
+                    self.toasts.error("Please select a process.");
+                    return;
+                }
+
+                self.toasts.info(format!(
+                    "Injecting {}{}",
+                    dropped_filename,
+                    if is_csgo || is_cs2 {
+                        " using manual map injection."
+                    } else {
+                        " using standard injection."
+                    }
+                ));
+
+                if is_csgo || is_cs2 {
+                    self.manual_map_inject(
+                        self.dropped_file.path.clone(),
+                        &self.selected_process_dnd.clone(),
+                        self.message_sender.clone(),
+                    );
+                } else {
+                    self.inject(
+                        self.dropped_file.path.clone(),
+                        &self.selected_process_dnd.clone(),
+                        self.message_sender.clone(),
+                    );
+                }
+
+                modal.close();
+            }
+        });
+
+        if let Some(dropped_file) = ctx.input(|i| i.raw.dropped_files.first().cloned()) {
+            if dropped_file
+                .path
+                .as_ref()
+                .unwrap()
+                .extension()
+                .unwrap_or_default()
+                != "dll"
+            {
+                self.toasts.error("Only DLL files are supported.");
+                return;
+            }
+            self.dropped_file = dropped_file.clone();
+            modal.open();
         }
     }
 
