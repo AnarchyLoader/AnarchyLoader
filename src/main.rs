@@ -22,7 +22,7 @@ use eframe::{
     egui::{self, RichText},
     App,
 };
-use egui::{CursorIcon::PointingHand as Clickable, Sense};
+use egui::{CursorIcon::PointingHand as Clickable, DroppedFile, Sense};
 use egui_alignments::center_vertical;
 use egui_notify::Toasts;
 use hacks::{get_hack_by_name, Hack};
@@ -79,6 +79,8 @@ struct MyApp {
     toasts: Toasts,
     message_sender: Sender<String>,
     message_receiver: Receiver<String>,
+    dropped_file: DroppedFile,
+    selected_process_dnd: String,
     account: SteamAccount,
     rpc: Rpc,
     log_buffer: Arc<Mutex<String>>,
@@ -123,9 +125,15 @@ impl MyApp {
 
         log::info!("AnarchyLoader v{}", env!("CARGO_PKG_VERSION"));
 
+        let mut selected_hack = None;
+
+        if config.selected_hack != "" && config.automatically_select_hack {
+            selected_hack = get_hack_by_name(&hacks, &config.selected_hack);
+        }
+
         Self {
             hacks,
-            selected_hack: None,
+            selected_hack,
             status_message,
             parse_error: None,
             app_version: env!("CARGO_PKG_VERSION").to_string(),
@@ -137,6 +145,8 @@ impl MyApp {
             toasts: Toasts::default(),
             message_sender,
             message_receiver,
+            dropped_file: DroppedFile::default(),
+            selected_process_dnd: String::new(),
             account,
             rpc,
             log_buffer,
@@ -176,6 +186,7 @@ impl MyApp {
         }
 
         self.handle_key_events(ctx);
+        self.handle_dnd(ctx);
 
         let mut hacks_by_game: BTreeMap<String, BTreeMap<String, Vec<Hack>>> = BTreeMap::new();
 
@@ -214,10 +225,6 @@ impl MyApp {
             versions.retain(|_, hacks| !hacks.is_empty());
             !versions.is_empty()
         });
-
-        if self.config.selected_hack != "" && self.config.automatically_select_hack {
-            self.selected_hack = get_hack_by_name(&self.hacks, &self.config.selected_hack);
-        }
 
         // MARK: Left panel
         egui::SidePanel::left("left_panel")

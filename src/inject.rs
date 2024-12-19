@@ -12,6 +12,97 @@ use eframe::egui::{self};
 use crate::{utils::downloader::download_file, Hack, MyApp};
 
 impl MyApp {
+    pub fn inject(
+        &mut self,
+        dll_path: Option<std::path::PathBuf>,
+        target_process: &str,
+        message_sender: Sender<String>,
+    ) {
+        if let Some(process) = OwnedProcess::find_first_by_name(target_process) {
+            let syringe = Syringe::for_process(process);
+            let dll_path_clone = dll_path.clone().unwrap();
+            if let Err(e) = syringe.inject(dll_path.unwrap()) {
+                let _ = message_sender.send(format!("Failed to inject: {}", e));
+                log::error!("Failed to inject: {}", e);
+            } else {
+                let _ = message_sender.send(format!(
+                    "SUCCESS: {}",
+                    dll_path_clone.file_name().unwrap().to_string_lossy()
+                ));
+                log::info!("Injected into {}", target_process);
+            }
+        } else {
+            let _ = message_sender.send(format!("Process '{}' not found.", target_process));
+            log::error!("Process '{}' not found.", target_process);
+        }
+    }
+
+    pub fn manual_map_inject(
+        &mut self,
+        dll_path: Option<std::path::PathBuf>,
+        target_process: &str,
+        message_sender: Sender<String>,
+    ) {
+        let dll_path_clone = dll_path.clone().unwrap();
+        let is_cs2 = target_process.eq_ignore_ascii_case("cs2.exe");
+        let injector_process = if is_cs2 {
+            "AnarchyInjector_x64.exe"
+        } else {
+            "AnarchyInjector_x86.exe"
+        };
+
+        log::debug!("Using {} injector", if is_cs2 { "x64" } else { "x86" });
+
+        let file_path = dirs::config_dir()
+            .unwrap_or_else(|| PathBuf::from("."))
+            .join("anarchyloader")
+            .join(injector_process);
+
+        if !file_path.exists() {
+            match download_file(injector_process, file_path.to_str().unwrap()) {
+                Ok(_) => {
+                    log::debug!("Downloaded manual map injector");
+                }
+                Err(e) => {
+                    let _ = message_sender
+                        .send(format!("Failed to download manual map injector: {}", e));
+                    log::error!("Failed to download manual map injector: {}", e);
+                    return;
+                }
+            }
+        }
+
+        let output = Command::new(file_path).arg(dll_path.unwrap()).output();
+
+        match output {
+            Ok(output) => {
+                if output.status.success() {
+                    let _ = message_sender.send(format!(
+                        "SUCCESS: {}",
+                        dll_path_clone.file_name().unwrap().to_string_lossy()
+                    ));
+                    log::info!("Injected into {}", target_process);
+                } else {
+                    let error_message = String::from_utf8_lossy(&output.stderr).to_string();
+                    let formatted_error_message = error_message
+                        .split_whitespace()
+                        .collect::<Vec<&str>>()
+                        .chunks(7)
+                        .map(|chunk| chunk.join(" "))
+                        .collect::<Vec<String>>()
+                        .join("\n");
+
+                    let _ = message_sender.send(formatted_error_message.clone());
+                    log::error!("Failed to execute injector: {}", formatted_error_message);
+                }
+            }
+            Err(e) => {
+                let _ = message_sender.send(format!("Failed to execute injector: {}", e));
+                log::error!("Failed to execute injector: {}", e);
+            }
+        }
+    }
+
     pub fn start_injection(
         &mut self,
         selected: Hack,

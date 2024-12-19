@@ -113,3 +113,10 @@ impl Hack {
 pub(crate) fn get_hack_by_name(hacks: &[Hack], name: &str) -> Option<Hack> {
     hacks.iter().find(|&hack| hack.name == name).cloned()
 }
+
+pub(crate) fn get_all_processes(hacks: &[Hack]) -> Vec<String> {
+    let mut processes: Vec<String> = hacks.iter().map(|hack| hack.process.clone()).collect();
+    processes.sort();
+    processes.dedup();
+    processes
+}
