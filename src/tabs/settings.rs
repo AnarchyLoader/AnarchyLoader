@@ -31,7 +31,10 @@ impl MyApp {
                             self.config.save_config();
                         }
                         if ui
-                            .ccheckbox(&mut self.config.lowercase_hacks, "Lowercase hack names")
+                            .ccheckbox(
+                                &mut self.config.lowercase_hacks,
+                                "Lowercase hack names & descriptions",
+                            )
                             .changed()
                         {
                             self.hacks = match hacks::Hack::fetch_hacks(
@@ -54,6 +57,17 @@ impl MyApp {
                         {
                             self.config.save_config();
                         }
+
+                        ui.horizontal(|ui| {
+                            ui.label("Favorites Color:");
+                            if ui
+                                .color_edit_button_srgba(&mut self.config.favorites_color)
+                                .on_hover_cursor(Clickable)
+                                .changed()
+                            {
+                                self.config.save_config();
+                            }
+                        });
                     });
 
                     ui.add_space(10.0);
@@ -81,6 +95,47 @@ impl MyApp {
                         {
                             self.config.save_config();
                         }
+
+                        let modal_injector = Modal::new(ctx, "injector_confirm_dialog")
+                            .with_close_on_outside_click(true);
+
+                        modal_injector.show(|ui| {
+                            ui.label("Select architecture to delete:");
+                            ui.horizontal(|ui| {
+                                if ui
+                                    .cbutton(RichText::new("x64").color(egui::Color32::LIGHT_RED))
+                                    .clicked()
+                                {
+                                    if let Err(err) = self.delete_injectors("x64") {
+                                        self.toasts.error(err);
+                                    } else {
+                                        self.toasts.success("x64 injector deleted.");
+                                        modal_injector.close();
+                                    }
+                                }
+
+                                if ui
+                                    .cbutton(RichText::new("x86").color(egui::Color32::LIGHT_RED))
+                                    .clicked()
+                                {
+                                    if let Err(err) = self.delete_injectors("x86") {
+                                        self.toasts.error(err);
+                                    } else {
+                                        self.toasts.success("x86 injector deleted.");
+                                        modal_injector.close();
+                                    }
+                                    modal_injector.close();
+                                }
+
+                                if ui.cbutton("Cancel").clicked() {
+                                    modal_injector.close();
+                                }
+                            });
+                        });
+
+                        if ui.cbutton("Delete injectors").clicked() {
+                            modal_injector.open();
+                        }
                     });
 
                     ui.add_space(10.0);
@@ -100,19 +155,6 @@ impl MyApp {
                                 &mut self.config.disable_notifications,
                                 "Disable notifications",
                             )
-                            .changed()
-                        {
-                            self.config.save_config();
-                        }
-                    });
-
-                    ui.add_space(10.0);
-
-                    ui.horizontal(|ui| {
-                        ui.label("Favorites Color:");
-                        if ui
-                            .color_edit_button_srgba(&mut self.config.favorites_color)
-                            .on_hover_cursor(Clickable)
                             .changed()
                         {
                             self.config.save_config();
@@ -180,29 +222,34 @@ impl MyApp {
                             let _ = opener::open(log_file);
                         }
 
-                        let modal = Modal::new(ctx, "confirm_dialog");
+                        let modal_settings = Modal::new(ctx, "settings_reset_confirm_dialog")
+                            .with_close_on_outside_click(true);
 
-                        modal.show(|ui| {
+                        modal_settings.show(|ui| {
                             ui.label("Are you sure you want to reset the settings?");
                             ui.horizontal(|ui| {
                                 if ui
-                                    .button(RichText::new("Reset").color(egui::Color32::LIGHT_RED))
-                                    .on_hover_cursor(Clickable)
+                                    .cbutton(RichText::new("Reset").color(egui::Color32::LIGHT_RED))
                                     .clicked()
                                 {
                                     self.reset_config();
                                     self.toasts.success("Settings reset.");
-                                    modal.close();
+                                    modal_settings.close();
                                 }
 
-                                if ui.button("Cancel").on_hover_cursor(Clickable).clicked() {
-                                    modal.close();
+                                if ui.cbutton("Cancel").clicked() {
+                                    modal_settings.close();
                                 }
                             });
                         });
 
-                        if ui.cbutton(RichText::new("Reset settings")).clicked() {
-                            modal.open();
+                        if ui
+                            .cbutton(
+                                RichText::new("Reset settings").color(egui::Color32::LIGHT_RED),
+                            )
+                            .clicked()
+                        {
+                            modal_settings.open();
                         }
                     });
                 });

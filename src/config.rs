@@ -69,7 +69,7 @@ impl Default for Config {
             favorites_color: default_favorites_color(),
             automatically_select_hack: false,
             skip_injects_delay: false,
-            lowercase_hacks: false,
+            lowercase_hacks: true,
             api_endpoint: default_api_endpoint(),
             cdn_endpoint: default_cdn_endpoint(),
             cdn_fallback_endpoint: default_cdn_fallback_endpoint(),

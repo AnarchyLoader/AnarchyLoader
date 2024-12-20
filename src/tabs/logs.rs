@@ -34,7 +34,13 @@ impl MyApp {
                     let buffer_string = buffer.clone();
                     drop(buffer);
 
+                    let mut last_level = Level::Info;
+
                     for message in buffer_string.lines() {
+                        if message.trim().is_empty() {
+                            continue;
+                        }
+
                         let (level, message) = match message.split_once(" - ") {
                             Some((prefix, message_content)) => {
                                 let level = match prefix.split_whitespace().next() {
@@ -43,11 +49,12 @@ impl MyApp {
                                     Some("[INFO]") => Level::Info,
                                     Some("[DEBUG]") => Level::Debug,
                                     Some("[TRACE]") => Level::Trace,
-                                    _ => Level::Info,
+                                    _ => last_level,
                                 };
+                                last_level = level;
                                 (level, message_content.to_string())
                             }
-                            None => (Level::Info, message.to_string()),
+                            None => (last_level, message.to_string()),
                         };
 
                         let color = match level {
@@ -55,7 +62,7 @@ impl MyApp {
                             Level::Warn => egui::Color32::YELLOW,
                             Level::Info => egui::Color32::GREEN,
                             Level::Debug => egui::Color32::LIGHT_BLUE,
-                            Level::Trace => egui::Color32::GRAY,
+                            Level::Trace => egui::Color32::BROWN,
                         };
 
                         ui.horizontal_wrapped(|ui| {

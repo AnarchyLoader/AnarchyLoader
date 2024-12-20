@@ -148,6 +148,16 @@ impl MyApp {
             self.dropped_file = dropped_file.clone();
             modal.open();
         }
+
+        if ctx.input(|i| i.raw.hovered_files.first().is_some()) {
+            let screen_rect = ctx.screen_rect();
+            let painter = ctx.layer_painter(egui::LayerId::new(
+                egui::Order::Background,
+                egui::Id::new("blur_layer"),
+            ));
+            painter.rect_filled(screen_rect, 0.0, egui::Color32::from_black_alpha(128));
+            ctx.request_repaint();
+        }
     }
 
     // MARK: Hack details
@@ -191,9 +201,7 @@ impl MyApp {
         let is_cs2_32bit = is_32bit && selected.game == "CS2";
         let inject_button = ui
             .add_enabled_ui(!is_cs2_32bit, |ui| {
-                ui.button(format!("Inject {}", selected.name))
-                    .on_hover_cursor(Clickable)
-                    .on_hover_text(&selected.file)
+                ui.button_with_tooltip(format!("Inject {}", selected.name), &selected.file)
             })
             .inner;
 

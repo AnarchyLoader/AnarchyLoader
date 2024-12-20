@@ -2,7 +2,11 @@ use egui::{CursorIcon::PointingHand as Clickable, WidgetText};
 
 pub trait Button {
     fn cbutton(&mut self, label: impl Into<egui::WidgetText>) -> egui::Response;
-    fn button_with_tooltip(&mut self, label: &str, tooltip: &str) -> egui::Response;
+    fn button_with_tooltip(
+        &mut self,
+        label: impl Into<egui::WidgetText>,
+        tooltip: impl Into<egui::WidgetText>,
+    ) -> egui::Response;
 }
 
 impl Button for egui::Ui {
@@ -10,7 +14,11 @@ impl Button for egui::Ui {
         self.button(label).on_hover_cursor(Clickable)
     }
 
-    fn button_with_tooltip(&mut self, label: &str, tooltip: &str) -> egui::Response {
+    fn button_with_tooltip(
+        &mut self,
+        label: impl Into<egui::WidgetText>,
+        tooltip: impl Into<egui::WidgetText>,
+    ) -> egui::Response {
         self.button(label)
             .on_hover_cursor(Clickable)
             .on_hover_text(tooltip)

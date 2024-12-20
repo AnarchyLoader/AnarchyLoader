@@ -12,6 +12,25 @@ use eframe::egui::{self};
 use crate::{utils::downloader::download_file, Hack, MyApp};
 
 impl MyApp {
+    pub fn delete_injectors(&mut self, arch: &str) -> Result<(), String> {
+        let injector_path = dirs::config_dir()
+            .unwrap_or_else(|| PathBuf::from("."))
+            .join("anarchyloader")
+            .join(if arch == "x86" {
+                "AnarchyInjector_x86.exe"
+            } else {
+                "AnarchyInjector_x64.exe"
+            });
+
+        if injector_path.exists() {
+            if let Err(e) = std::fs::remove_file(&injector_path) {
+                log::error!("Failed to delete {} injector: {}", arch, e);
+                return Err(format!("Failed to delete {} injector: {}", arch, e));
+            }
+        }
+        Ok(())
+    }
+
     pub fn inject(
         &mut self,
         dll_path: Option<std::path::PathBuf>,
@@ -72,7 +91,10 @@ impl MyApp {
             }
         }
 
-        let output = Command::new(file_path).arg(dll_path.unwrap()).output();
+        let output = Command::new(file_path)
+            .arg(target_process)
+            .arg(dll_path.unwrap())
+            .output();
 
         match output {
             Ok(output) => {
@@ -353,7 +375,7 @@ impl MyApp {
                             .join("\n");
 
                         let _ = message_sender.send(formatted_error_message.clone());
-                        log::error!("Failed to execute injector: {}", formatted_error_message);
+                        log::error!("Failed to execute injector: {}", error_message);
                         let mut status = status_message.lock().unwrap();
                         *status = formatted_error_message;
                     }
