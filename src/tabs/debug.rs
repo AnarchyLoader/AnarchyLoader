@@ -1,5 +1,3 @@
-use egui::CursorIcon::PointingHand as Clickable;
-
 use crate::{custom_widgets::Button, MyApp};
 
 impl MyApp {
@@ -45,11 +43,7 @@ impl MyApp {
                         ui.add_space(10.0);
                     }
 
-                    if ui
-                        .cbutton("Copy debug info")
-                        .on_hover_cursor(Clickable)
-                        .clicked()
-                    {
+                    if ui.cbutton("Copy debug info").clicked() {
                         let debug_info = debug_info
                             .iter()
                             .filter(|(label, _)| !label.starts_with("Hacks"))

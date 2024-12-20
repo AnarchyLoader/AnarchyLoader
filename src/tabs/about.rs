@@ -41,13 +41,26 @@ impl MyApp {
                         ui.clink("Made with egui", "https://www.github.com/emilk/egui/");
                         ui.clink("by dest4590", "https://github.com/dest4590");
                     });
-                    ui.add_space(10.0);
+                    ui.add_space(5.0);
                     ui.horizontal(|ui| {
                         if ui.cbutton("Visit Website").clicked() {
-                            let _ = opener::open("https://anarchy.my");
+                            if let Err(e) = opener::open("https://anarchy.my") {
+                                self.toasts.error(format!("Failed to open URL: {}", e));
+                            }
                         }
-                        if ui.cbutton("Github Repository").clicked() {
-                            let _ = opener::open("https://github.com/AnarchyLoader/AnarchyLoader");
+                        if ui.cbutton("Source code").clicked() {
+                            if let Err(e) =
+                                opener::open("https://github.com/AnarchyLoader/AnarchyLoader")
+                            {
+                                self.toasts.error(format!("Failed to open URL: {}", e));
+                            }
+                        }
+                        if ui.cbutton("Injector source code").clicked() {
+                            if let Err(e) =
+                                opener::open("https://github.com/AnarchyLoader/AnarchyInjector")
+                            {
+                                self.toasts.error(format!("Failed to open URL: {}", e));
+                            }
                         }
                     });
 
