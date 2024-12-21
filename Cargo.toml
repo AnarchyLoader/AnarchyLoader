@@ -5,8 +5,8 @@ edition = "2021"
 build = "build.rs"
 
 [dependencies]
-eframe = "0.29.1"
-egui = { version = "0.29.1", features = ["serde"] }
+eframe = "0.30.0"
+egui = { version = "0.30.0", features = ["serde"] }
 dll-syringe = "0.15.2"
 serde = { version = "1.0.216", features = ["derive"] }
 opener = "0.7.2"
@@ -14,17 +14,18 @@ dirs = "5.0.1"
 serde_json = "1.0.133"
 image = { version = "0.25.5", features = ["png"] }
 is_elevated = "0.1.2"
-egui-notify = "0.17.0"
-egui_extras = { version = "0.29.1", features = ["all_loaders"] }
+egui-notify = "0.18.0"
+egui_extras = { version = "0.30.0", features = ["all_loaders"] }
 ureq = { version = "2.12.1", features = ["json"] }
-egui-modal = "0.5.0"
+egui-modal = { git = "https://github.com/dest4590/egui-modal.git"}
 vdf-reader = "0.2.0"
 whoami = "1.5.2"
 discord-rich-presence = "0.2.5"
-egui_alignments = "0.3.0"
+egui_alignments = { git = "https://github.com/a-littlebit/egui_alignments.git" }
 chrono = "0.4.39"
 log = { version = "0.4.22", features = ["serde"] }
 simplelog = "0.12.2"
+pe-parser = "0.6.0"
 
 [build-dependencies]
 embed-resource = "3.0.1"

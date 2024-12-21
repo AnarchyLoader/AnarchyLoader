@@ -16,6 +16,8 @@ impl MyApp {
                     ui.heading("Settings");
                     ui.separator();
 
+                    ui.add_space(5.0);
+
                     // MARK: - Display Options
                     ui.group(|ui| {
                         ui.label("Display Options:");
@@ -48,7 +50,14 @@ impl MyApp {
                                 }
                             };
 
-                            self.toasts.info("Hacks refreshed.");
+                            self.toasts.info(format!(
+                                "Hacks refreshed{}.",
+                                if self.config.lowercase_hacks {
+                                    " (with lowercase)"
+                                } else {
+                                    ""
+                                }
+                            ));
                             self.config.save_config();
                         };
                         if ui

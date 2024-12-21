@@ -1,3 +1,5 @@
+use egui::RichText;
+
 use crate::{custom_widgets::Button, MyApp};
 
 impl MyApp {
@@ -36,7 +38,9 @@ impl MyApp {
                             });
                             continue;
                         } else {
-                            ui.label(*label);
+                            ui.separator();
+                            ui.label(RichText::new(*label).size(12.5));
+                            ui.separator();
                             ui.monospace(value);
                         }
 
@@ -44,11 +48,13 @@ impl MyApp {
                     }
 
                     if ui.cbutton("Copy debug info").clicked() {
-                        let debug_info = debug_info
-                            .iter()
-                            .filter(|(label, _)| !label.starts_with("Hacks"))
-                            .map(|(label, value)| format!("{}: {}\n", label, value))
-                            .collect::<String>();
+                        let debug_info = "```\n".to_string()
+                            + &debug_info
+                                .iter()
+                                .filter(|(label, _)| !label.starts_with("Hacks"))
+                                .map(|(label, value)| format!("{} {}\n", label, value))
+                                .collect::<String>()
+                            + "```";
                         ui.output_mut(|o| o.copied_text = debug_info);
                         self.toasts.success("Debug info copied to clipboard.");
                     }

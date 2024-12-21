@@ -48,8 +48,6 @@ pub(crate) fn load_icon() -> egui::IconData {
 }
 
 fn main() {
-    let app = MyApp::new();
-
     let native_options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_min_inner_size(egui::vec2(600.0, 200.0))
@@ -60,7 +58,7 @@ fn main() {
     eframe::run_native(
         "AnarchyLoader",
         native_options,
-        Box::new(|_cc| Ok(Box::new(app))),
+        Box::new(|cc| Ok(Box::new(MyApp::new(cc)))),
     )
     .unwrap();
 }
@@ -98,7 +96,7 @@ static LOGGER: OnceLock<MyLogger> = OnceLock::new();
 
 impl MyApp {
     // MARK: Init
-    fn new() -> Self {
+    fn new(_cc: &eframe::CreationContext<'_>) -> Self {
         let (message_sender, message_receiver) = mpsc::channel();
         let config = Config::load_config();
         let status_message = Arc::new(Mutex::new(String::new()));
