@@ -1,4 +1,5 @@
 use egui::{CursorIcon::PointingHand as Clickable, WidgetText};
+use egui_notify::Toasts;
 
 pub trait Button {
     fn cbutton(&mut self, label: impl Into<egui::WidgetText>) -> egui::Response;
@@ -6,6 +7,12 @@ pub trait Button {
         &mut self,
         label: impl Into<egui::WidgetText>,
         tooltip: impl Into<egui::WidgetText>,
+    ) -> egui::Response;
+    fn link_button(
+        &mut self,
+        label: impl Into<egui::WidgetText>,
+        url: &str,
+        toasts: &mut Toasts,
     ) -> egui::Response;
 }
 
@@ -22,6 +29,26 @@ impl Button for egui::Ui {
         self.button(label)
             .on_hover_cursor(Clickable)
             .on_hover_text(tooltip)
+    }
+
+    fn link_button(
+        &mut self,
+        label: impl Into<egui::WidgetText>,
+        url: &str,
+        toasts: &mut Toasts,
+    ) -> egui::Response {
+        let response = self
+            .button(label)
+            .on_hover_cursor(Clickable)
+            .on_hover_text(url);
+
+        if response.clicked() {
+            if let Err(e) = opener::open(url) {
+                toasts.error(format!("Failed to open URL: {}", e));
+            }
+        }
+
+        response
     }
 }
 

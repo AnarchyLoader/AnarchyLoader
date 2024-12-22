@@ -25,7 +25,7 @@ use eframe::{
 use egui::{CursorIcon::PointingHand as Clickable, DroppedFile, Sense};
 use egui_alignments::center_vertical;
 use egui_notify::Toasts;
-use hacks::{get_hack_by_name, Hack};
+use hacks::{get_all_processes, get_hack_by_name, Hack};
 use tabs::top_panel::AppTab;
 use utils::{logger::MyLogger, rpc::Rpc, steam::SteamAccount};
 
@@ -65,6 +65,7 @@ fn main() {
 
 struct MyApp {
     hacks: Vec<Hack>,
+    hacks_processes: Vec<String>,
     selected_hack: Option<Hack>,
     status_message: Arc<Mutex<String>>,
     parse_error: Option<String>,
@@ -105,6 +106,8 @@ impl MyApp {
         let hacks = hacks::Hack::fetch_hacks(&config.api_endpoint, config.lowercase_hacks)
             .unwrap_or_default();
 
+        let hacks_processes = get_all_processes(&hacks);
+
         let account = match SteamAccount::new() {
             Ok(account) => account,
             Err(_) => SteamAccount::default(),
@@ -131,6 +134,7 @@ impl MyApp {
 
         Self {
             hacks,
+            hacks_processes,
             selected_hack,
             status_message,
             parse_error: None,
@@ -218,11 +222,6 @@ impl MyApp {
                     .push(hack);
             }
         }
-
-        hacks_by_game.retain(|_, versions| {
-            versions.retain(|_, hacks| !hacks.is_empty());
-            !versions.is_empty()
-        });
 
         // MARK: Left panel
         egui::SidePanel::left("left_panel")

@@ -13,19 +13,25 @@ use crate::{utils::downloader::download_file, Hack, MyApp};
 
 impl MyApp {
     pub fn delete_injectors(&mut self, arch: &str) -> Result<(), String> {
-        let injector_path = dirs::config_dir()
-            .unwrap_or_else(|| PathBuf::from("."))
-            .join("anarchyloader")
-            .join(if arch == "x86" {
-                "AnarchyInjector_x86.exe"
-            } else {
-                "AnarchyInjector_x64.exe"
-            });
+        let injectors = match arch {
+            "both" => vec!["AnarchyInjector_x86.exe", "AnarchyInjector_x64.exe"],
+            "x86" => vec!["AnarchyInjector_x86.exe"],
+            "x64" => vec!["AnarchyInjector_x64.exe"],
+            _ => return Err("Invalid architecture specified".to_string()),
+        };
 
-        if injector_path.exists() {
-            if let Err(e) = std::fs::remove_file(&injector_path) {
-                log::error!("Failed to delete {} injector: {}", arch, e);
-                return Err(format!("Failed to delete {} injector: {}", arch, e));
+        for injector in injectors {
+            let injector_path = dirs::config_dir()
+                .unwrap_or_else(|| PathBuf::from("."))
+                .join("anarchyloader")
+                .join(injector);
+
+            if injector_path.exists() {
+                if let Err(e) = std::fs::remove_file(&injector_path) {
+                    log::error!("Failed to delete {} injector: {}", injector, e);
+                    return Err(format!("Failed to delete {} injector: {}", injector, e));
+                }
+                log::info!("Deleted {}", injector);
             }
         }
         Ok(())

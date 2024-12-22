@@ -115,8 +115,11 @@ pub(crate) fn get_hack_by_name(hacks: &[Hack], name: &str) -> Option<Hack> {
 }
 
 pub(crate) fn get_all_processes(hacks: &[Hack]) -> Vec<String> {
-    let mut processes: Vec<String> = hacks.iter().map(|hack| hack.process.clone()).collect();
-    processes.sort();
-    processes.dedup();
-    processes
+    hacks
+        .iter()
+        .map(|hack| &hack.process)
+        .collect::<std::collections::HashSet<_>>()
+        .into_iter()
+        .cloned()
+        .collect()
 }

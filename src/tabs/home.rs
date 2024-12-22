@@ -8,7 +8,7 @@ use is_elevated::is_elevated;
 use crate::{
     custom_widgets::{Button, Hyperlink},
     default_main_menu_message,
-    hacks::{self, get_all_processes, Hack},
+    hacks::{self, Hack},
     MyApp,
 };
 
@@ -60,11 +60,11 @@ impl MyApp {
     }
 
     pub fn handle_dnd(&mut self, ctx: &egui::Context) {
-        let modal = Modal::new(ctx, "dnd_modal");
+        let modal = Modal::new(ctx, "dnd_modal").with_close_on_outside_click(true);
 
         modal.show(|ui| {
             ui.heading("Select process:");
-            let processes = get_all_processes(&self.hacks);
+            ui.label("you can close this window by clicking outside of it.");
             let dropped_filename = self
                 .dropped_file
                 .path
@@ -81,7 +81,7 @@ impl MyApp {
                     self.selected_process_dnd.clone()
                 })
                 .show_ui(ui, |ui| {
-                    for process in &processes {
+                    for process in &self.hacks_processes {
                         ui.selectable_value(
                             &mut self.selected_process_dnd,
                             process.to_string(),
@@ -152,11 +152,10 @@ impl MyApp {
         if ctx.input(|i| i.raw.hovered_files.first().is_some()) {
             let screen_rect = ctx.screen_rect();
             let painter = ctx.layer_painter(egui::LayerId::new(
-                egui::Order::Background,
-                egui::Id::new("blur_layer"),
+                egui::Order::Foreground,
+                egui::Id::new("layer"),
             ));
             painter.rect_filled(screen_rect, 0.0, egui::Color32::from_black_alpha(128));
-            ctx.request_repaint();
         }
     }
 

@@ -43,28 +43,33 @@ impl MyApp {
                     });
                     ui.add_space(5.0);
                     ui.horizontal(|ui| {
-                        if ui.cbutton("Visit Website").clicked() {
-                            if let Err(e) = opener::open("https://anarchy.my") {
-                                self.toasts.error(format!("Failed to open URL: {}", e));
-                            }
-                        }
-                        if ui.cbutton("Source code").clicked() {
-                            if let Err(e) =
-                                opener::open("https://github.com/AnarchyLoader/AnarchyLoader")
-                            {
-                                self.toasts.error(format!("Failed to open URL: {}", e));
-                            }
-                        }
-                        if ui.cbutton("Injector source code").clicked() {
-                            if let Err(e) =
-                                opener::open("https://github.com/AnarchyLoader/AnarchyInjector")
-                            {
-                                self.toasts.error(format!("Failed to open URL: {}", e));
-                            }
-                        }
+                        ui.link_button("Visit Website", "https://anarchy.my", &mut self.toasts);
+                        ui.link_button(
+                            "Source code",
+                            "https://github.com/AnarchyLoader/AnarchyLoader",
+                            &mut self.toasts,
+                        );
+                        ui.link_button(
+                            "Injector source code",
+                            "https://github.com/AnarchyLoader/AnarchyInjector",
+                            &mut self.toasts,
+                        );
+                    });
+
+                    ui.heading("Socials:");
+
+                    ui.horizontal(|ui| {
+                        ui.link_button(
+                            "Discord",
+                            "https://discord.com/invite/YzwcDCsRe8",
+                            &mut self.toasts,
+                        );
+                        ui.link_button("Telegram", "https://t.me/anarchyloader", &mut self.toasts);
                     });
 
                     ui.add_space(5.0);
+
+                    ui.heading("Keybinds:");
 
                     let keybinds = vec![
                         ("F5", "Refresh hacks"),
@@ -73,7 +78,6 @@ impl MyApp {
                         ("Hold Shift", "Debug tab"),
                     ];
 
-                    ui.label("Keybinds:");
                     for (key, action) in &keybinds {
                         ui.label(format!("{}: {}", key, action));
                     }

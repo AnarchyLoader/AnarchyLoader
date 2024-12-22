@@ -8,7 +8,7 @@ use crate::{
 };
 
 impl MyApp {
-    pub fn render_settings_tab(&mut self, ctx: &egui::Context) {
+    pub fn render_settings_tab(&mut self, ctx: &egui::Context) -> () {
         egui::CentralPanel::default().show(ctx, |ui| {
             egui::ScrollArea::vertical()
                 .drag_to_scroll(false)
@@ -79,7 +79,7 @@ impl MyApp {
                         });
                     });
 
-                    ui.add_space(10.0);
+                    ui.add_space(5.0);
 
                     // MARK: - Injection/Delay Options
                     ui.group(|ui| {
@@ -136,18 +136,30 @@ impl MyApp {
                                     modal_injector.close();
                                 }
 
+                                if ui
+                                    .cbutton(RichText::new("Both").color(egui::Color32::LIGHT_RED))
+                                    .clicked()
+                                {
+                                    if let Err(err) = self.delete_injectors("both") {
+                                        self.toasts.error(err);
+                                    } else {
+                                        self.toasts.success("Both injectors deleted.");
+                                        modal_injector.close();
+                                    }
+                                }
+
                                 if ui.cbutton("Cancel").clicked() {
                                     modal_injector.close();
                                 }
                             });
                         });
 
-                        if ui.cbutton("Delete injectors").clicked() {
+                        if ui.cbutton("Delete injector").clicked() {
                             modal_injector.open();
                         }
                     });
 
-                    ui.add_space(10.0);
+                    ui.add_space(5.0);
 
                     // MARK: - Notifications/Warnings
                     ui.group(|ui| {
@@ -170,7 +182,7 @@ impl MyApp {
                         }
                     });
 
-                    ui.add_space(10.0);
+                    ui.add_space(5.0);
 
                     ui.label("Right-click the input field to reset these text settings.");
 
@@ -213,7 +225,7 @@ impl MyApp {
                         }
                     });
 
-                    ui.add_space(10.0);
+                    ui.add_space(5.0);
 
                     ui.horizontal(|ui| {
                         if ui.cbutton("Open loader folder").clicked() {
