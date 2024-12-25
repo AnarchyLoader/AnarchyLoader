@@ -151,7 +151,7 @@ checksum = "4aa90d7ce82d4be67b64039a3d588d38dbcc6736577de4a847025ce5b0c468d1"
 
 [[package]]
 name = "anarchyloader"
-version = "1.1.0"
+version = "1.1.1"
 dependencies = [
  "chrono",
  "dirs",
