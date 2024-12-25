@@ -79,7 +79,7 @@ body {
 }
 
 .buttons a {
-    padding: 0.5rem;
+    padding: 0.2rem;
     text-align: center;
     color: white;
     text-decoration: none;
@@ -87,12 +87,9 @@ body {
     transition: all 300ms;
 }
 
-.buttons a:nth-child(1) {
-    margin-bottom: 1rem;
-}
-
 .buttons a:hover {
     color: #ff0000;
+    text-decoration: underline;
 }
 
 .disabled {
