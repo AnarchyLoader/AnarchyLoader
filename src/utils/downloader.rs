@@ -1,6 +1,6 @@
 use std::{fs::File, io::copy};
 
-use crate::config::Config;
+use super::config::Config;
 
 pub fn download_file(file: &str, destination: &str) -> Result<(), Box<dyn std::error::Error>> {
     let config = Config::load();

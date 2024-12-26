@@ -18,51 +18,45 @@ impl SteamAccount {
         let installation_regkey = hklm
             .open_subkey_with_flags("SOFTWARE\\Wow6432Node\\Valve\\Steam", KEY_READ)
             .or_else(|_| hklm.open_subkey_with_flags("SOFTWARE\\Valve\\Steam", KEY_READ))
-            .map_err(|e| format!("Failed to open Steam registry key: {}", e))?;
+            .map_err(|e| format!("Failed to open Steam registry key: {e}"))?;
 
-        let install_path_str: String = installation_regkey
-            .get_value("InstallPath")
-            .map_err(|e| format!("Failed to get InstallPath: {}", e))?;
-
-        Ok(PathBuf::from(install_path_str))
+        installation_regkey
+            .get_value::<String, _>("InstallPath")
+            .map(PathBuf::from)
+            .map_err(|e| format!("Failed to get InstallPath: {e}"))
     }
 
     fn parse_user() -> Result<Self, String> {
-        let path = Self::locate_steam()?.join("config").join("loginusers.vdf");
+        let path = Self::locate_steam()?.join("config/loginusers.vdf");
+        let raw =
+            fs::read_to_string(&path).map_err(|e| format!("Failed to read loginusers.vdf: {e}"))?;
 
-        let raw = fs::read_to_string(&path)
-            .map_err(|e| format!("Failed to read loginusers.vdf: {}", e))?;
-
-        let mut reader = Reader::from(raw.as_str());
-        let file = Table::load(&mut reader).map_err(|e| format!("Failed to parse VDF: {}", e))?;
-
+        let file = Table::load(&mut Reader::from(raw.as_str()))
+            .map_err(|e| format!("Failed to parse VDF: {e}"))?;
         let users = file
             .get("users")
-            .ok_or("Missing users table")?
-            .as_table()
-            .ok_or("Invalid users table")?;
+            .and_then(|u| u.as_table())
+            .ok_or("Missing or invalid users table")?;
 
         users
             .iter()
             .find_map(|(_, user_data)| {
                 let user_info = user_data.as_table()?;
-                if user_info.get("MostRecent").and_then(|v| v.as_str()) == Some("1") {
-                    Some((
-                        user_info
-                            .get("AccountName")
-                            .and_then(|v| v.as_str())?
-                            .to_string(),
-                        user_info
-                            .get("PersonaName")
-                            .and_then(|v| v.as_str())?
-                            .to_string(),
-                    ))
+                let username = user_info.get("AccountName")?.as_str()?;
+                let name = user_info.get("PersonaName")?.as_str()?;
+
+                if user_info.get("MostRecent")?.as_str() == Some("1") {
+                    log::info!("Parsed user: {}", name);
+
+                    Some(Self {
+                        username: username.to_owned(),
+                        name: name.to_owned(),
+                    })
                 } else {
                     None
                 }
             })
-            .map(|(username, name)| Self { username, name })
-            .ok_or("No recent user found".to_string())
+            .ok_or_else(|| "No recent user found".to_string())
     }
 
     pub fn new() -> Result<Self, String> {
