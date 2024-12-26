@@ -3,7 +3,7 @@ use std::{fs::File, io::copy};
 use crate::config::Config;
 
 pub fn download_file(file: &str, destination: &str) -> Result<(), Box<dyn std::error::Error>> {
-    let config = Config::load_config();
+    let config = Config::load();
 
     let mut url = format!("{}{}", config.cdn_endpoint, file);
     let mut response = ureq::get(&url).call();

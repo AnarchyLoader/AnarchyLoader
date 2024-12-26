@@ -1,6 +1,10 @@
 use std::{fs, path::PathBuf};
 
 use vdf_reader::{entry::Table, Reader};
+use winreg::{
+    enums::{HKEY_LOCAL_MACHINE, KEY_READ},
+    RegKey,
+};
 
 #[derive(Debug)]
 pub struct SteamAccount {
@@ -9,8 +13,23 @@ pub struct SteamAccount {
 }
 
 impl SteamAccount {
-    pub fn new() -> Result<Self, String> {
-        let path = PathBuf::from("C:\\Program Files (x86)\\Steam\\config\\loginusers.vdf");
+    fn locate_steam() -> Result<PathBuf, String> {
+        let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
+        let installation_regkey = hklm
+            .open_subkey_with_flags("SOFTWARE\\Wow6432Node\\Valve\\Steam", KEY_READ)
+            .or_else(|_| hklm.open_subkey_with_flags("SOFTWARE\\Valve\\Steam", KEY_READ))
+            .map_err(|e| format!("Failed to open Steam registry key: {}", e))?;
+
+        let install_path_str: String = installation_regkey
+            .get_value("InstallPath")
+            .map_err(|e| format!("Failed to get InstallPath: {}", e))?;
+
+        Ok(PathBuf::from(install_path_str))
+    }
+
+    fn parse_user() -> Result<Self, String> {
+        let path = Self::locate_steam()?.join("config").join("loginusers.vdf");
+
         let raw = fs::read_to_string(&path)
             .map_err(|e| format!("Failed to read loginusers.vdf: {}", e))?;
 
@@ -44,6 +63,10 @@ impl SteamAccount {
             })
             .map(|(username, name)| Self { username, name })
             .ok_or("No recent user found".to_string())
+    }
+
+    pub fn new() -> Result<Self, String> {
+        Self::parse_user()
     }
 
     pub fn default() -> Self {

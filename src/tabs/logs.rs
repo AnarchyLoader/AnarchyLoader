@@ -21,7 +21,7 @@ impl MyApp {
                     {
                         self.logger
                             .set_level(self.config.log_level.to_level_filter());
-                        self.config.save_config();
+                        self.config.save();
                     }
                 }
             });
@@ -33,8 +33,6 @@ impl MyApp {
                     let buffer = self.log_buffer.lock().unwrap();
                     let buffer_string = buffer.clone();
                     drop(buffer);
-
-                    let mut last_level = Level::Info;
 
                     for message in buffer_string.lines() {
                         if message.trim().is_empty() {
@@ -49,12 +47,11 @@ impl MyApp {
                                     Some("[INFO]") => Level::Info,
                                     Some("[DEBUG]") => Level::Debug,
                                     Some("[TRACE]") => Level::Trace,
-                                    _ => last_level,
+                                    _ => Level::Info,
                                 };
-                                last_level = level;
                                 (level, message_content.to_string())
                             }
-                            None => (last_level, message.to_string()),
+                            None => (Level::Info, message.to_string()),
                         };
 
                         let color = match level {
@@ -62,7 +59,7 @@ impl MyApp {
                             Level::Warn => egui::Color32::YELLOW,
                             Level::Info => egui::Color32::GREEN,
                             Level::Debug => egui::Color32::LIGHT_BLUE,
-                            Level::Trace => egui::Color32::BROWN,
+                            Level::Trace => egui::Color32::GRAY,
                         };
 
                         ui.horizontal_wrapped(|ui| {

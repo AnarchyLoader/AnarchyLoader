@@ -64,7 +64,9 @@ impl MyApp {
 
         modal.show(|ui| {
             ui.heading("Select process:");
+            ui.add_space(5.0);
             ui.label("you can close this window by clicking outside of it.");
+            ui.add_space(5.0);
             let dropped_filename = self
                 .dropped_file
                 .path
@@ -95,6 +97,8 @@ impl MyApp {
 
             let is_csgo = self.selected_process_dnd == "csgo.exe";
             let is_cs2 = self.selected_process_dnd == "cs2.exe";
+
+            ui.add_space(5.0);
 
             if ui
                 .cbutton(format!("Inject a {}", dropped_filename))
@@ -286,7 +290,7 @@ impl MyApp {
             if is_favorite {
                 if ui.cbutton("Remove from favorites").clicked() {
                     self.config.favorites.remove(&hack.name);
-                    self.config.save_config();
+                    self.config.save();
                     self.toasts
                         .success(format!("Removed {} from favorites.", hack.name));
                     ui.close_menu();
@@ -294,7 +298,7 @@ impl MyApp {
             } else {
                 if ui.cbutton("Add to favorites").clicked() {
                     self.config.favorites.insert(hack.name.clone());
-                    self.config.save_config();
+                    self.config.save();
                     self.toasts
                         .success(format!("Added {} to favorites.", hack.name));
                     ui.close_menu();

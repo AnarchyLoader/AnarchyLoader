@@ -13,6 +13,7 @@ impl MyApp {
 
                     let debug_info = vec![
                         ("Config:", format!("{:#?}", self.config)),
+                        ("Statistics:", format!("{:#?}", self.statistics)),
                         ("Hacks:", format!("{:#?}", self.hacks)),
                         ("Selected Hack:", format!("{:#?}", self.selected_hack)),
                         ("Status Message:", format!("{:#?}", self.status_message)),
