@@ -2,9 +2,10 @@ use egui::{CursorIcon::PointingHand as Clickable, RichText};
 use egui_modal::Modal;
 
 use crate::{
-    config::{default_api_endpoint, default_cdn_endpoint, default_cdn_fallback_endpoint},
     custom_widgets::{Button, CheckBox, TextEdit},
-    hacks, MyApp,
+    hacks,
+    utils::config::{default_api_endpoint, default_cdn_endpoint, default_cdn_fallback_endpoint},
+    MyApp,
 };
 
 impl MyApp {
@@ -73,7 +74,7 @@ impl MyApp {
                             self.config.save();
                         };
                         if ui
-                            .ccheckbox(&mut self.config.hide_csgo_warning, "Hide CSGO/CS2 warning")
+                            .ccheckbox(&mut self.config.hide_csgo_warning, "Hide CS:GO/CS2 warning")
                             .changed()
                         {
                             self.config.save();

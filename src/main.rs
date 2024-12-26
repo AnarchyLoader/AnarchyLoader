@@ -1,6 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-mod config;
 mod custom_widgets;
 mod hacks;
 mod inject;
@@ -17,7 +16,6 @@ use std::{
     time::Duration,
 };
 
-use config::Config;
 use eframe::{
     egui::{self, RichText},
     App,
@@ -30,7 +28,9 @@ use egui_alignments::center_vertical;
 use egui_notify::Toasts;
 use hacks::{get_all_processes, get_hack_by_name, Hack};
 use tabs::top_panel::AppTab;
-use utils::{logger::MyLogger, rpc::Rpc, statistics::Statistics, steam::SteamAccount};
+use utils::{
+    config::Config, logger::MyLogger, rpc::Rpc, statistics::Statistics, steam::SteamAccount,
+};
 
 pub(crate) fn load_icon() -> egui::IconData {
     let (icon_rgba, icon_width, icon_height) = {
@@ -102,8 +102,16 @@ static LOGGER: OnceLock<MyLogger> = OnceLock::new();
 impl MyApp {
     // MARK: Init
     fn new(_cc: &eframe::CreationContext<'_>) -> Self {
-        let (message_sender, message_receiver) = mpsc::channel();
         let config = Config::load();
+
+        let logger = MyLogger::init();
+        let log_buffer = logger.buffer.clone();
+
+        log::set_max_level(config.log_level.to_level_filter());
+
+        log::info!("AnarchyLoader v{}", env!("CARGO_PKG_VERSION"));
+
+        let (message_sender, message_receiver) = mpsc::channel();
         let mut statistics = Statistics::load();
 
         statistics.increment_opened_count();
@@ -126,13 +134,6 @@ impl MyApp {
             Some(&format!("v{}", env!("CARGO_PKG_VERSION"))),
             Some("Selecting a hack"),
         );
-
-        let logger = MyLogger::init();
-        let log_buffer = logger.buffer.clone();
-
-        log::set_max_level(config.log_level.to_level_filter());
-
-        log::info!("AnarchyLoader v{}", env!("CARGO_PKG_VERSION"));
 
         let mut selected_hack = None;
 
@@ -377,7 +378,6 @@ impl MyApp {
 
         // MARK: Selected hack panel
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.add_space(10.0);
             if let Some(selected) = self.selected_hack.clone() {
                 self.display_hack_details(ui, ctx, &selected, theme_color);
             } else {

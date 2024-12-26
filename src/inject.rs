@@ -380,8 +380,11 @@ impl MyApp {
                             .collect::<Vec<String>>()
                             .join("\n");
 
-                        let _ = message_sender.send(formatted_error_message.clone());
-                        log::error!("Failed to execute injector: {}", error_message);
+                        let _ = message_sender.send(error_message.clone().replace("\n", ""));
+                        log::error!(
+                            "Failed to execute injector: {}",
+                            error_message.clone().replace("\n", "")
+                        );
                         let mut status = status_message.lock().unwrap();
                         *status = formatted_error_message;
                     }

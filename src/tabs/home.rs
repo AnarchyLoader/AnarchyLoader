@@ -1,7 +1,6 @@
 use std::{fs, path::Path, process::Command, sync::Arc, thread, time::Duration};
 
 use egui::{CursorIcon::PointingHand as Clickable, RichText, Spinner, TextStyle};
-use egui_alignments::top_horizontal;
 use egui_modal::Modal;
 use is_elevated::is_elevated;
 
@@ -21,7 +20,7 @@ impl MyApp {
 
         if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Enter)) {
             if let Some(selected) = &self.selected_hack {
-                if selected.game == "CSGO" {
+                if selected.game == "CS:GO" {
                     self.manual_map_injection(
                         selected.clone(),
                         ctx.clone(),
@@ -171,15 +170,23 @@ impl MyApp {
         selected: &Hack,
         theme_color: egui::Color32,
     ) {
-        let is_csgo = selected.game == "CSGO";
+        let is_csgo = selected.game == "CS:GO";
         let is_cs2 = selected.game == "CS2";
-        top_horizontal(ui, |ui| {
+
+        ui.vertical(|ui| {
             ui.horizontal(|ui| {
                 ui.heading(&selected.name);
-                ui.label(RichText::new(format!("by {}", selected.author)).color(theme_color));
-                ui.clink("(source)", &selected.source);
+            });
+
+            ui.horizontal(|ui| {
+                ui.label("by");
+                ui.label(RichText::new(&selected.author).color(theme_color));
+                if !selected.source.is_empty() {
+                    ui.clink("source", &selected.source);
+                }
             });
         });
+
         ui.separator();
         ui.label(&selected.description);
 

@@ -74,7 +74,7 @@ impl Hack {
                     if parsed_hacks.is_empty() {
                         Err("No hacks available.".to_string())
                     } else {
-                        log::info!("Fetched {} hacks from API.", parsed_hacks.len());
+                        log::debug!("Fetched {} hacks from API.", parsed_hacks.len());
                         Ok(parsed_hacks
                             .into_iter()
                             .map(|hack| {
