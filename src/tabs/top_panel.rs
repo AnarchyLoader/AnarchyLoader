@@ -20,56 +20,62 @@ impl MyApp {
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
             ui.add_space(5.0);
             ui.horizontal(|ui| {
-                if ui
-                    .cselectable_label(self.tab == AppTab::Home, "Home")
-                    .clicked()
-                {
-                    self.tab = AppTab::Home;
-                    self.rpc.update(None, Some("Selecting a hack"));
-                }
-                if ui
-                    .cselectable_label(self.tab == AppTab::Settings, "Settings")
-                    .clicked()
-                {
-                    self.tab = AppTab::Settings;
-                    self.rpc.update(None, Some("Configuring settings"));
-                }
-                if ui
-                    .cselectable_label(self.tab == AppTab::About, "About")
-                    .clicked()
-                {
-                    self.tab = AppTab::About;
-                    self.rpc.update(None, Some("Reading about"));
-                }
-                if ui
-                    .cselectable_label(self.tab == AppTab::Logs, "Logs")
-                    .clicked()
-                {
-                    self.tab = AppTab::Logs;
-                    self.rpc.update(None, Some("Viewing Logs"));
-                }
+                self.render_tab(
+                    ui,
+                    AppTab::Home,
+                    "Home",
+                    "Go to the home screen",
+                    "Selecting a hack",
+                );
+                self.render_tab(
+                    ui,
+                    AppTab::Settings,
+                    "Settings",
+                    "Adjust your settings",
+                    "Configuring settings",
+                );
+                self.render_tab(
+                    ui,
+                    AppTab::About,
+                    "About",
+                    "Learn more about this loader",
+                    "Reading about",
+                );
+                self.render_tab(ui, AppTab::Logs, "Logs", "Check the logs", "Viewing Logs");
 
                 if ctx.input_mut(|i| i.modifiers.shift) || self.tab == AppTab::Debug {
-                    if ui
-                        .cselectable_label(self.tab == AppTab::Debug, "Debug")
-                        .clicked()
-                    {
-                        self.tab = AppTab::Debug;
-                        self.rpc.update(None, Some("🪲 Debugging"));
-                    }
-                }
-
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Min), |ui| {
-                    ui.add(
-                        egui::TextEdit::singleline(&mut self.search_query).hint_text("Search..."),
+                    self.render_tab(
+                        ui,
+                        AppTab::Debug,
+                        "Debug",
+                        "Get some debug info",
+                        "🪲 Debugging",
                     );
-                });
+                }
             });
             ui.add_space(5.0);
         });
 
         if !self.config.disable_notifications {
             self.toasts.show(ctx);
+        }
+    }
+
+    fn render_tab(
+        &mut self,
+        ui: &mut egui::Ui,
+        tab: AppTab,
+        label: &str,
+        tooltip: &str,
+        rpc_message: &str,
+    ) {
+        if ui
+            .cselectable_label(self.tab == tab, label)
+            .on_hover_text(tooltip)
+            .clicked()
+        {
+            self.tab = tab;
+            self.rpc.update(None, Some(rpc_message));
         }
     }
 }

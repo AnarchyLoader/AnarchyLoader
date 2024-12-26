@@ -4,35 +4,21 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Config {
-    #[serde(default)]
     pub favorites: HashSet<String>,
-    #[serde(default)]
     pub show_only_favorites: bool,
-    #[serde(default = "default_favorites_color")]
     pub favorites_color: egui::Color32,
-    #[serde(default)]
     pub automatically_select_hack: bool,
-    #[serde(default)]
     pub skip_injects_delay: bool,
-    #[serde(default)]
     pub lowercase_hacks: bool,
-    #[serde(default = "default_api_endpoint")]
     pub api_endpoint: String,
-    #[serde(default = "default_cdn_endpoint")]
     pub cdn_endpoint: String,
-    #[serde(default = "default_cdn_fallback_endpoint")]
     pub cdn_fallback_endpoint: String,
-    #[serde(default)]
     pub hide_csgo_warning: bool,
-    #[serde(default)]
     pub hide_steam_account: bool,
-    #[serde(default)]
+    pub hide_statistics: bool,
     pub disable_notifications: bool,
-    #[serde(default)]
     pub disable_rpc: bool,
-    #[serde(default = "selected_hack")]
     pub selected_hack: String,
-    #[serde(default = "default_log_level")]
     pub log_level: log::Level,
 }
 
@@ -67,7 +53,7 @@ impl Default for Config {
             favorites: HashSet::new(),
             show_only_favorites: false,
             favorites_color: default_favorites_color(),
-            automatically_select_hack: false,
+            automatically_select_hack: true,
             skip_injects_delay: false,
             lowercase_hacks: true,
             api_endpoint: default_api_endpoint(),
@@ -75,6 +61,7 @@ impl Default for Config {
             cdn_fallback_endpoint: default_cdn_fallback_endpoint(),
             hide_csgo_warning: false,
             hide_steam_account: false,
+            hide_statistics: false,
             disable_notifications: false,
             disable_rpc: false,
             selected_hack: selected_hack(),
@@ -84,7 +71,7 @@ impl Default for Config {
 }
 
 impl Config {
-    pub fn load_config() -> Self {
+    pub fn load() -> Self {
         let config_dir = dirs::config_dir()
             .unwrap_or_else(|| PathBuf::from("."))
             .join("anarchyloader");
@@ -99,7 +86,7 @@ impl Config {
         }
     }
 
-    pub fn save_config(&self) {
+    pub fn save(&self) {
         let config_dir = dirs::config_dir()
             .unwrap_or_else(|| PathBuf::from("."))
             .join("anarchyloader");
@@ -110,5 +97,10 @@ impl Config {
         if let Ok(data) = serde_json::to_string(&self) {
             fs::write(config_path, data).ok();
         }
+    }
+
+    pub fn reset(&mut self) {
+        *self = Config::default();
+        self.save();
     }
 }

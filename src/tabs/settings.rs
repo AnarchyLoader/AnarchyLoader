@@ -30,7 +30,7 @@ impl MyApp {
                             )
                             .changed()
                         {
-                            self.config.save_config();
+                            self.config.save();
                         }
                         if ui
                             .ccheckbox(
@@ -58,13 +58,52 @@ impl MyApp {
                                     ""
                                 }
                             ));
-                            self.config.save_config();
+                            self.config.save();
                         };
                         if ui
                             .ccheckbox(&mut self.config.hide_steam_account, "Hide Steam account")
                             .changed()
                         {
-                            self.config.save_config();
+                            self.config.save();
+                        }
+                        if ui
+                            .ccheckbox(&mut self.config.hide_statistics, "Hide statistics")
+                            .changed()
+                        {
+                            self.config.save();
+                        };
+                        if ui
+                            .ccheckbox(&mut self.config.hide_csgo_warning, "Hide CSGO/CS2 warning")
+                            .changed()
+                        {
+                            self.config.save();
+                        }
+                        if ui
+                            .ccheckbox(
+                                &mut self.config.disable_notifications,
+                                "Disable notifications",
+                            )
+                            .changed()
+                        {
+                            self.config.save();
+                        }
+                        if ui
+                            .ccheckbox(
+                                &mut self.config.skip_injects_delay,
+                                "Skip injects delay (visual)",
+                            )
+                            .changed()
+                        {
+                            self.config.save();
+                        }
+                        if ui
+                            .ccheckbox(
+                                &mut self.config.automatically_select_hack,
+                                "Automatically select recently injected hack",
+                            )
+                            .changed()
+                        {
+                            self.config.save();
                         }
 
                         ui.horizontal(|ui| {
@@ -74,7 +113,7 @@ impl MyApp {
                                 .on_hover_cursor(Clickable)
                                 .changed()
                             {
-                                self.config.save_config();
+                                self.config.save();
                             }
                         });
                     });
@@ -83,27 +122,7 @@ impl MyApp {
 
                     // MARK: - Injection/Delay Options
                     ui.group(|ui| {
-                        ui.label("Injection/Delay Options:");
-                        ui.add_space(5.0);
-
-                        if ui
-                            .ccheckbox(
-                                &mut self.config.skip_injects_delay,
-                                "Skip injects delay (visual)",
-                            )
-                            .changed()
-                        {
-                            self.config.save_config();
-                        }
-                        if ui
-                            .ccheckbox(
-                                &mut self.config.automatically_select_hack,
-                                "Automatically select recently injected hack",
-                            )
-                            .changed()
-                        {
-                            self.config.save_config();
-                        }
+                        ui.label("Injection Options:");
 
                         let modal_injector = Modal::new(ctx, "injector_confirm_dialog")
                             .with_close_on_outside_click(true);
@@ -161,29 +180,6 @@ impl MyApp {
 
                     ui.add_space(5.0);
 
-                    // MARK: - Notifications/Warnings
-                    ui.group(|ui| {
-                        ui.label("Notifications/Warnings:");
-                        ui.add_space(5.0);
-                        if ui
-                            .ccheckbox(&mut self.config.hide_csgo_warning, "Hide CSGO/CS2 warning")
-                            .changed()
-                        {
-                            self.config.save_config();
-                        }
-                        if ui
-                            .ccheckbox(
-                                &mut self.config.disable_notifications,
-                                "Disable notifications",
-                            )
-                            .changed()
-                        {
-                            self.config.save_config();
-                        }
-                    });
-
-                    ui.add_space(5.0);
-
                     ui.label("Right-click the input field to reset these text settings.");
 
                     ui.add_space(2.0);
@@ -194,7 +190,7 @@ impl MyApp {
                             .ctext_edit(&mut self.config.api_endpoint, default_api_endpoint())
                             .changed()
                         {
-                            self.config.save_config();
+                            self.config.save();
                         }
                     });
 
@@ -206,7 +202,7 @@ impl MyApp {
                             .ctext_edit(&mut self.config.cdn_endpoint, default_cdn_endpoint())
                             .changed()
                         {
-                            self.config.save_config();
+                            self.config.save();
                         }
                     });
 
@@ -221,7 +217,7 @@ impl MyApp {
                             )
                             .changed()
                         {
-                            self.config.save_config();
+                            self.config.save();
                         }
                     });
 
@@ -253,7 +249,7 @@ impl MyApp {
                                     .cbutton(RichText::new("Reset").color(egui::Color32::LIGHT_RED))
                                     .clicked()
                                 {
-                                    self.reset_config();
+                                    self.config.reset();
                                     self.toasts.success("Settings reset.");
                                     modal_settings.close();
                                 }
@@ -271,6 +267,31 @@ impl MyApp {
                             .clicked()
                         {
                             modal_settings.open();
+                        }
+
+                        let modal_statistics = Modal::new(ctx, "statistics_reset_confirm_dialog")
+                            .with_close_on_outside_click(true);
+
+                        modal_statistics.show(|ui| {
+                            ui.label("Are you sure you want to reset the statistics?");
+                            ui.horizontal(|ui| {
+                                if ui
+                                    .cbutton(RichText::new("Reset").color(egui::Color32::LIGHT_RED))
+                                    .clicked()
+                                {
+                                    self.statistics.reset();
+                                    self.toasts.success("Statistics reset.");
+                                    modal_statistics.close();
+                                }
+
+                                if ui.cbutton("Cancel").clicked() {
+                                    modal_statistics.close();
+                                }
+                            });
+                        });
+
+                        if ui.cbutton(RichText::new("Reset statistics")).clicked() {
+                            modal_statistics.open();
                         }
                     });
                 });
