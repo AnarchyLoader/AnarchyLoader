@@ -1,0 +1,13 @@
+{
+    "space": {
+        "scope": "rust",
+        "prefix": "space",
+        "body": ["ui.add_space($1.0);"],
+        "description": "Add space to ui"
+    },
+    "cbutton": {
+        "scope": "rust",
+        "prefix": "cbutton",
+        "body": ["if ui.cbutton(\"$1\").clicked() {", "    $2", "}"]
+    }
+}
