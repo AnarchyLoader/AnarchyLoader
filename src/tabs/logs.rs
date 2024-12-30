@@ -16,12 +16,16 @@ impl MyApp {
                     Level::Trace,
                 ] {
                     if ui
-                        .radio_value(&mut self.config.log_level, level, format!("{:?}", level))
+                        .radio_value(
+                            &mut self.app.config.log_level,
+                            level,
+                            format!("{:?}", level),
+                        )
                         .changed()
                     {
                         self.logger
-                            .set_level(self.config.log_level.to_level_filter());
-                        self.config.save();
+                            .set_level(self.app.config.log_level.to_level_filter());
+                        self.app.config.save();
                     }
                 }
             });

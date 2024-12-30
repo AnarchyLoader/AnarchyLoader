@@ -6,7 +6,7 @@ use winreg::{
     RegKey,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SteamAccount {
     pub username: String,
     pub name: String,
@@ -46,7 +46,7 @@ impl SteamAccount {
                 let name = user_info.get("PersonaName")?.as_str()?;
 
                 if user_info.get("MostRecent")?.as_str() == Some("1") {
-                    log::info!("Parsed user: {}", name);
+                    log::info!("Parsed steam user: {}", name);
 
                     Some(Self {
                         username: username.to_owned(),

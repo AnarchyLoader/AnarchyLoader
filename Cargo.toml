@@ -24,7 +24,6 @@ egui_alignments = { git = "https://github.com/a-littlebit/egui_alignments.git", 
 chrono = "0.4.39"
 log = { version = "0.4.22", features = ["serde"] }
 simplelog = "0.12.2"
-pe-parser = "0.6.0"
 egui-modal = "0.6.0"
 winreg = "0.52.0"
 

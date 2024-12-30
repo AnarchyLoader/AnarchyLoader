@@ -63,6 +63,7 @@ impl TextEdit for egui::Ui {
         response.context_menu(|ui| {
             if ui.cbutton("Reset").clicked() {
                 *text = default_value.clone();
+                ui.close_menu();
             }
         });
 

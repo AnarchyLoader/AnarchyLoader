@@ -43,7 +43,7 @@ impl MyApp {
                 );
                 self.render_tab(ui, AppTab::Logs, "Logs", "Check the logs", "Viewing Logs");
 
-                if ctx.input_mut(|i| i.modifiers.shift) || self.tab == AppTab::Debug {
+                if ctx.input_mut(|i| i.modifiers.shift) || self.ui.tab == AppTab::Debug {
                     self.render_tab(
                         ui,
                         AppTab::Debug,
@@ -56,7 +56,7 @@ impl MyApp {
             ui.add_space(5.0);
         });
 
-        if !self.config.disable_notifications {
+        if !self.app.config.disable_notifications {
             self.toasts.show(ctx);
         }
     }
@@ -70,11 +70,11 @@ impl MyApp {
         rpc_message: &str,
     ) {
         if ui
-            .cselectable_label(self.tab == tab, label)
+            .cselectable_label(self.ui.tab == tab, label)
             .on_hover_text(tooltip)
             .clicked()
         {
-            self.tab = tab;
+            self.ui.tab = tab;
             self.rpc.update(None, Some(rpc_message));
         }
     }

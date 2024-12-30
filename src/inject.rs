@@ -137,11 +137,11 @@ impl MyApp {
         ctx: egui::Context,
         message_sender: Sender<String>,
     ) {
-        let inject_in_progress = Arc::clone(&self.inject_in_progress);
-        let status_message = Arc::clone(&self.status_message);
+        let inject_in_progress = Arc::clone(&self.communication.inject_in_progress);
+        let status_message = Arc::clone(&self.communication.status_message);
         let selected_clone = selected.clone();
         let ctx_clone = ctx.clone();
-        let skip_injects_clone = self.config.skip_injects_delay.clone();
+        let skip_injects_clone = self.app.config.skip_injects_delay.clone();
 
         {
             let mut status = status_message.lock().unwrap();
@@ -241,11 +241,11 @@ impl MyApp {
         ctx: egui::Context,
         message_sender: Sender<String>,
     ) {
-        let inject_in_progress = Arc::clone(&self.inject_in_progress);
-        let status_message = Arc::clone(&self.status_message);
+        let inject_in_progress = Arc::clone(&self.communication.inject_in_progress);
+        let status_message = Arc::clone(&self.communication.status_message);
         let selected_clone = selected.clone();
         let ctx_clone = ctx.clone();
-        let skip_inject_delay = self.config.skip_injects_delay;
+        let skip_inject_delay = self.app.config.skip_injects_delay;
 
         {
             let mut status = status_message.lock().unwrap();

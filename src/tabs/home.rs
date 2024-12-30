@@ -2,7 +2,6 @@ use std::{fs, path::Path, process::Command, sync::Arc, thread, time::Duration};
 
 use egui::{CursorIcon::PointingHand as Clickable, RichText, Spinner, TextStyle};
 use egui_modal::Modal;
-use is_elevated::is_elevated;
 
 use crate::{
     custom_widgets::{Button, Hyperlink},
@@ -15,41 +14,41 @@ impl MyApp {
     // MARK: Key events
     pub fn handle_key_events(&mut self, ctx: &egui::Context) {
         if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape)) {
-            self.selected_hack = None;
+            self.app.selected_hack = None;
         }
 
         if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Enter)) {
-            if let Some(selected) = &self.selected_hack {
+            if let Some(selected) = &self.app.selected_hack {
                 if selected.game == "CS:GO" {
                     self.manual_map_injection(
                         selected.clone(),
                         ctx.clone(),
-                        self.message_sender.clone(),
+                        self.communication.message_sender.clone(),
                     );
                 } else {
                     self.start_injection(
                         selected.clone(),
                         ctx.clone(),
-                        self.message_sender.clone(),
+                        self.communication.message_sender.clone(),
                     );
                 }
             }
         }
 
         if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::F5)) {
-            self.main_menu_message = "Fetching hacks...".to_string();
+            self.ui.main_menu_message = "Fetching hacks...".to_string();
             ctx.request_repaint();
-            self.hacks = match hacks::Hack::fetch_hacks(
-                &self.config.api_endpoint,
-                self.config.lowercase_hacks,
+            self.app.hacks = match hacks::Hack::fetch_hacks(
+                &self.app.config.api_endpoint,
+                self.app.config.lowercase_hacks,
             ) {
                 Ok(hacks) => {
-                    self.main_menu_message = default_main_menu_message();
+                    self.ui.main_menu_message = default_main_menu_message();
                     ctx.request_repaint();
                     hacks
                 }
                 Err(_err) => {
-                    self.main_menu_message = "Failed to fetch hacks.".to_string();
+                    self.ui.main_menu_message = "Failed to fetch hacks.".to_string();
                     Vec::new()
                 }
             };
@@ -67,6 +66,7 @@ impl MyApp {
             ui.label("you can close this window by clicking outside of it.");
             ui.add_space(5.0);
             let dropped_filename = self
+                .ui
                 .dropped_file
                 .path
                 .as_ref()
@@ -76,15 +76,15 @@ impl MyApp {
                 .to_string();
 
             egui::ComboBox::from_id_salt("Process")
-                .selected_text(if self.selected_process_dnd.is_empty() {
+                .selected_text(if self.ui.selected_process_dnd.is_empty() {
                     "".to_string()
                 } else {
-                    self.selected_process_dnd.clone()
+                    self.ui.selected_process_dnd.clone()
                 })
                 .show_ui(ui, |ui| {
-                    for process in &self.hacks_processes {
+                    for process in &self.app.hacks_processes {
                         ui.selectable_value(
-                            &mut self.selected_process_dnd,
+                            &mut self.ui.selected_process_dnd,
                             process.to_string(),
                             process.clone(),
                         )
@@ -94,8 +94,8 @@ impl MyApp {
                 .response
                 .on_hover_cursor(Clickable);
 
-            let is_csgo = self.selected_process_dnd == "csgo.exe";
-            let is_cs2 = self.selected_process_dnd == "cs2.exe";
+            let is_csgo = self.ui.selected_process_dnd == "csgo.exe";
+            let is_cs2 = self.ui.selected_process_dnd == "cs2.exe";
 
             ui.add_space(5.0);
 
@@ -103,7 +103,7 @@ impl MyApp {
                 .cbutton(format!("Inject a {}", dropped_filename))
                 .clicked()
             {
-                if self.selected_process_dnd.is_empty() {
+                if self.ui.selected_process_dnd.is_empty() {
                     self.toasts.error("Please select a process.");
                     return;
                 }
@@ -120,15 +120,15 @@ impl MyApp {
 
                 if is_csgo || is_cs2 {
                     self.manual_map_inject(
-                        self.dropped_file.path.clone(),
-                        &self.selected_process_dnd.clone(),
-                        self.message_sender.clone(),
+                        self.ui.dropped_file.path.clone(),
+                        &self.ui.selected_process_dnd.clone(),
+                        self.communication.message_sender.clone(),
                     );
                 } else {
                     self.inject(
-                        self.dropped_file.path.clone(),
-                        &self.selected_process_dnd.clone(),
-                        self.message_sender.clone(),
+                        self.ui.dropped_file.path.clone(),
+                        &self.ui.selected_process_dnd.clone(),
+                        self.communication.message_sender.clone(),
                     );
                 }
 
@@ -148,7 +148,7 @@ impl MyApp {
                 self.toasts.error("Only DLL files are supported.");
                 return;
             }
-            self.dropped_file = dropped_file.clone();
+            self.ui.dropped_file = dropped_file.clone();
             modal.open();
         }
 
@@ -190,18 +190,18 @@ impl MyApp {
         ui.separator();
         ui.label(&selected.description);
 
-        if !self.config.hide_steam_account {
+        if !self.app.config.hide_steam_account {
             ui.horizontal_wrapped(|ui| {
                 let width = ui.fonts(|f| f.glyph_width(&TextStyle::Body.resolve(ui.style()), ' '));
                 ui.spacing_mut().item_spacing.x = width;
 
                 ui.label(format!("Currently logged in as (steam):"));
-                ui.label(RichText::new(&self.account.name).color(theme_color))
-                    .on_hover_text_at_pointer(&self.account.username)
+                ui.label(RichText::new(&self.app.account.name).color(theme_color))
+                    .on_hover_text_at_pointer(&self.app.account.username)
                     .on_hover_cursor(egui::CursorIcon::Help);
 
                 ui.label("(hover to view username)")
-                    .on_hover_text_at_pointer(&self.account.username)
+                    .on_hover_text_at_pointer(&self.app.account.username)
                     .on_hover_cursor(egui::CursorIcon::Help);
             });
         }
@@ -240,26 +240,25 @@ impl MyApp {
                 self.manual_map_injection(
                     selected.clone(),
                     ctx.clone(),
-                    self.message_sender.clone(),
+                    self.communication.message_sender.clone(),
                 );
             } else {
-                self.start_injection(selected.clone(), ctx.clone(), self.message_sender.clone());
+                self.start_injection(
+                    selected.clone(),
+                    ctx.clone(),
+                    self.communication.message_sender.clone(),
+                );
             }
-        }
-        if !is_elevated() && (is_csgo || is_cs2) && !self.config.hide_csgo_warning {
-            ui.label(RichText::new("If you encounter an error stating that csgo.exe/cs2.exe is not found try running the loader as an administrator\nYou can disable this warning in the settings.")
-                    .size(11.0)
-                    .color(egui::Color32::YELLOW),
-                    );
         }
 
         let inject_in_progress = self
+            .communication
             .inject_in_progress
             .load(std::sync::atomic::Ordering::SeqCst);
 
         if inject_in_progress {
             ui.add_space(5.0);
-            let status = self.status_message.lock().unwrap().clone();
+            let status = self.communication.status_message.lock().unwrap().clone();
             ui.horizontal(|ui| {
                 ui.add(Spinner::new());
                 ui.add_space(5.0);
@@ -274,7 +273,7 @@ impl MyApp {
             });
         } else {
             ui.add_space(5.0);
-            let status = self.status_message.lock().unwrap().clone();
+            let status = self.communication.status_message.lock().unwrap().clone();
             if !status.is_empty() {
                 let color = if status.starts_with("Failed") || status.starts_with("Error") {
                     egui::Color32::RED
@@ -290,22 +289,22 @@ impl MyApp {
         // MARK: Context menu
         let file_path_owned = hack.file_path.clone();
         let ctx_clone = ctx.clone();
-        let status_message = Arc::clone(&self.status_message);
-        let is_favorite = self.config.favorites.contains(&hack.name);
+        let status_message = Arc::clone(&self.communication.status_message);
+        let is_favorite = self.app.config.favorites.contains(&hack.name);
 
         response.context_menu(|ui| {
             if is_favorite {
                 if ui.cbutton("Remove from favorites").clicked() {
-                    self.config.favorites.remove(&hack.name);
-                    self.config.save();
+                    self.app.config.favorites.remove(&hack.name);
+                    self.app.config.save();
                     self.toasts
                         .success(format!("Removed {} from favorites.", hack.name));
                     ui.close_menu();
                 }
             } else {
                 if ui.cbutton("Add to favorites").clicked() {
-                    self.config.favorites.insert(hack.name.clone());
-                    self.config.save();
+                    self.app.config.favorites.insert(hack.name.clone());
+                    self.app.config.save();
                     self.toasts
                         .success(format!("Added {} to favorites.", hack.name));
                     ui.close_menu();
@@ -322,10 +321,11 @@ impl MyApp {
                         .arg(format!("/select,{}", hack.file_path.to_string_lossy()))
                         .spawn()
                     {
-                        let mut status = self.status_message.lock().unwrap();
+                        let mut status = self.communication.status_message.lock().unwrap();
                         *status = format!("Failed to open Explorer: {}", e);
                         self.toasts.error(format!("Failed to open Explorer: {}", e));
                     }
+                    ui.close_menu();
                 }
 
                 if ui
@@ -333,12 +333,13 @@ impl MyApp {
                     .clicked()
                 {
                     if let Err(e) = std::fs::remove_file(&file_path_owned) {
-                        let mut status = self.status_message.lock().unwrap();
+                        let mut status = self.communication.status_message.lock().unwrap();
                         *status = format!("Failed to uninstall: {}", e);
                     } else {
-                        let mut status = self.status_message.lock().unwrap();
+                        let mut status = self.communication.status_message.lock().unwrap();
                         *status = "Uninstall successful.".to_string();
                     }
+                    ui.close_menu();
                 }
 
                 if ui
@@ -377,6 +378,7 @@ impl MyApp {
                             }
                         }
                     });
+                    ui.close_menu();
                 }
             } else {
                 if ui.cbutton("Download").clicked() {
@@ -394,6 +396,7 @@ impl MyApp {
                             }
                         }
                     });
+                    ui.close_menu();
                 }
             }
         });
