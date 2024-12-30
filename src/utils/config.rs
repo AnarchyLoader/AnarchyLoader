@@ -13,7 +13,6 @@ pub struct Config {
     pub api_endpoint: String,
     pub cdn_endpoint: String,
     pub cdn_fallback_endpoint: String,
-    pub hide_csgo_warning: bool,
     pub hide_steam_account: bool,
     pub hide_statistics: bool,
     pub disable_notifications: bool,
@@ -42,10 +41,6 @@ pub(crate) fn default_log_level() -> log::Level {
     log::Level::Info
 }
 
-fn selected_hack() -> String {
-    "".to_string()
-}
-
 impl Default for Config {
     fn default() -> Self {
         // default config
@@ -59,12 +54,11 @@ impl Default for Config {
             api_endpoint: default_api_endpoint(),
             cdn_endpoint: default_cdn_endpoint(),
             cdn_fallback_endpoint: default_cdn_fallback_endpoint(),
-            hide_csgo_warning: false,
             hide_steam_account: false,
             hide_statistics: false,
             disable_notifications: false,
             disable_rpc: false,
-            selected_hack: selected_hack(),
+            selected_hack: "".to_string(),
             log_level: default_log_level(),
         }
     }

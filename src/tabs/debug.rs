@@ -12,20 +12,29 @@ impl MyApp {
                     ui.separator();
 
                     let debug_info = vec![
-                        ("Config:", format!("{:#?}", self.config)),
-                        ("Statistics:", format!("{:#?}", self.statistics)),
-                        ("Hacks:", format!("{:#?}", self.hacks)),
-                        ("Selected Hack:", format!("{:#?}", self.selected_hack)),
-                        ("Status Message:", format!("{:#?}", self.status_message)),
+                        ("Config:", format!("{:#?}", self.app.config)),
+                        ("Statistics:", format!("{:#?}", self.app.statistics)),
+                        ("Hacks:", format!("{:#?}", self.app.hacks)),
+                        (
+                            "Selected Hack:",
+                            format!("{:#?}", self.app.selected_hack),
+                        ),
+                        (
+                            "Status Message:",
+                            format!("{:#?}", self.communication.status_message),
+                        ),
                         ("Parse Error:", format!("{:#?}", self.parse_error)),
                         (
                             "Inject in Progress:",
-                            format!("{:#?}", self.inject_in_progress),
+                            format!("{:#?}", self.communication.inject_in_progress),
                         ),
-                        ("Search Query:", format!("{:#?}", self.search_query)),
+                        (
+                            "Search Query:",
+                            format!("{:#?}", self.ui.search_query),
+                        ),
                         (
                             "Main Menu Message:",
-                            format!("{:#?}", self.main_menu_message),
+                            format!("{:#?}", self.ui.main_menu_message),
                         ),
                         ("App Version:", format!("{:#?}", self.app_version)),
                     ];
@@ -33,7 +42,7 @@ impl MyApp {
                     for (label, value) in &debug_info {
                         if label.starts_with("Hacks") {
                             ui.collapsing(*label, |ui| {
-                                for hack in &self.hacks {
+                                for hack in &self.app.hacks {
                                     ui.monospace(format!("{:#?}", hack));
                                 }
                             });

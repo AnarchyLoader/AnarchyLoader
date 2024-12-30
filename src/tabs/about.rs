@@ -25,13 +25,9 @@ impl MyApp {
                         self.toasts.info("Hello there!");
                     }
                     ui.label(RichText::new(format!("v{}", self.app_version)).size(15.0));
-                    ui.add_space(10.0);
-                    ui.label(
-                    RichText::new(
-                        "AnarchyLoader is a free and open-source cheat loader for various games.",
-                    )
-                    .size(16.0),
-                );
+                    ui.add_space(5.0);
+                    ui.label(RichText::new("AnarchyLoader is a free and open-source cheat loader for various games.").size(16.0));
+                    ui.label(format!("btw, you opened it {} times", self.app.statistics.opened_count));
                     ui.add_space(5.0);
                     ui.horizontal_wrapped(|ui| {
                         let width =
@@ -56,7 +52,9 @@ impl MyApp {
                         );
                     });
 
+                    ui.add_space(5.0);
                     ui.heading("Socials:");
+                    ui.add_space(5.0);
 
                     ui.horizontal(|ui| {
                         ui.link_button(

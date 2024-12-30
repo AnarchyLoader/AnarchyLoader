@@ -26,95 +26,96 @@ impl MyApp {
 
                         if ui
                             .ccheckbox(
-                                &mut self.config.show_only_favorites,
+                                &mut self.app.config.show_only_favorites,
                                 "Show only favorite hacks",
                             )
                             .changed()
                         {
-                            self.config.save();
+                            self.app.config.save();
                         }
                         if ui
                             .ccheckbox(
-                                &mut self.config.lowercase_hacks,
+                                &mut self.app.config.lowercase_hacks,
                                 "Lowercase hack names & descriptions",
                             )
                             .changed()
                         {
-                            self.hacks = match hacks::Hack::fetch_hacks(
-                                &self.config.api_endpoint,
-                                self.config.lowercase_hacks,
+                            self.app.hacks = match hacks::Hack::fetch_hacks(
+                                &self.app.config.api_endpoint,
+                                self.app.config.lowercase_hacks,
                             ) {
                                 Ok(hacks) => hacks,
                                 Err(_err) => {
-                                    self.main_menu_message = "Failed to fetch hacks.".to_string();
+                                    self.ui.main_menu_message =
+                                        "Failed to fetch hacks.".to_string();
                                     Vec::new()
                                 }
                             };
 
                             self.toasts.info(format!(
                                 "Hacks refreshed{}.",
-                                if self.config.lowercase_hacks {
+                                if self.app.config.lowercase_hacks {
                                     " (with lowercase)"
                                 } else {
                                     ""
                                 }
                             ));
-                            self.config.save();
+                            self.app.config.save();
                         };
                         if ui
-                            .ccheckbox(&mut self.config.hide_steam_account, "Hide Steam account")
+                            .ccheckbox(
+                                &mut self.app.config.hide_steam_account,
+                                "Hide Steam account",
+                            )
                             .changed()
                         {
-                            self.config.save();
-                        }
-                        if ui
-                            .ccheckbox(&mut self.config.hide_statistics, "Hide statistics")
-                            .changed()
-                        {
-                            self.config.save();
-                        };
-                        if ui
-                            .ccheckbox(&mut self.config.hide_csgo_warning, "Hide CS:GO/CS2 warning")
-                            .changed()
-                        {
-                            self.config.save();
+                            self.app.config.save();
                         }
                         if ui
                             .ccheckbox(
-                                &mut self.config.disable_notifications,
+                                &mut self.app.config.hide_statistics,
+                                "Hide statistics",
+                            )
+                            .changed()
+                        {
+                            self.app.config.save();
+                        };
+                        if ui
+                            .ccheckbox(
+                                &mut self.app.config.disable_notifications,
                                 "Disable notifications",
                             )
                             .changed()
                         {
-                            self.config.save();
+                            self.app.config.save();
                         }
                         if ui
                             .ccheckbox(
-                                &mut self.config.skip_injects_delay,
+                                &mut self.app.config.skip_injects_delay,
                                 "Skip injects delay (visual)",
                             )
                             .changed()
                         {
-                            self.config.save();
+                            self.app.config.save();
                         }
                         if ui
                             .ccheckbox(
-                                &mut self.config.automatically_select_hack,
+                                &mut self.app.config.automatically_select_hack,
                                 "Automatically select recently injected hack",
                             )
                             .changed()
                         {
-                            self.config.save();
+                            self.app.config.save();
                         }
 
                         ui.horizontal(|ui| {
                             ui.label("Favorites Color:");
                             if ui
-                                .color_edit_button_srgba(&mut self.config.favorites_color)
+                                .color_edit_button_srgba(&mut self.app.config.favorites_color)
                                 .on_hover_cursor(Clickable)
                                 .changed()
                             {
-                                self.config.save();
+                                self.app.config.save();
                             }
                         });
                     });
@@ -188,10 +189,13 @@ impl MyApp {
                     ui.horizontal(|ui| {
                         ui.label("API Endpoint:");
                         if ui
-                            .ctext_edit(&mut self.config.api_endpoint, default_api_endpoint())
+                            .ctext_edit(
+                                &mut self.app.config.api_endpoint,
+                                default_api_endpoint(),
+                            )
                             .changed()
                         {
-                            self.config.save();
+                            self.app.config.save();
                         }
                     });
 
@@ -200,10 +204,13 @@ impl MyApp {
                     ui.horizontal(|ui| {
                         ui.label("CDN Endpoint:");
                         if ui
-                            .ctext_edit(&mut self.config.cdn_endpoint, default_cdn_endpoint())
+                            .ctext_edit(
+                                &mut self.app.config.cdn_endpoint,
+                                default_cdn_endpoint(),
+                            )
                             .changed()
                         {
-                            self.config.save();
+                            self.app.config.save();
                         }
                     });
 
@@ -213,12 +220,12 @@ impl MyApp {
                         ui.label("CDN Fallback Endpoint:");
                         if ui
                             .ctext_edit(
-                                &mut self.config.cdn_fallback_endpoint,
+                                &mut self.app.config.cdn_fallback_endpoint,
                                 default_cdn_fallback_endpoint(),
                             )
                             .changed()
                         {
-                            self.config.save();
+                            self.app.config.save();
                         }
                     });
 
@@ -250,7 +257,7 @@ impl MyApp {
                                     .cbutton(RichText::new("Reset").color(egui::Color32::LIGHT_RED))
                                     .clicked()
                                 {
-                                    self.config.reset();
+                                    self.app.config.reset();
                                     self.toasts.success("Settings reset.");
                                     modal_settings.close();
                                 }
@@ -280,7 +287,7 @@ impl MyApp {
                                     .cbutton(RichText::new("Reset").color(egui::Color32::LIGHT_RED))
                                     .clicked()
                                 {
-                                    self.statistics.reset();
+                                    self.app.statistics.reset();
                                     self.toasts.success("Statistics reset.");
                                     modal_statistics.close();
                                 }

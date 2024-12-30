@@ -27,6 +27,7 @@ use egui::{
 use egui_alignments::center_vertical;
 use egui_notify::Toasts;
 use hacks::{get_all_processes, get_hack_by_name, Hack};
+use is_elevated::is_elevated;
 use tabs::top_panel::AppTab;
 use utils::{
     config::Config, logger::MyLogger, rpc::Rpc, statistics::Statistics, steam::SteamAccount,
@@ -59,35 +60,51 @@ fn main() {
         ..Default::default()
     };
     eframe::run_native(
-        "AnarchyLoader",
+        if !is_elevated() {
+            "AnarchyLoader"
+        } else {
+            "AnarchyLoader (Administrator)"
+        },
         native_options,
         Box::new(|cc| Ok(Box::new(MyApp::new(cc)))),
     )
     .unwrap();
 }
 
-struct MyApp {
+struct AppState {
     hacks: Vec<Hack>,
     hacks_processes: Vec<String>,
     selected_hack: Option<Hack>,
-    status_message: Arc<Mutex<String>>,
-    parse_error: Option<String>,
-    app_version: String,
-    inject_in_progress: Arc<std::sync::atomic::AtomicBool>,
+    config: Config,
+    statistics: Statistics,
+    account: SteamAccount,
+}
+
+struct UIState {
     tab: AppTab,
     search_query: String,
     main_menu_message: String,
-    config: Config,
-    statistics: Statistics,
-    toasts: Toasts,
-    message_sender: Sender<String>,
-    message_receiver: Receiver<String>,
     dropped_file: DroppedFile,
     selected_process_dnd: String,
-    account: SteamAccount,
+}
+
+struct Communication {
+    status_message: Arc<Mutex<String>>,
+    inject_in_progress: Arc<std::sync::atomic::AtomicBool>,
+    message_sender: Sender<String>,
+    message_receiver: Receiver<String>,
+}
+
+struct MyApp {
+    app: AppState,
+    ui: UIState,
+    communication: Communication,
     rpc: Rpc,
     log_buffer: Arc<Mutex<String>>,
     logger: MyLogger,
+    toasts: Toasts,
+    parse_error: Option<String>,
+    app_version: String,
 }
 
 fn default_main_menu_message() -> String {
@@ -106,10 +123,8 @@ impl MyApp {
 
         let logger = MyLogger::init();
         let log_buffer = logger.buffer.clone();
-
         log::set_max_level(config.log_level.to_level_filter());
-
-        log::info!("AnarchyLoader v{}", env!("CARGO_PKG_VERSION"));
+        log::info!("Running AnarchyLoader v{}", env!("CARGO_PKG_VERSION"));
 
         let (message_sender, message_receiver) = mpsc::channel();
         let mut statistics = Statistics::load();
@@ -142,94 +157,135 @@ impl MyApp {
         }
 
         Self {
-            hacks,
-            hacks_processes,
-            selected_hack,
-            status_message,
-            parse_error: None,
-            app_version: env!("CARGO_PKG_VERSION").to_string(),
-            inject_in_progress,
-            tab: AppTab::default(),
-            search_query: String::new(),
-            main_menu_message: default_main_menu_message(),
-            config,
-            statistics,
-            toasts: Toasts::default(),
-            message_sender,
-            message_receiver,
-            dropped_file: DroppedFile::default(),
-            selected_process_dnd: String::new(),
-            account,
+            app: AppState {
+                hacks,
+                hacks_processes,
+                selected_hack,
+                config,
+                statistics,
+                account,
+            },
+            ui: UIState {
+                tab: AppTab::default(),
+                search_query: String::new(),
+                main_menu_message: default_main_menu_message(),
+                dropped_file: DroppedFile::default(),
+                selected_process_dnd: String::new(),
+            },
+            communication: Communication {
+                status_message,
+                inject_in_progress,
+                message_sender,
+                message_receiver,
+            },
             rpc,
             log_buffer,
             logger: logger.clone(),
+            toasts: Toasts::default(),
+            parse_error: None,
+            app_version: env!("CARGO_PKG_VERSION").to_string(),
         }
     }
 
-    // MARK: Home tab
-    fn render_home_tab(&mut self, ctx: &egui::Context, theme_color: egui::Color32) {
-        match self.message_receiver.try_recv() {
+    fn handle_received_messages(&mut self) {
+        match self.communication.message_receiver.try_recv() {
             Ok(message) => {
                 if message.starts_with("SUCCESS: ") {
-                    let name = message.trim_start_matches("SUCCESS: ").to_string();
-                    self.toasts
-                        .success(format!("Successfully injected {}", name))
-                        .duration(Some(Duration::from_secs(4)));
-
-                    self.statistics.increment_inject_count(&name);
+                    self.handle_successful_injection_message(message);
                 } else {
-                    self.toasts
-                        .error(message)
-                        .duration(Some(Duration::from_secs(4)));
+                    self.handle_error_message(message);
                 }
 
-                self.rpc.update(
-                    Some(&format!("v{}", env!("CARGO_PKG_VERSION"))),
-                    Some("Selecting a hack"),
-                );
+                self.update_rpc_status_selecting();
             }
             Err(TryRecvError::Empty) => {}
             Err(e) => {
                 log::error!("Error receiving from channel: {:?}", e);
             }
         }
+    }
 
-        self.handle_key_events(ctx);
+    fn handle_successful_injection_message(&mut self, message: String) {
+        let name = message.trim_start_matches("SUCCESS: ").to_string();
+        self.toasts
+            .success(format!("Successfully injected {}", name))
+            .duration(Some(Duration::from_secs(4)));
 
+        self.app.statistics.increment_inject_count(&name);
+    }
+
+    fn handle_error_message(&mut self, message: String) {
+        self.toasts
+            .error(message)
+            .duration(Some(Duration::from_secs(4)));
+    }
+
+    fn update_rpc_status_selecting(&mut self) {
+        self.rpc.update(
+            Some(&format!("v{}", env!("CARGO_PKG_VERSION"))),
+            Some("Selecting a hack"),
+        );
+    }
+
+    fn group_hacks_by_game(&self) -> BTreeMap<String, BTreeMap<String, Vec<Hack>>> {
         let mut hacks_by_game: BTreeMap<String, BTreeMap<String, Vec<Hack>>> = BTreeMap::new();
 
-        for hack in self.hacks.clone() {
-            if self.config.show_only_favorites && !self.config.favorites.contains(&hack.name) {
+        for hack in self.app.hacks.clone() {
+            if self.app.config.show_only_favorites
+                && !self.app.config.favorites.contains(&hack.name)
+            {
                 continue;
             }
 
             let game = hack.game.clone();
             if game.starts_with("CSS") {
-                let mut parts = game.split_whitespace();
-                let game_name = parts.next().unwrap_or("CSS").to_string();
-                let version = parts.collect::<Vec<&str>>().join(" ");
-                let version = if version.is_empty() {
-                    "Unknown version".to_string()
-                } else {
-                    version
-                };
-                hacks_by_game
-                    .entry(game_name)
-                    .or_insert_with(BTreeMap::new)
-                    .entry(version)
-                    .or_insert_with(Vec::new)
-                    .push(hack);
+                self.group_css_hacks(&mut hacks_by_game, hack);
             } else {
-                hacks_by_game
-                    .entry(game.clone())
-                    .or_insert_with(BTreeMap::new)
-                    .entry("".to_string())
-                    .or_insert_with(Vec::new)
-                    .push(hack);
+                self.group_other_hacks(&mut hacks_by_game, hack);
             }
         }
+        hacks_by_game
+    }
 
-        // MARK: Left panel
+    fn group_css_hacks(
+        &self,
+        hacks_by_game: &mut BTreeMap<String, BTreeMap<String, Vec<Hack>>>,
+        hack: Hack,
+    ) {
+        let mut parts = hack.game.split_whitespace();
+        let game_name = parts.next().unwrap_or("CSS").to_string();
+        let version = parts.collect::<Vec<&str>>().join(" ");
+        let version = if version.is_empty() {
+            "Unknown version".to_string()
+        } else {
+            version
+        };
+        hacks_by_game
+            .entry(game_name)
+            .or_insert_with(BTreeMap::new)
+            .entry(version)
+            .or_insert_with(Vec::new)
+            .push(hack);
+    }
+
+    fn group_other_hacks(
+        &self,
+        hacks_by_game: &mut BTreeMap<String, BTreeMap<String, Vec<Hack>>>,
+        hack: Hack,
+    ) {
+        hacks_by_game
+            .entry(hack.game.clone())
+            .or_insert_with(BTreeMap::new)
+            .entry("".to_string())
+            .or_insert_with(Vec::new)
+            .push(hack);
+    }
+
+    fn render_left_panel(
+        &mut self,
+        ctx: &egui::Context,
+        hacks_by_game: BTreeMap<String, BTreeMap<String, Vec<Hack>>>,
+    ) {
         egui::SidePanel::left("left_panel")
             .resizable(true)
             .default_width(200.0)
@@ -237,7 +293,7 @@ impl MyApp {
             .frame(
                 Frame::default()
                     .fill(Color32::from_rgb(27, 27, 27))
-                    .inner_margin(Margin::symmetric(10.0, 10.0)),
+                    .inner_margin(Margin::symmetric(10.0, 8.0)),
             )
             .show(ctx, |ui| {
                 egui::ScrollArea::vertical()
@@ -247,7 +303,7 @@ impl MyApp {
 
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Min), |ui| {
                             ui.add(
-                                egui::TextEdit::singleline(&mut self.search_query)
+                                egui::TextEdit::singleline(&mut self.ui.search_query)
                                     .hint_text("Search..."),
                             );
                         });
@@ -255,137 +311,178 @@ impl MyApp {
                         ui.add_space(5.0);
 
                         for (game_name, versions) in hacks_by_game {
-                            ui.group(|ui| {
-                                ui.with_layout(egui::Layout::top_down(egui::Align::Min), |ui| {
-                                    ui.with_layout(
-                                        egui::Layout::top_down_justified(egui::Align::Center),
-                                        |ui| ui.heading(game_name),
-                                    );
-                                    ui.separator();
-                                    for (version, hacks) in versions {
-                                        if !version.is_empty() {
-                                            ui.with_layout(
-                                                egui::Layout::top_down_justified(
-                                                    egui::Align::Center,
-                                                ),
-                                                |ui| ui.label(RichText::new(version).heading()),
-                                            );
-                                        }
-
-                                        for hack in hacks {
-                                            let hack_clone = hack.clone();
-                                            ui.horizontal(|ui| {
-                                                let is_favorite =
-                                                    self.config.favorites.contains(&hack.name);
-
-                                                let mut label = if is_favorite {
-                                                    RichText::new(&hack.name)
-                                                        .color(self.config.favorites_color)
-                                                } else {
-                                                    RichText::new(&hack.name)
-                                                };
-
-                                                if !self.search_query.is_empty() {
-                                                    let lowercase_name = hack.name.to_lowercase();
-                                                    let lowercase_query =
-                                                        self.search_query.to_lowercase();
-                                                    let mut search_index = 0;
-                                                    while let Some(index) = lowercase_name
-                                                        [search_index..]
-                                                        .find(&lowercase_query)
-                                                    {
-                                                        let start = search_index + index;
-                                                        let end = start + lowercase_query.len();
-                                                        label = label.strong().underline();
-                                                        search_index = end;
-                                                    }
-                                                }
-
-                                                let response = ui.selectable_label(
-                                                    self.selected_hack.as_ref() == Some(&hack),
-                                                    label,
-                                                );
-
-                                                if is_favorite {
-                                                    let favorite_icon = "★";
-                                                    if ui
-                                                        .add(
-                                                            egui::Button::new(RichText::new(
-                                                                favorite_icon,
-                                                            ))
-                                                            .frame(false)
-                                                            .sense(Sense::click()),
-                                                        )
-                                                        .on_hover_cursor(Clickable)
-                                                        .clicked()
-                                                    {
-                                                        if is_favorite {
-                                                            self.config
-                                                                .favorites
-                                                                .remove(&hack.name);
-                                                        } else {
-                                                            self.config
-                                                                .favorites
-                                                                .insert(hack.name.clone());
-                                                        }
-                                                        self.config.save();
-                                                    }
-                                                }
-
-                                                if !self.config.hide_statistics {
-                                                    let count = self
-                                                        .statistics
-                                                        .inject_counts
-                                                        .get(&hack.name)
-                                                        .unwrap_or(&0);
-                                                    if count != &0 {
-                                                        ui.label(format!("{}x", count));
-                                                    }
-                                                }
-
-                                                if response.clicked() {
-                                                    self.selected_hack = Some(hack_clone.clone());
-
-                                                    self.config.selected_hack =
-                                                        hack_clone.name.clone();
-                                                    self.config.save();
-
-                                                    let mut status =
-                                                        self.status_message.lock().unwrap();
-                                                    *status = String::new();
-
-                                                    self.rpc.update(
-                                                        None,
-                                                        Some(&format!(
-                                                            "Selected {}",
-                                                            hack_clone.name
-                                                        )),
-                                                    );
-                                                }
-
-                                                self.context_menu(&response, ctx, &hack);
-
-                                                response.on_hover_cursor(Clickable);
-                                            });
-                                        }
-                                    }
-                                });
-                            });
+                            self.render_game_hacks(ui, game_name, versions, ctx);
                             ui.add_space(5.0);
                         }
                     });
             });
+    }
 
-        // MARK: Selected hack panel
+    fn render_game_hacks(
+        &mut self,
+        ui: &mut egui::Ui,
+        game_name: String,
+        versions: BTreeMap<String, Vec<Hack>>,
+        ctx: &egui::Context,
+    ) {
+        ui.group(|group_ui| {
+            group_ui.with_layout(egui::Layout::top_down(egui::Align::Min), |layout_ui| {
+                layout_ui.with_layout(
+                    egui::Layout::top_down_justified(egui::Align::Center),
+                    |ui| {
+                        ui.heading(game_name);
+                    },
+                );
+                layout_ui.separator();
+
+                for (version, hacks) in versions {
+                    self.render_version_hacks(layout_ui, version, hacks, ctx);
+                }
+            });
+        });
+    }
+
+    fn render_version_hacks(
+        &mut self,
+        ui: &mut egui::Ui,
+        version: String,
+        hacks: Vec<Hack>,
+        ctx: &egui::Context,
+    ) {
+        if !version.is_empty() {
+            ui.with_layout(
+                egui::Layout::top_down_justified(egui::Align::Center),
+                |ui| {
+                    ui.label(RichText::new(version).heading());
+                },
+            );
+        }
+
+        for hack in hacks {
+            self.render_hack_item(ui, &hack, ctx);
+        }
+    }
+
+    fn render_hack_item(&mut self, ui: &mut egui::Ui, hack: &Hack, ctx: &egui::Context) {
+        let hack_clone = hack.clone();
+        ui.horizontal(|ui| {
+            let mut label = self.create_hack_label(hack);
+
+            if !self.ui.search_query.is_empty() {
+                label = self.apply_search_highlighting(label, &hack.name);
+            }
+
+            let response =
+                ui.selectable_label(self.app.selected_hack.as_ref() == Some(hack), label);
+
+            self.render_favorite_button(ui, hack);
+            self.render_injection_count(ui, hack);
+
+            if response.clicked() {
+                self.select_hack(&hack_clone);
+            }
+
+            self.context_menu(&response, ctx, hack);
+
+            response.on_hover_cursor(Clickable);
+        });
+    }
+
+    fn create_hack_label(&self, hack: &Hack) -> RichText {
+        if self.app.config.favorites.contains(&hack.name) {
+            RichText::new(&hack.name).color(self.app.config.favorites_color)
+        } else {
+            RichText::new(&hack.name)
+        }
+    }
+
+    fn apply_search_highlighting(&self, mut label: RichText, name: &str) -> RichText {
+        let lowercase_name = name.to_lowercase();
+        let lowercase_query = self.ui.search_query.to_lowercase();
+        let mut search_index = 0;
+        while let Some(index) = lowercase_name[search_index..].find(&lowercase_query) {
+            let start = search_index + index;
+            let end = start + lowercase_query.len();
+            label = label.strong().underline();
+            search_index = end;
+        }
+        label
+    }
+
+    fn render_favorite_button(&mut self, ui: &mut egui::Ui, hack: &Hack) {
+        let is_favorite = self.app.config.favorites.contains(&hack.name);
+        if is_favorite {
+            let favorite_icon = "★";
+            if ui
+                .add(
+                    egui::Button::new(RichText::new(favorite_icon))
+                        .frame(false)
+                        .sense(Sense::click()),
+                )
+                .on_hover_cursor(Clickable)
+                .clicked()
+            {
+                self.toggle_favorite(hack.name.clone());
+            }
+        }
+    }
+
+    fn toggle_favorite(&mut self, hack_name: String) {
+        if self.app.config.favorites.contains(&hack_name) {
+            self.app.config.favorites.remove(&hack_name);
+        } else {
+            self.app.config.favorites.insert(hack_name);
+        }
+        self.app.config.save();
+    }
+
+    fn render_injection_count(&self, ui: &mut egui::Ui, hack: &Hack) {
+        if !self.app.config.hide_statistics {
+            let count = self
+                .app
+                .statistics
+                .inject_counts
+                .get(&hack.name)
+                .unwrap_or(&0);
+            if count != &0 {
+                ui.label(format!("{}x", count));
+            }
+        }
+    }
+
+    fn select_hack(&mut self, hack_clone: &Hack) {
+        self.app.selected_hack = Some(hack_clone.clone());
+        self.app.config.selected_hack = hack_clone.name.clone();
+        self.app.config.save();
+
+        let mut status = self.communication.status_message.lock().unwrap();
+        *status = String::new();
+
+        self.rpc
+            .update(None, Some(&format!("Selected {}", hack_clone.name)));
+    }
+
+    fn render_central_panel(&mut self, ctx: &egui::Context, theme_color: egui::Color32) {
         egui::CentralPanel::default().show(ctx, |ui| {
-            if let Some(selected) = self.selected_hack.clone() {
+            if let Some(selected) = self.app.selected_hack.clone() {
                 self.display_hack_details(ui, ctx, &selected, theme_color);
             } else {
                 center_vertical(ui, |ui| {
-                    ui.label(self.main_menu_message.clone());
+                    ui.label(self.ui.main_menu_message.clone());
                 });
             }
         });
+    }
+
+    // MARK: Home tab
+    fn render_home_tab(&mut self, ctx: &egui::Context, theme_color: egui::Color32) {
+        self.handle_received_messages();
+        self.handle_key_events(ctx);
+
+        let hacks_by_game = self.group_hacks_by_game();
+
+        self.render_left_panel(ctx, hacks_by_game);
+        self.render_central_panel(ctx, theme_color);
     }
 }
 
@@ -414,10 +511,10 @@ impl App for MyApp {
 
                     ui.label("API Endpoint (editable):");
                     if ui
-                        .text_edit_singleline(&mut self.config.api_endpoint)
+                        .text_edit_singleline(&mut self.app.config.api_endpoint)
                         .changed()
                     {
-                        self.config.save();
+                        self.app.config.save();
                     }
                 });
             });
@@ -428,7 +525,7 @@ impl App for MyApp {
 
         self.handle_dnd(ctx);
 
-        match self.tab {
+        match self.ui.tab {
             AppTab::Home => self.render_home_tab(ctx, theme_color),
             AppTab::Settings => self.render_settings_tab(ctx),
             AppTab::About => self.render_about_tab(ctx),
