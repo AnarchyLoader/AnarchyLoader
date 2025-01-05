@@ -105,6 +105,8 @@ impl MyApp {
         match output {
             Ok(output) => {
                 if output.status.success() {
+                    let stdout_message = String::from_utf8_lossy(&output.stdout).to_string();
+                    log::info!("Manual map injector output (stdout): {}", stdout_message);
                     let _ = message_sender.send(format!(
                         "SUCCESS: {}",
                         dll_path_clone.file_name().unwrap().to_string_lossy()
@@ -121,7 +123,7 @@ impl MyApp {
                         .join("\n");
 
                     let _ = message_sender.send(formatted_error_message.clone());
-                    log::error!("Failed to execute injector: {}", formatted_error_message);
+                    log::info!("Failed to execute injector: {}", formatted_error_message);
                 }
             }
             Err(e) => {
@@ -365,6 +367,8 @@ impl MyApp {
             match output {
                 Ok(output) => {
                     if output.status.success() {
+                        let stdout_message = String::from_utf8_lossy(&output.stdout).to_string();
+                        log::info!("{}", stdout_message);
                         let mut status = status_message.lock().unwrap();
                         *status = "Injection successful.".to_string();
                         log::info!("Injected {}", selected_clone.name);
@@ -372,19 +376,10 @@ impl MyApp {
                             .send(format!("SUCCESS: {}", selected_clone.name).to_string());
                     } else {
                         let error_message = String::from_utf8_lossy(&output.stderr).to_string();
-                        let formatted_error_message = error_message
-                            .split_whitespace()
-                            .collect::<Vec<&str>>()
-                            .chunks(7)
-                            .map(|chunk| chunk.join(" "))
-                            .collect::<Vec<String>>()
-                            .join("\n");
-
-                        let _ = message_sender.send(error_message.clone().replace("\n", ""));
-                        log::error!(
-                            "Failed to execute injector: {}",
-                            error_message.clone().replace("\n", "")
-                        );
+                        let formatted_error_message =
+                            format!("Failed to inject: {}", error_message.replace("\n", ""));
+                        let _ = message_sender.send(formatted_error_message.clone());
+                        log::error!("{}", formatted_error_message);
                         let mut status = status_message.lock().unwrap();
                         *status = formatted_error_message;
                     }
