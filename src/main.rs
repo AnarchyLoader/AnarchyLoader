@@ -165,6 +165,7 @@ impl MyApp {
 
         if config.selected_hack != "" && config.automatically_select_hack {
             selected_hack = get_hack_by_name(&hacks, &config.selected_hack);
+            rpc.update(None, Some(&format!("Selected {}", config.selected_hack)));
         }
 
         Self {
@@ -232,34 +233,42 @@ impl MyApp {
     }
 
     fn update_rpc_status_selecting(&mut self) {
-        self.rpc.update(
-            Some(&format!("v{}", env!("CARGO_PKG_VERSION"))),
-            Some("Selecting a hack"),
-        );
+        let version = format!("v{}", env!("CARGO_PKG_VERSION"));
+        let status = if let Some(hack) = &self.app.selected_hack {
+            format!("Selected {}", hack.name)
+        } else {
+            "Selecting hack".to_string()
+        };
+        self.rpc.update(Some(&version), Some(&status));
     }
 
     fn group_hacks_by_game(&self) -> BTreeMap<String, BTreeMap<String, Vec<Hack>>> {
+        Self::group_hacks_by_game_internal(&self.app.hacks, &self.app.config)
+    }
+
+    fn group_hacks_by_game_internal(
+        hacks: &[Hack],
+        config: &Config,
+    ) -> BTreeMap<String, BTreeMap<String, Vec<Hack>>> {
         let mut hacks_by_game: BTreeMap<String, BTreeMap<String, Vec<Hack>>> = BTreeMap::new();
 
-        for hack in self.app.hacks.clone() {
-            if self.app.config.show_only_favorites
-                && !self.app.config.favorites.contains(&hack.name)
-            {
+        for hack in hacks {
+            if config.show_only_favorites && !config.favorites.contains(&hack.name) {
                 continue;
             }
 
             let game = hack.game.clone();
+
             if game.starts_with("CSS") {
-                self.group_css_hacks(&mut hacks_by_game, hack);
+                Self::group_css_hacks_internal(&mut hacks_by_game, hack.clone());
             } else {
-                self.group_other_hacks(&mut hacks_by_game, hack);
+                Self::group_other_hacks_internal(&mut hacks_by_game, hack.clone());
             }
         }
         hacks_by_game
     }
 
-    fn group_css_hacks(
-        &self,
+    fn group_css_hacks_internal(
         hacks_by_game: &mut BTreeMap<String, BTreeMap<String, Vec<Hack>>>,
         hack: Hack,
     ) {
@@ -279,8 +288,7 @@ impl MyApp {
             .push(hack);
     }
 
-    fn group_other_hacks(
-        &self,
+    fn group_other_hacks_internal(
         hacks_by_game: &mut BTreeMap<String, BTreeMap<String, Vec<Hack>>>,
         hack: Hack,
     ) {
@@ -321,9 +329,11 @@ impl MyApp {
 
                         ui.add_space(5.0);
 
-                        for (game_name, versions) in hacks_by_game {
-                            self.render_game_hacks(ui, game_name, versions, ctx);
-                            ui.add_space(5.0);
+                        for game_name in self.app.config.game_order.clone() {
+                            if let Some(versions) = hacks_by_game.get(&game_name) {
+                                self.render_game_hacks(ui, game_name, versions.clone(), ctx);
+                                ui.add_space(5.0);
+                            }
                         }
                     });
             });
@@ -534,13 +544,12 @@ impl App for MyApp {
                         self.app.config = Config::default();
                         self.app.config.save();
                     }
-                    
+
                     ui.add_space(5.0);
 
                     if ui.cbutton("Exit").clicked() {
                         std::process::exit(0);
                     }
-
                 });
             });
             return;

@@ -14,6 +14,7 @@ impl MyApp {
     // MARK: Key events
     pub fn handle_key_events(&mut self, ctx: &egui::Context) {
         if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape)) {
+            self.rpc.update(None, Some("Selecting hack"));
             self.app.selected_hack = None;
         }
 
@@ -174,19 +175,23 @@ impl MyApp {
         selected: &Hack,
         theme_color: egui::Color32,
     ) {
-        let is_csgo = selected.game == "CS:GO";
-        let is_cs2 = selected.game == "CS2";
+        let is_csgo = selected.process == "csgo.exe";
+        let is_cs2 = selected.process == "cs2.exe";
+        let is_rust = selected.process == "RustClient.exe";
 
         ui.vertical(|ui| {
             ui.horizontal(|ui| {
                 ui.heading(&selected.name);
             });
 
-            ui.horizontal(|ui| {
+            ui.horizontal_wrapped(|ui| {
+                let width = ui.fonts(|f| f.glyph_width(&TextStyle::Body.resolve(ui.style()), ' '));
+                ui.spacing_mut().item_spacing.x = width;
+
                 ui.label("by");
                 ui.label(RichText::new(&selected.author).color(theme_color));
                 if !selected.source.is_empty() {
-                    ui.clink("source", &selected.source);
+                    ui.clink("(source)", &selected.source);
                 }
             });
         });
@@ -207,7 +212,7 @@ impl MyApp {
                     .clicked()
                 {
                     if let Err(e) = opener::open(format!(
-                        "https://steamcommunity.com/id/{}/",
+                        "https://steamcommunity.com/profiles/{}/",
                         self.app.account.id
                     )) {
                         self.toasts
@@ -221,7 +226,7 @@ impl MyApp {
 
         // MARK: Inject button
         let is_32bit = std::mem::size_of::<usize>() == 4;
-        let is_cs2_32bit = is_32bit && selected.game == "CS2";
+        let is_cs2_32bit = is_32bit && selected.process == "cs2.exe";
         let inject_button = ui
             .add_enabled_ui(!is_cs2_32bit, |ui| {
                 ui.button_with_tooltip(format!("Inject {}", selected.name), &selected.file)
@@ -249,7 +254,7 @@ impl MyApp {
 
             log::info!("Injecting {}", selected.name);
 
-            if is_csgo || is_cs2 {
+            if is_csgo || is_cs2 || is_rust {
                 self.manual_map_injection(
                     selected.clone(),
                     ctx.clone(),

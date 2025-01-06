@@ -27,7 +27,9 @@ impl MyApp {
                     ui.label(RichText::new(format!("v{}", self.app_version)).size(15.0));
                     ui.add_space(5.0);
                     ui.label(RichText::new("AnarchyLoader is a free and open-source cheat loader for various games.").size(16.0));
-                    ui.label(format!("btw, you opened it {} times", self.app.statistics.opened_count));
+                    if !self.app.config.hide_statistics {
+                        ui.label(format!("btw, you opened it {} times", self.app.statistics.opened_count));
+                    }
                     ui.add_space(5.0);
                     ui.horizontal_wrapped(|ui| {
                         let width =

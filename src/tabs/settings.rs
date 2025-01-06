@@ -1,4 +1,5 @@
 use egui::{CursorIcon::PointingHand as Clickable, RichText};
+use egui_dnd::dnd;
 use egui_modal::Modal;
 
 use crate::{
@@ -115,6 +116,38 @@ impl MyApp {
                                 self.app.config.save();
                             }
                         });
+                    });
+
+                    ui.add_space(5.0);
+
+                    ui.group(|ui| {
+                        ui.label("Game Order (Drag to reorder):");
+                        ui.add_space(5.0);
+
+                        let game_order = &mut self.app.config.game_order;
+                        let response = dnd(ui, "dnd_game_order_settings").show(
+                            game_order.iter_mut(),
+                            |ui, game_name, handle, _| {
+                                handle.ui(ui, |ui| {
+                                    ui.horizontal(|ui| {
+                                        ui.label("☰");
+                                        ui.label(game_name.clone());
+                                    });
+                                });
+                            },
+                        );
+
+                        if response.is_drag_finished() {
+                            response.update_vec(game_order);
+                            self.app.config.save();
+                        }
+
+                        ui.add_space(5.0);
+
+                        if ui.cbutton(RichText::new("Reset game order")).clicked() {
+                            self.app.config.reset_game_order();
+                            self.toasts.success("Game order reset.");
+                        }
                     });
 
                     ui.add_space(5.0);

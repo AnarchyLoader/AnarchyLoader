@@ -20,12 +20,18 @@ impl MyApp {
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
             ui.add_space(5.0);
             ui.horizontal(|ui| {
+                let home_rpc_message = if let Some(ref hack) = self.app.selected_hack {
+                    format!("Selected {}", hack.name)
+                } else {
+                    "Selecting hack".to_string()
+                };
+
                 self.render_tab(
                     ui,
                     AppTab::Home,
                     "Home",
                     "Go to the home screen",
-                    "Selecting a hack",
+                    &home_rpc_message,
                 );
                 self.render_tab(
                     ui,
