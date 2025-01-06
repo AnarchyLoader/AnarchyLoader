@@ -8,6 +8,7 @@ use winreg::{
 
 #[derive(Debug, Clone)]
 pub struct SteamAccount {
+    pub id: String,
     pub username: String,
     pub name: String,
 }
@@ -40,7 +41,7 @@ impl SteamAccount {
 
         users
             .iter()
-            .find_map(|(_, user_data)| {
+            .find_map(|(user_id, user_data)| {
                 let user_info = user_data.as_table()?;
                 let username = user_info.get("AccountName")?.as_str()?;
                 let name = user_info.get("PersonaName")?.as_str()?;
@@ -49,6 +50,7 @@ impl SteamAccount {
                     log::info!("Parsed steam user: {}", name);
 
                     Some(Self {
+                        id: user_id.to_owned(),
                         username: username.to_owned(),
                         name: name.to_owned(),
                     })
@@ -65,6 +67,7 @@ impl SteamAccount {
 
     pub fn default() -> Self {
         Self {
+            id: "unknown".to_string(),
             username: "unknown".to_string(),
             name: "unknown".to_string(),
         }

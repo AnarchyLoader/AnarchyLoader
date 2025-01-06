@@ -119,16 +119,20 @@ impl MyApp {
                 ));
 
                 if is_csgo || is_cs2 {
-                    self.manual_map_inject(
+                    MyApp::manual_map_inject(
                         self.ui.dropped_file.path.clone(),
                         &self.ui.selected_process_dnd.clone(),
                         self.communication.message_sender.clone(),
+                        self.communication.status_message.clone(),
+                        ctx.clone(),
                     );
                 } else {
-                    self.inject(
+                    MyApp::inject(
                         self.ui.dropped_file.path.clone(),
                         &self.ui.selected_process_dnd.clone(),
                         self.communication.message_sender.clone(),
+                        self.communication.status_message.clone(),
+                        ctx.clone(),
                     );
                 }
 
@@ -196,13 +200,22 @@ impl MyApp {
                 ui.spacing_mut().item_spacing.x = width;
 
                 ui.label(format!("Currently logged in as (steam):"));
-                ui.label(RichText::new(&self.app.account.name).color(theme_color))
+                if ui
+                    .label(RichText::new(&self.app.account.name).color(theme_color))
                     .on_hover_text_at_pointer(&self.app.account.username)
-                    .on_hover_cursor(egui::CursorIcon::Help);
+                    .on_hover_cursor(egui::CursorIcon::Help)
+                    .clicked()
+                {
+                    if let Err(e) = opener::open(format!(
+                        "https://steamcommunity.com/id/{}/",
+                        self.app.account.id
+                    )) {
+                        self.toasts
+                            .error(format!("Failed to open Steam profile: {}", e));
+                    }
+                }
 
-                ui.label("(hover to view username)")
-                    .on_hover_text_at_pointer(&self.app.account.username)
-                    .on_hover_cursor(egui::CursorIcon::Help);
+                ui.label("(hover to view username, click to open profile)");
             });
         }
 

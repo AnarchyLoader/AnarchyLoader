@@ -15,10 +15,7 @@ impl MyApp {
                         ("Config:", format!("{:#?}", self.app.config)),
                         ("Statistics:", format!("{:#?}", self.app.statistics)),
                         ("Hacks:", format!("{:#?}", self.app.hacks)),
-                        (
-                            "Selected Hack:",
-                            format!("{:#?}", self.app.selected_hack),
-                        ),
+                        ("Selected Hack:", format!("{:#?}", self.app.selected_hack)),
                         (
                             "Status Message:",
                             format!("{:#?}", self.communication.status_message),
@@ -28,10 +25,7 @@ impl MyApp {
                             "Inject in Progress:",
                             format!("{:#?}", self.communication.inject_in_progress),
                         ),
-                        (
-                            "Search Query:",
-                            format!("{:#?}", self.ui.search_query),
-                        ),
+                        ("Search Query:", format!("{:#?}", self.ui.search_query)),
                         (
                             "Main Menu Message:",
                             format!("{:#?}", self.ui.main_menu_message),
