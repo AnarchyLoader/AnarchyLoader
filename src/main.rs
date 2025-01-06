@@ -16,6 +16,7 @@ use std::{
     time::Duration,
 };
 
+use custom_widgets::Button;
 use eframe::{
     egui::{self, RichText},
     App,
@@ -133,15 +134,25 @@ impl MyApp {
 
         let status_message = Arc::new(Mutex::new(String::new()));
         let inject_in_progress = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let mut parse_error = None;
 
-        let hacks = hacks::Hack::fetch_hacks(&config.api_endpoint, config.lowercase_hacks)
-            .unwrap_or_default();
+        let hacks = match hacks::Hack::fetch_hacks(&config.api_endpoint, config.lowercase_hacks) {
+            Ok(hacks) => hacks,
+            Err(err) => {
+                log::error!("Failed to fetch hacks: {:?}", err);
+                parse_error = Some(err);
+                Vec::new()
+            }
+        };
 
         let hacks_processes = get_all_processes(&hacks);
 
         let account = match SteamAccount::new() {
             Ok(account) => account,
-            Err(_) => SteamAccount::default(),
+            Err(_) => {
+                log::warn!("Failed to get Steam account details");
+                SteamAccount::default()
+            }
         };
 
         let rpc = Rpc::new();
@@ -182,7 +193,7 @@ impl MyApp {
             log_buffer,
             logger: logger.clone(),
             toasts: Toasts::default(),
-            parse_error: None,
+            parse_error,
             app_version: env!("CARGO_PKG_VERSION").to_string(),
         }
     }
@@ -516,6 +527,20 @@ impl App for MyApp {
                     {
                         self.app.config.save();
                     }
+
+                    ui.add_space(5.0);
+
+                    if ui.cbutton("Reset config (possible fix)").clicked() {
+                        self.app.config = Config::default();
+                        self.app.config.save();
+                    }
+                    
+                    ui.add_space(5.0);
+
+                    if ui.cbutton("Exit").clicked() {
+                        std::process::exit(0);
+                    }
+
                 });
             });
             return;

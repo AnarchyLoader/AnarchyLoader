@@ -72,10 +72,7 @@ impl MyApp {
                             self.app.config.save();
                         }
                         if ui
-                            .ccheckbox(
-                                &mut self.app.config.hide_statistics,
-                                "Hide statistics",
-                            )
+                            .ccheckbox(&mut self.app.config.hide_statistics, "Hide statistics")
                             .changed()
                         {
                             self.app.config.save();
@@ -189,10 +186,7 @@ impl MyApp {
                     ui.horizontal(|ui| {
                         ui.label("API Endpoint:");
                         if ui
-                            .ctext_edit(
-                                &mut self.app.config.api_endpoint,
-                                default_api_endpoint(),
-                            )
+                            .ctext_edit(&mut self.app.config.api_endpoint, default_api_endpoint())
                             .changed()
                         {
                             self.app.config.save();
@@ -204,10 +198,7 @@ impl MyApp {
                     ui.horizontal(|ui| {
                         ui.label("CDN Endpoint:");
                         if ui
-                            .ctext_edit(
-                                &mut self.app.config.cdn_endpoint,
-                                default_cdn_endpoint(),
-                            )
+                            .ctext_edit(&mut self.app.config.cdn_endpoint, default_cdn_endpoint())
                             .changed()
                         {
                             self.app.config.save();
