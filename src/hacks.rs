@@ -58,7 +58,7 @@ impl Hack {
         if !std::path::Path::new(&file_path).exists() {
             match download_file(&self.file, &file_path) {
                 Ok(_) => Ok(()),
-                Err(e) => Err(format!("Failed to download file: {}", e)),
+                Err(e) => Err(format!("{}", e)),
             }
         } else {
             Ok(())

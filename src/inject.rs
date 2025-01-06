@@ -86,13 +86,14 @@ impl MyApp {
     ) {
         let dll_path_clone = dll_path.clone().unwrap();
         let is_cs2 = target_process.eq_ignore_ascii_case("cs2.exe");
-        let injector_process = if is_cs2 {
+        let is_rust = target_process.eq_ignore_ascii_case("RustClient.exe");
+        let injector_process = if is_cs2 || is_rust {
             "AnarchyInjector_x64.exe"
         } else {
             "AnarchyInjector_x86.exe"
         };
 
-        log::debug!("Using {} injector", if is_cs2 { "x64" } else { "x86" });
+        log::debug!("Using {} injector", injector_process);
 
         let file_path = dirs::config_dir()
             .unwrap_or_else(|| PathBuf::from("."))
@@ -116,10 +117,12 @@ impl MyApp {
             }
         }
 
-        let output = Command::new(file_path)
-            .arg(target_process)
-            .arg(dll_path.unwrap())
-            .output();
+        let mut command = Command::new(file_path);
+        command.arg(target_process).arg(dll_path.unwrap());
+
+        log::debug!("Executing injector: {:?}", command);
+
+        let output = command.output();
 
         match output {
             Ok(output) => {

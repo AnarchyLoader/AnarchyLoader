@@ -2,6 +2,8 @@ use std::{collections::HashSet, fs, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
 
+use crate::{hacks, MyApp};
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Config {
     pub favorites: HashSet<String>,
@@ -19,6 +21,7 @@ pub struct Config {
     pub disable_rpc: bool,
     pub selected_hack: String,
     pub log_level: log::Level,
+    pub game_order: Vec<String>,
 }
 
 fn default_favorites_color() -> egui::Color32 {
@@ -60,6 +63,7 @@ impl Default for Config {
             disable_rpc: false,
             selected_hack: "".to_string(),
             log_level: default_log_level(),
+            game_order: Vec::new(),
         }
     }
 }
@@ -74,9 +78,33 @@ impl Config {
         let config_path = config_dir.join("config.json");
 
         if let Ok(data) = fs::read_to_string(&config_path) {
-            serde_json::from_str::<Config>(&data).unwrap_or_default()
+            serde_json::from_str::<Config>(&data).unwrap_or_else(|_| {
+                let mut default_config = Config::default();
+
+                let hacks = match hacks::Hack::fetch_hacks(
+                    &default_config.api_endpoint,
+                    default_config.lowercase_hacks,
+                ) {
+                    Ok(hacks) => hacks,
+                    Err(_) => Vec::new(),
+                };
+                let grouped_hacks = MyApp::group_hacks_by_game_internal(&hacks, &default_config);
+                default_config.game_order = grouped_hacks.keys().cloned().collect();
+                default_config
+            })
         } else {
-            Config::default()
+            let mut default_config = Config::default();
+
+            let hacks = match hacks::Hack::fetch_hacks(
+                &default_config.api_endpoint,
+                default_config.lowercase_hacks,
+            ) {
+                Ok(hacks) => hacks,
+                Err(_) => Vec::new(),
+            };
+            let grouped_hacks = MyApp::group_hacks_by_game_internal(&hacks, &default_config);
+            default_config.game_order = grouped_hacks.keys().cloned().collect();
+            default_config
         }
     }
 
@@ -91,6 +119,16 @@ impl Config {
         if let Ok(data) = serde_json::to_string(&self) {
             fs::write(config_path, data).ok();
         }
+    }
+
+    pub fn reset_game_order(&mut self) {
+        let hacks = match hacks::Hack::fetch_hacks(&self.api_endpoint, self.lowercase_hacks) {
+            Ok(h) => h,
+            Err(_) => Vec::new(),
+        };
+        let grouped = MyApp::group_hacks_by_game_internal(&hacks, self);
+        self.game_order = grouped.keys().cloned().collect();
+        self.save();
     }
 
     pub fn reset(&mut self) {
