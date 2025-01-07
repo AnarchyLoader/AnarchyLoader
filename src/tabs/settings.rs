@@ -41,8 +41,9 @@ impl MyApp {
                             )
                             .changed()
                         {
-                            self.app.hacks = match hacks::Hack::fetch_hacks(
+                            self.app.hacks = match hacks::fetch_hacks(
                                 &self.app.config.api_endpoint,
+                                &self.app.config.api_endpoint_fallback,
                                 self.app.config.lowercase_hacks,
                             ) {
                                 Ok(hacks) => hacks,
@@ -220,6 +221,21 @@ impl MyApp {
                         ui.label("API Endpoint:");
                         if ui
                             .ctext_edit(&mut self.app.config.api_endpoint, default_api_endpoint())
+                            .changed()
+                        {
+                            self.app.config.save();
+                        }
+                    });
+
+                    ui.add_space(2.0);
+
+                    ui.horizontal(|ui| {
+                        ui.label("API Fallback Endpoint:");
+                        if ui
+                            .ctext_edit(
+                                &mut self.app.config.api_endpoint_fallback,
+                                default_api_endpoint(),
+                            )
                             .changed()
                         {
                             self.app.config.save();

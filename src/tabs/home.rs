@@ -39,8 +39,9 @@ impl MyApp {
         if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::F5)) {
             self.ui.main_menu_message = "Fetching hacks...".to_string();
             ctx.request_repaint();
-            self.app.hacks = match hacks::Hack::fetch_hacks(
+            self.app.hacks = match hacks::fetch_hacks(
                 &self.app.config.api_endpoint,
+                &self.app.config.api_endpoint_fallback,
                 self.app.config.lowercase_hacks,
             ) {
                 Ok(hacks) => {

@@ -136,7 +136,11 @@ impl MyApp {
         let inject_in_progress = Arc::new(std::sync::atomic::AtomicBool::new(false));
         let mut parse_error = None;
 
-        let hacks = match hacks::Hack::fetch_hacks(&config.api_endpoint, config.lowercase_hacks) {
+        let hacks = match hacks::fetch_hacks(
+            &config.api_endpoint,
+            &config.api_endpoint_fallback,
+            config.lowercase_hacks,
+        ) {
             Ok(hacks) => hacks,
             Err(err) => {
                 log::error!("Failed to fetch hacks: {:?}", err);

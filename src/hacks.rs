@@ -64,18 +64,26 @@ impl Hack {
             Ok(())
         }
     }
+}
 
-    pub(crate) fn fetch_hacks(api_endpoint: &str, lowercase: bool) -> Result<Vec<Hack>, String> {
-        match ureq::get(api_endpoint).call() {
+pub(crate) fn fetch_hacks(
+    api_endpoint: &str,
+    api_endpoint_fallback: &str,
+    lowercase: bool,
+) -> Result<Vec<Hack>, String> {
+    let endpoints = [api_endpoint, api_endpoint_fallback];
+
+    for endpoint in endpoints {
+        match ureq::get(&endpoint).call() {
             Ok(res) => {
                 if res.status() == 200 {
                     let parsed_hacks: Vec<HackApiResponse> =
                         res.into_json().map_err(|e| e.to_string())?;
                     if parsed_hacks.is_empty() {
-                        Err("No hacks available.".to_string())
+                        return Err("No hacks available.".to_string());
                     } else {
                         log::debug!("Fetched {} hacks from API.", parsed_hacks.len());
-                        Ok(parsed_hacks
+                        return Ok(parsed_hacks
                             .into_iter()
                             .map(|hack| {
                                 let name = if lowercase {
@@ -99,15 +107,14 @@ impl Hack {
                                     &hack.game,
                                 )
                             })
-                            .collect())
+                            .collect());
                     }
-                } else {
-                    Err(format!("API request failed with status: {}", res.status()))
                 }
             }
-            Err(e) => Err(format!("Failed to connect to API: {}", e)),
+            Err(e) => log::warn!("Failed to connect to {}: {}", endpoint, e),
         }
     }
+    Err("All endpoints failed.".to_string())
 }
 
 pub(crate) fn get_hack_by_name(hacks: &[Hack], name: &str) -> Option<Hack> {
