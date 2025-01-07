@@ -467,7 +467,7 @@ impl MyApp {
                 .app
                 .statistics
                 .inject_counts
-                .get(&hack.name)
+                .get(&hack.file)
                 .unwrap_or(&0);
             if count != &0 {
                 ui.label(format!("{}x", count));
