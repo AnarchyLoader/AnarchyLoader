@@ -13,6 +13,7 @@ pub struct Config {
     pub skip_injects_delay: bool,
     pub lowercase_hacks: bool,
     pub api_endpoint: String,
+    pub api_endpoint_fallback: String,
     pub cdn_endpoint: String,
     pub cdn_fallback_endpoint: String,
     pub hide_steam_account: bool,
@@ -30,6 +31,10 @@ fn default_favorites_color() -> egui::Color32 {
 
 pub(crate) fn default_api_endpoint() -> String {
     "https://api.anarchy.my/api/hacks/".to_string()
+}
+
+pub(crate) fn default_api_fallback_endpoint() -> String {
+    "https://anarchy.ttfdk.lol/api/hacks/".to_string()
 }
 
 pub(crate) fn default_cdn_endpoint() -> String {
@@ -55,6 +60,7 @@ impl Default for Config {
             skip_injects_delay: false,
             lowercase_hacks: true,
             api_endpoint: default_api_endpoint(),
+            api_endpoint_fallback: default_api_fallback_endpoint(),
             cdn_endpoint: default_cdn_endpoint(),
             cdn_fallback_endpoint: default_cdn_fallback_endpoint(),
             hide_steam_account: false,
@@ -81,8 +87,9 @@ impl Config {
             serde_json::from_str::<Config>(&data).unwrap_or_else(|_| {
                 let mut default_config = Config::default();
 
-                let hacks = match hacks::Hack::fetch_hacks(
+                let hacks = match hacks::fetch_hacks(
                     &default_config.api_endpoint,
+                    &default_config.api_endpoint_fallback,
                     default_config.lowercase_hacks,
                 ) {
                     Ok(hacks) => hacks,
@@ -95,8 +102,9 @@ impl Config {
         } else {
             let mut default_config = Config::default();
 
-            let hacks = match hacks::Hack::fetch_hacks(
+            let hacks = match hacks::fetch_hacks(
                 &default_config.api_endpoint,
+                &default_config.api_endpoint_fallback,
                 default_config.lowercase_hacks,
             ) {
                 Ok(hacks) => hacks,
@@ -122,7 +130,11 @@ impl Config {
     }
 
     pub fn reset_game_order(&mut self) {
-        let hacks = match hacks::Hack::fetch_hacks(&self.api_endpoint, self.lowercase_hacks) {
+        let hacks = match hacks::fetch_hacks(
+            &self.api_endpoint,
+            &self.api_endpoint_fallback,
+            self.lowercase_hacks,
+        ) {
             Ok(h) => h,
             Err(_) => Vec::new(),
         };
