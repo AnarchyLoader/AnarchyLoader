@@ -1,7 +1,7 @@
 <div align="center">
    <img src="https://github.com/user-attachments/assets/da62d58f-d664-4ce5-8932-db1e04d572c3" width="150"></img>
    <h1>AnarchyLoader</h1>
-   AnarchyLoader is a simple loader for Counter-Strike game series using the egui library, written entirely in Rust.
+   AnarchyLoader is a simple loader for games using the egui library, written entirely in Rust.
 </div>
 
 ## Showcase
