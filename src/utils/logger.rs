@@ -41,6 +41,14 @@ impl MyLogger {
             let log_buffer = Arc::new(Mutex::new(String::new()));
             let logger = MyLogger { buffer: log_buffer };
 
+            let log_file_path = dirs::config_dir()
+                .unwrap_or_else(|| PathBuf::from("."))
+                .join("anarchyloader")
+                .join("anarchyloader.log");
+
+            let log_file = File::create(&log_file_path)
+                .unwrap_or_else(|_| panic!("Failed to create log file at {:?}", log_file_path));
+
             let loggers: Vec<Box<dyn SharedLogger>> = vec![
                 TermLogger::new(
                     LevelFilter::Trace,
@@ -51,13 +59,7 @@ impl MyLogger {
                 WriteLogger::new(
                     LevelFilter::Trace,
                     simplelog::Config::default(),
-                    File::create(
-                        dirs::config_dir()
-                            .unwrap_or_else(|| PathBuf::from("."))
-                            .join("anarchyloader")
-                            .join("anarchyloader.log"),
-                    )
-                    .expect("Failed to create log file"),
+                    log_file,
                 ),
                 Box::new(logger.clone()),
             ];

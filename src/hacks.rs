@@ -1,5 +1,4 @@
 use serde::Deserialize;
-
 use crate::utils::downloader::download_file;
 
 #[derive(Deserialize, Debug, Clone, PartialEq)]

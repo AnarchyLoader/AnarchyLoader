@@ -16,7 +16,7 @@ use std::{
     time::Duration,
 };
 
-use custom_widgets::Button;
+use custom_widgets::{Button, ModernButton};
 use eframe::{
     egui::{self, RichText},
     App,
@@ -544,14 +544,14 @@ impl App for MyApp {
 
                     ui.add_space(5.0);
 
-                    if ui.cbutton("Reset config (possible fix)").clicked() {
+                    if ui.modern_button("Reset config (possible fix)").clicked() {
                         self.app.config = Config::default();
                         self.app.config.save();
                     }
 
                     ui.add_space(5.0);
 
-                    if ui.cbutton("Exit").clicked() {
+                    if ui.modern_button("Exit").clicked() {
                         std::process::exit(0);
                     }
                 });

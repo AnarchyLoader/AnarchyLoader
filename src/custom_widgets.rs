@@ -103,3 +103,17 @@ impl Hyperlink for egui::Ui {
             .on_hover_text(url)
     }
 }
+
+pub trait ModernButton {
+    fn modern_button(&mut self, label: impl Into<egui::WidgetText>) -> egui::Response;
+}
+
+impl ModernButton for egui::Ui {
+    fn modern_button(&mut self, label: impl Into<egui::WidgetText>) -> egui::Response {
+        self.button(label)
+            .fill(egui::Color32::from_rgb(45, 45, 45))
+            .stroke(egui::Stroke::new(1.0, egui::Color32::from_rgb(60, 60, 60)))
+            .rounding(egui::Rounding::same(5.0))
+            .on_hover_cursor(Clickable)
+    }
+}
