@@ -179,6 +179,7 @@ impl MyApp {
         let is_csgo = selected.process == "csgo.exe";
         let is_cs2 = selected.process == "cs2.exe";
         let is_rust = selected.process == "RustClient.exe";
+        let is_roblox = selected.game == "Roblox";
 
         ui.vertical(|ui| {
             ui.horizontal(|ui| {
@@ -200,7 +201,7 @@ impl MyApp {
         ui.separator();
         ui.label(&selected.description);
 
-        if !self.app.config.hide_steam_account {
+        if !self.app.config.hide_steam_account && !is_roblox {
             ui.horizontal_wrapped(|ui| {
                 let width = ui.fonts(|f| f.glyph_width(&TextStyle::Body.resolve(ui.style()), ' '));
                 ui.spacing_mut().item_spacing.x = width;
@@ -230,7 +231,14 @@ impl MyApp {
         let is_cs2_32bit = is_32bit && selected.process == "cs2.exe";
         let inject_button = ui
             .add_enabled_ui(!is_cs2_32bit, |ui| {
-                ui.button_with_tooltip(format!("Inject {}", selected.name), &selected.file)
+                ui.button_with_tooltip(
+                    if !is_roblox {
+                        format!("Inject {}", selected.name)
+                    } else {
+                        "Run".to_string()
+                    },
+                    &selected.file,
+                )
             })
             .inner;
 
@@ -244,16 +252,33 @@ impl MyApp {
         if inject_button.clicked() && !is_cs2_32bit {
             self.toasts
                 .custom(
-                    format!("Injecting {}", selected.name),
+                    if !is_roblox {
+                        format!("Injecting {}", selected.name)
+                    } else {
+                        "Running...".to_string()
+                    },
                     "⌛".to_string(),
                     egui::Color32::from_rgb(150, 200, 210),
                 )
                 .duration(Some(Duration::from_secs(2)));
 
-            self.rpc
-                .update(None, Some(&format!("Injecting {}", selected.name)));
+            self.rpc.update(
+                None,
+                Some(&if !is_roblox {
+                    format!("Injecting {}", selected.name)
+                } else {
+                    "Running...".to_string()
+                }),
+            );
 
-            log::info!("Injecting {}", selected.name);
+            log::info!(
+                "{}",
+                if !is_roblox {
+                    format!("Injecting {}", selected.name)
+                } else {
+                    "Running...".to_string()
+                }
+            );
 
             if is_csgo || is_cs2 || is_rust {
                 self.manual_map_injection(
@@ -262,20 +287,28 @@ impl MyApp {
                     self.communication.message_sender.clone(),
                 );
             } else {
-                self.start_injection(
-                    selected.clone(),
-                    ctx.clone(),
-                    self.communication.message_sender.clone(),
-                );
+                if !is_roblox {
+                    self.start_injection(
+                        selected.clone(),
+                        ctx.clone(),
+                        self.communication.message_sender.clone(),
+                    );
+                } else {
+                    self.run_executor(
+                        selected.clone(),
+                        ctx.clone(),
+                        self.communication.message_sender.clone(),
+                    );
+                }
             }
         }
 
-        let inject_in_progress = self
+        let in_progress = self
             .communication
-            .inject_in_progress
+            .in_progress
             .load(std::sync::atomic::Ordering::SeqCst);
 
-        if inject_in_progress {
+        if in_progress {
             ui.add_space(5.0);
             let status = self.communication.status_message.lock().unwrap().clone();
             ui.horizontal(|ui| {
@@ -310,6 +343,7 @@ impl MyApp {
         let ctx_clone = ctx.clone();
         let status_message = Arc::clone(&self.communication.status_message);
         let is_favorite = self.app.config.favorites.contains(&hack.name);
+        let is_roblox = hack.game == "Roblox";
 
         response.context_menu(|ui| {
             if is_favorite {
@@ -330,92 +364,94 @@ impl MyApp {
                 }
             }
 
-            // show only if file exists
-            if Path::new(&file_path_owned).exists() {
-                if ui
-                    .button_with_tooltip("Open in Explorer", "Open the file location in Explorer")
-                    .clicked()
-                {
-                    if let Err(e) = Command::new("explorer.exe")
-                        .arg(format!("/select,{}", hack.file_path.to_string_lossy()))
-                        .spawn()
+            if !is_roblox {
+                // show only if file exists
+                if Path::new(&file_path_owned).exists() {
+                    if ui
+                        .button_with_tooltip("Open in Explorer", "Open the file location in Explorer")
+                        .clicked()
                     {
-                        let mut status = self.communication.status_message.lock().unwrap();
-                        *status = format!("Failed to open Explorer: {}", e);
-                        self.toasts.error(format!("Failed to open Explorer: {}", e));
-                    }
-                    ui.close_menu();
-                }
-
-                if ui
-                    .button_with_tooltip("Uninstall", "Uninstall the selected hack")
-                    .clicked()
-                {
-                    if let Err(e) = std::fs::remove_file(&file_path_owned) {
-                        let mut status = self.communication.status_message.lock().unwrap();
-                        *status = format!("Failed to uninstall: {}", e);
-                    } else {
-                        let mut status = self.communication.status_message.lock().unwrap();
-                        *status = "Uninstall successful.".to_string();
-                    }
-                    ui.close_menu();
-                }
-
-                if ui
-                    .button_with_tooltip("Reinstall", "Reinstall the selected hack")
-                    .clicked()
-                {
-                    let hack_clone = hack.clone();
-                    thread::spawn(move || {
-                        if !Path::new(&file_path_owned).exists() {
-                            let mut status = status_message.lock().unwrap();
-                            *status = "Failed to reinstall: file does not exist.".to_string();
-                            ctx_clone.request_repaint();
-                            return;
-                        }
+                        if let Err(e) = Command::new("explorer.exe")
+                            .arg(format!("/select,{}", hack.file_path.to_string_lossy()))
+                            .spawn()
                         {
-                            let mut status = status_message.lock().unwrap();
-                            *status = "Reinstalling...".to_string();
-                            ctx_clone.request_repaint();
+                            let mut status = self.communication.status_message.lock().unwrap();
+                            *status = format!("Failed to open Explorer: {}", e);
+                            self.toasts.error(format!("Failed to open Explorer: {}", e));
                         }
-                        if let Err(e) = fs::remove_file(&file_path_owned) {
-                            let mut status = status_message.lock().unwrap();
-                            *status = format!("Failed to delete file: {}", e);
-                            ctx_clone.request_repaint();
-                            return;
+                        ui.close_menu();
+                    }
+    
+                    if ui
+                        .button_with_tooltip("Uninstall", "Uninstall the selected hack")
+                        .clicked()
+                    {
+                        if let Err(e) = std::fs::remove_file(&file_path_owned) {
+                            let mut status = self.communication.status_message.lock().unwrap();
+                            *status = format!("Failed to uninstall: {}", e);
+                        } else {
+                            let mut status = self.communication.status_message.lock().unwrap();
+                            *status = "Uninstall successful.".to_string();
                         }
-                        match hack_clone.download(file_path_owned.to_string_lossy().to_string()) {
-                            Ok(_) => {
+                        ui.close_menu();
+                    }
+    
+                    if ui
+                        .button_with_tooltip("Reinstall", "Reinstall the selected hack")
+                        .clicked()
+                    {
+                        let hack_clone = hack.clone();
+                        thread::spawn(move || {
+                            if !Path::new(&file_path_owned).exists() {
                                 let mut status = status_message.lock().unwrap();
-                                *status = "Reinstalled.".to_string();
+                                *status = "Failed to reinstall: file does not exist.".to_string();
+                                ctx_clone.request_repaint();
+                                return;
+                            }
+                            {
+                                let mut status = status_message.lock().unwrap();
+                                *status = "Reinstalling...".to_string();
                                 ctx_clone.request_repaint();
                             }
-                            Err(e) => {
+                            if let Err(e) = fs::remove_file(&file_path_owned) {
                                 let mut status = status_message.lock().unwrap();
-                                *status = format!("Failed to reinstall: {}", e);
+                                *status = format!("Failed to delete file: {}", e);
                                 ctx_clone.request_repaint();
+                                return;
                             }
-                        }
-                    });
-                    ui.close_menu();
-                }
-            } else {
-                if ui.cbutton("Download").clicked() {
-                    let file_path = hack.file_path.clone();
-                    let hack_clone = hack.clone();
-                    thread::spawn(move || {
-                        match hack_clone.download(file_path.to_string_lossy().to_string()) {
-                            Ok(_) => {
-                                let mut status = status_message.lock().unwrap();
-                                *status = "Downloaded.".to_string();
+                            match hack_clone.download(file_path_owned.to_string_lossy().to_string()) {
+                                Ok(_) => {
+                                    let mut status = status_message.lock().unwrap();
+                                    *status = "Reinstalled.".to_string();
+                                    ctx_clone.request_repaint();
+                                }
+                                Err(e) => {
+                                    let mut status = status_message.lock().unwrap();
+                                    *status = format!("Failed to reinstall: {}", e);
+                                    ctx_clone.request_repaint();
+                                }
                             }
-                            Err(e) => {
-                                let mut status = status_message.lock().unwrap();
-                                *status = format!("Failed to download: {}", e);
+                        });
+                        ui.close_menu();
+                    }
+                } else {
+                    if ui.cbutton("Download").clicked() {
+                        let file_path = hack.file_path.clone();
+                        let hack_clone = hack.clone();
+                        thread::spawn(move || {
+                            match hack_clone.download(file_path.to_string_lossy().to_string()) {
+                                Ok(_) => {
+                                    let mut status = status_message.lock().unwrap();
+                                    *status = "Downloaded.".to_string();
+                                }
+                                Err(e) => {
+                                    let mut status = status_message.lock().unwrap();
+                                    *status = format!("Failed to download: {}", e);
+                                }
                             }
-                        }
-                    });
-                    ui.close_menu();
+                        });
+                        ui.close_menu();
+                    }
                 }
             }
         });

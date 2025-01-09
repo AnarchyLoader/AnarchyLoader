@@ -2,7 +2,8 @@ use std::{fs::File, io::copy};
 
 use super::config::Config;
 
-pub fn download_file(file: &str, destination: &str) -> Result<(), Box<dyn std::error::Error>> {
+/// Downloads a file from the CDN, saving it to the loader directory.
+pub fn download_file(file: &str) -> Result<(), Box<dyn std::error::Error>> {
     let config = Config::load();
 
     let endpoints = &[config.cdn_endpoint, config.cdn_fallback_endpoint];
@@ -13,7 +14,12 @@ pub fn download_file(file: &str, destination: &str) -> Result<(), Box<dyn std::e
         match ureq::get(&url).call() {
             Ok(resp) if resp.status() == 200 => {
                 log::info!("Downloaded {} successfully from CDN {}.", file, i + 1);
-                let mut dest_file = File::create(destination)?;
+                let mut dest_file = File::create(
+                    dirs::config_dir()
+                        .unwrap_or_else(|| std::path::PathBuf::from("."))
+                        .join("anarchyloader")
+                        .join(file),
+                )?;
                 copy(&mut resp.into_reader(), &mut dest_file)?;
                 return Ok(());
             }

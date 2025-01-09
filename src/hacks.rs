@@ -56,7 +56,7 @@ impl Hack {
 
     pub(crate) fn download(&self, file_path: String) -> Result<(), String> {
         if !std::path::Path::new(&file_path).exists() {
-            match download_file(&self.file, &file_path) {
+            match download_file(&self.file) {
                 Ok(_) => Ok(()),
                 Err(e) => Err(format!("{}", e)),
             }

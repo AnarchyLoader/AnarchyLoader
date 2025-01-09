@@ -11,7 +11,7 @@ dll-syringe = "0.15.2"
 serde = { version = "1.0.217", features = ["derive"] }
 opener = "0.7.2"
 dirs = "5.0.1"
-serde_json = "1.0.134"
+serde_json = "1.0.135"
 image = { version = "0.25.5", features = ["png"] }
 is_elevated = "0.1.2"
 egui-notify = "0.18.0"
@@ -25,8 +25,9 @@ chrono = "0.4.39"
 log = { version = "0.4.22", features = ["serde"] }
 simplelog = "0.12.2"
 egui-modal = "0.6.0"
-winreg = "0.52.0"
+winreg = "0.53.0"
 egui_dnd = "0.11.0"
+zip-extract = "0.2.1"
 
 [build-dependencies]
 embed-resource = "3.0.1"

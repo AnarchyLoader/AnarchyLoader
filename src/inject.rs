@@ -101,7 +101,7 @@ impl MyApp {
             .join(injector_process);
 
         if !file_path.exists() {
-            match download_file(injector_process, file_path.to_str().unwrap()) {
+            match download_file(injector_process) {
                 Ok(_) => {
                     log::debug!("Downloaded manual map injector");
                 }
@@ -164,7 +164,7 @@ impl MyApp {
         ctx: egui::Context,
         message_sender: Sender<String>,
     ) {
-        let inject_in_progress = Arc::clone(&self.communication.inject_in_progress);
+        let in_progress = Arc::clone(&self.communication.in_progress);
         let status_message = Arc::clone(&self.communication.status_message);
         let selected_clone = selected.clone();
         let ctx_clone = ctx.clone();
@@ -176,7 +176,7 @@ impl MyApp {
             *status = "Starting injection...".to_string();
         }
 
-        inject_in_progress.store(true, std::sync::atomic::Ordering::SeqCst);
+        in_progress.store(true, std::sync::atomic::Ordering::SeqCst);
 
         thread::spawn(move || {
             ctx_clone.request_repaint();
@@ -203,7 +203,7 @@ impl MyApp {
                     Err(e) => {
                         let mut status = status_message.lock().unwrap();
                         *status = format!("{}", e);
-                        inject_in_progress.store(false, std::sync::atomic::Ordering::SeqCst);
+                        in_progress.store(false, std::sync::atomic::Ordering::SeqCst);
                         log::error!("Failed to download: {}", e);
                         ctx_clone.request_repaint();
                         let _ = message_sender_clone.send(format!("Failed to inject: {}", e));
@@ -237,7 +237,7 @@ impl MyApp {
                 ctx_clone.clone(),
             );
 
-            inject_in_progress.store(false, std::sync::atomic::Ordering::SeqCst);
+            in_progress.store(false, std::sync::atomic::Ordering::SeqCst);
             ctx_clone.request_repaint();
         });
     }
@@ -249,7 +249,7 @@ impl MyApp {
         ctx: egui::Context,
         message_sender: Sender<String>,
     ) {
-        let inject_in_progress = Arc::clone(&self.communication.inject_in_progress);
+        let in_progress = Arc::clone(&self.communication.in_progress);
         let status_message = Arc::clone(&self.communication.status_message);
         let selected_clone = selected.clone();
         let ctx_clone = ctx.clone();
@@ -261,7 +261,7 @@ impl MyApp {
             *status = "Starting injection...".to_string();
         }
 
-        inject_in_progress.store(true, std::sync::atomic::Ordering::SeqCst);
+        in_progress.store(true, std::sync::atomic::Ordering::SeqCst);
 
         thread::spawn(move || {
             ctx_clone.request_repaint();
@@ -288,7 +288,7 @@ impl MyApp {
                     Err(e) => {
                         let mut status = status_message.lock().unwrap();
                         *status = format!("{}", e);
-                        inject_in_progress.store(false, std::sync::atomic::Ordering::SeqCst);
+                        in_progress.store(false, std::sync::atomic::Ordering::SeqCst);
                         ctx_clone.request_repaint();
                         log::error!("Failed to download: {}", e);
                         let _ = message_sender_clone.send(format!("Failed to download: {}", e));
@@ -322,7 +322,7 @@ impl MyApp {
                 ctx_clone.clone(),
             );
 
-            inject_in_progress.store(false, std::sync::atomic::Ordering::SeqCst);
+            in_progress.store(false, std::sync::atomic::Ordering::SeqCst);
             ctx_clone.request_repaint();
         });
     }

@@ -23,7 +23,7 @@ impl MyApp {
                         ("Parse Error:", format!("{:#?}", self.parse_error)),
                         (
                             "Inject in Progress:",
-                            format!("{:#?}", self.communication.inject_in_progress),
+                            format!("{:#?}", self.communication.in_progress),
                         ),
                         ("Search Query:", format!("{:#?}", self.ui.search_query)),
                         (

@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod custom_widgets;
+mod games;
 mod hacks;
 mod inject;
 mod tabs;
@@ -91,7 +92,7 @@ struct UIState {
 
 struct Communication {
     status_message: Arc<Mutex<String>>,
-    inject_in_progress: Arc<std::sync::atomic::AtomicBool>,
+    in_progress: Arc<std::sync::atomic::AtomicBool>,
     message_sender: Sender<String>,
     message_receiver: Receiver<String>,
 }
@@ -120,7 +121,7 @@ static LOGGER: OnceLock<MyLogger> = OnceLock::new();
 impl MyApp {
     // MARK: Init
     fn new(_cc: &eframe::CreationContext<'_>) -> Self {
-        let config = Config::load();
+        let mut config = Config::load();
 
         let logger = MyLogger::init();
         let log_buffer = logger.buffer.clone();
@@ -133,7 +134,7 @@ impl MyApp {
         statistics.increment_opened_count();
 
         let status_message = Arc::new(Mutex::new(String::new()));
-        let inject_in_progress = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let in_progress = Arc::new(std::sync::atomic::AtomicBool::new(false));
         let mut parse_error = None;
 
         let hacks = match hacks::fetch_hacks(
@@ -141,7 +142,19 @@ impl MyApp {
             &config.api_endpoint_fallback,
             config.lowercase_hacks,
         ) {
-            Ok(hacks) => hacks,
+            Ok(hacks) => {
+                let mut existing_games: std::collections::HashSet<String> =
+                    config.game_order.clone().into_iter().collect();
+
+                for hack in &hacks {
+                    if !existing_games.contains(&hack.game) {
+                        config.game_order.push(hack.game.clone());
+                        existing_games.insert(hack.game.clone());
+                    }
+                }
+                config.save();
+                hacks
+            }
             Err(err) => {
                 log::error!("Failed to fetch hacks: {:?}", err);
                 parse_error = Some(err);
@@ -190,7 +203,7 @@ impl MyApp {
             },
             communication: Communication {
                 status_message,
-                inject_in_progress,
+                in_progress,
                 message_sender,
                 message_receiver,
             },
