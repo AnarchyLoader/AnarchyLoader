@@ -1,8 +1,21 @@
 #[cfg(target_os = "windows")]
-extern crate embed_resource;
+use std::{env, io};
 
-fn main() {
-    let _ = embed_resource::compile("resources.rc", embed_resource::NONE);
+fn main() -> io::Result<()> {
+    if env::var_os("CARGO_CFG_WINDOWS").is_some() {
+        let mut res = winres::WindowsResource::new();
+        let version = env::var("CARGO_PKG_VERSION").unwrap();
+        let version_numbers: Vec<u16> = version.split('.').map(|v| v.parse().unwrap()).collect();
+        let version_info = (version_numbers[0] as u64) << 48
+            | (version_numbers[1] as u64) << 32
+            | (version_numbers[2] as u64) << 16;
+
+        res.set_icon("resources/img/icon.ico")
+            .set_language(0x0409) // US English
+            .set_version_info(winres::VersionInfo::PRODUCTVERSION, version_info);
+        res.compile()?;
+    }
+    Ok(())
 }
 
 #[cfg(not(target_os = "windows"))]

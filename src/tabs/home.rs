@@ -368,7 +368,10 @@ impl MyApp {
                 // show only if file exists
                 if Path::new(&file_path_owned).exists() {
                     if ui
-                        .button_with_tooltip("Open in Explorer", "Open the file location in Explorer")
+                        .button_with_tooltip(
+                            "Open in Explorer",
+                            "Open the file location in Explorer",
+                        )
                         .clicked()
                     {
                         if let Err(e) = Command::new("explorer.exe")
@@ -381,7 +384,7 @@ impl MyApp {
                         }
                         ui.close_menu();
                     }
-    
+
                     if ui
                         .button_with_tooltip("Uninstall", "Uninstall the selected hack")
                         .clicked()
@@ -395,7 +398,7 @@ impl MyApp {
                         }
                         ui.close_menu();
                     }
-    
+
                     if ui
                         .button_with_tooltip("Reinstall", "Reinstall the selected hack")
                         .clicked()
@@ -419,7 +422,8 @@ impl MyApp {
                                 ctx_clone.request_repaint();
                                 return;
                             }
-                            match hack_clone.download(file_path_owned.to_string_lossy().to_string()) {
+                            match hack_clone.download(file_path_owned.to_string_lossy().to_string())
+                            {
                                 Ok(_) => {
                                     let mut status = status_message.lock().unwrap();
                                     *status = "Reinstalled.".to_string();
