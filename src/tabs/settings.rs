@@ -5,7 +5,10 @@ use egui_modal::Modal;
 use crate::{
     custom_widgets::{Button, CheckBox, TextEdit},
     hacks,
-    utils::config::{default_api_endpoint, default_cdn_endpoint, default_cdn_fallback_endpoint},
+    utils::{
+        config::{default_api_endpoint, default_cdn_endpoint, default_cdn_fallback_endpoint},
+        rpc::{Rpc, RpcUpdate},
+    },
     MyApp,
 };
 
@@ -65,6 +68,22 @@ impl MyApp {
                             self.app.config.save();
                         };
                         if ui
+                            .ccheckbox(&mut self.app.config.disable_rpc, "Disable RPC")
+                            .changed()
+                        {
+                            self.app.config.save();
+                            if !self.app.config.disable_rpc {
+                                self.rpc = Rpc::new(true);
+                                self.rpc.update(
+                                    Some(&format!("v{}", env!("CARGO_PKG_VERSION"))),
+                                    Some("Configuring settings"),
+                                    None,
+                                );
+                            } else {
+                                self.rpc.sender.send(RpcUpdate::Shutdown).ok();
+                            }
+                        }
+                        if ui
                             .ccheckbox(
                                 &mut self.app.config.hide_steam_account,
                                 "Hide Steam account",
@@ -93,6 +112,12 @@ impl MyApp {
                                 &mut self.app.config.skip_injects_delay,
                                 "Skip injects delay (visual)",
                             )
+                            .changed()
+                        {
+                            self.app.config.save();
+                        }
+                        if ui
+                            .ccheckbox(&mut self.app.config.skip_update_check, "Skip update check")
                             .changed()
                         {
                             self.app.config.save();

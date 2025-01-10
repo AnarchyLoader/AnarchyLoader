@@ -22,6 +22,7 @@ pub struct Config {
     pub disable_rpc: bool,
     pub selected_hack: String,
     pub log_level: log::Level,
+    pub skip_update_check: bool,
     pub game_order: Vec<String>,
 }
 
@@ -69,6 +70,7 @@ impl Default for Config {
             disable_rpc: false,
             selected_hack: "".to_string(),
             log_level: default_log_level(),
+            skip_update_check: false,
             game_order: Vec::new(),
         }
     }

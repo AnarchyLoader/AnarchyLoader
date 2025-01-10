@@ -17,7 +17,7 @@ use std::{
     time::Duration,
 };
 
-use custom_widgets::Button;
+use custom_widgets::{Button, CheckBox, Hyperlink};
 use eframe::{
     egui::{self, RichText},
     App,
@@ -32,7 +32,12 @@ use hacks::{get_all_processes, get_hack_by_name, Hack};
 use is_elevated::is_elevated;
 use tabs::top_panel::AppTab;
 use utils::{
-    config::Config, logger::MyLogger, rpc::Rpc, statistics::Statistics, steam::SteamAccount,
+    config::Config,
+    logger::MyLogger,
+    rpc::Rpc,
+    statistics::Statistics,
+    steam::SteamAccount,
+    updater::{self, Updater},
 };
 
 pub(crate) fn load_icon() -> egui::IconData {
@@ -80,6 +85,7 @@ struct AppState {
     config: Config,
     statistics: Statistics,
     account: SteamAccount,
+    updater: Updater,
 }
 
 struct UIState {
@@ -177,17 +183,31 @@ impl MyApp {
             }
         };
 
-        let rpc = Rpc::new();
+        let rpc = Rpc::new(!config.disable_rpc);
         rpc.update(
             Some(&format!("v{}", env!("CARGO_PKG_VERSION"))),
             Some("Selecting a hack"),
+            Some("home"),
         );
 
         let mut selected_hack = None;
 
         if config.selected_hack != "" && config.automatically_select_hack {
             selected_hack = get_hack_by_name(&hacks, &config.selected_hack);
-            rpc.update(None, Some(&format!("Selected {}", config.selected_hack)));
+            rpc.update(
+                None,
+                Some(&format!("Selected {}", config.selected_hack)),
+                None,
+            );
+        }
+
+        let mut updater = updater::Updater::default();
+
+        if updater.check_version() {
+            log::info!(
+                "New version available: {}",
+                updater.get_remote_version().unwrap()
+            );
         }
 
         Self {
@@ -198,6 +218,7 @@ impl MyApp {
                 config,
                 statistics,
                 account,
+                updater,
             },
             ui: UIState {
                 tab: AppTab::default(),
@@ -261,7 +282,7 @@ impl MyApp {
         } else {
             "Selecting hack".to_string()
         };
-        self.rpc.update(Some(&version), Some(&status));
+        self.rpc.update(Some(&version), Some(&status), None);
     }
 
     fn group_hacks_by_game(&self) -> BTreeMap<String, BTreeMap<String, Vec<Hack>>> {
@@ -512,7 +533,7 @@ impl MyApp {
         *status = String::new();
 
         self.rpc
-            .update(None, Some(&format!("Selected {}", hack_clone.name)));
+            .update(None, Some(&format!("Selected {}", hack_clone.name)), None);
     }
 
     fn render_central_panel(&mut self, ctx: &egui::Context, theme_color: egui::Color32) {
@@ -576,6 +597,43 @@ impl App for MyApp {
                         self.app.config = Config::default();
                         self.app.config.save();
                     }
+
+                    ui.add_space(5.0);
+
+                    if ui.cbutton("Exit").clicked() {
+                        std::process::exit(0);
+                    }
+                });
+            });
+            return;
+        }
+
+        if self.app.updater.need_update && !self.app.config.skip_update_check {
+            egui::CentralPanel::default().show(ctx, |ui| {
+                ui.vertical_centered(|ui| {
+                    ui.add_space(130.0);
+                    ui.colored_label(
+                        egui::Color32::GREEN,
+                        RichText::new("New version available!").size(24.0).strong(),
+                    );
+
+                    ui.label("Please download the latest version from the website.");
+
+                    ui.add_space(5.0);
+
+                    ui.clink(
+                        "Visit Website",
+                        "https://github.com/AnarchyLoader/AnarchyLoader/releases/latest",
+                    );
+
+                    ui.add_space(5.0);
+
+                    if ui
+                        .ccheckbox(&mut self.app.config.skip_update_check, "Skip update check")
+                        .changed()
+                    {
+                        self.app.config.save();
+                    };
 
                     ui.add_space(5.0);
 

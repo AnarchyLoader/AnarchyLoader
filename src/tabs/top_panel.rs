@@ -80,8 +80,12 @@ impl MyApp {
             .on_hover_text(tooltip)
             .clicked()
         {
-            self.ui.tab = tab;
-            self.rpc.update(None, Some(rpc_message));
+            self.ui.tab = tab.clone();
+            self.rpc.update(
+                None,
+                Some(rpc_message),
+                Some(&format!("{:?}", tab).to_lowercase()),
+            );
         }
     }
 }

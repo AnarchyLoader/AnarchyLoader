@@ -14,8 +14,9 @@ impl MyApp {
     // MARK: Key events
     pub fn handle_key_events(&mut self, ctx: &egui::Context) {
         if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape)) {
-            self.rpc.update(None, Some("Selecting hack"));
+            self.rpc.update(None, Some("Selecting hack"), None);
             self.app.selected_hack = None;
+            self.app.config.selected_hack = "".to_string();
         }
 
         if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Enter)) {
@@ -251,6 +252,7 @@ impl MyApp {
                 } else {
                     "Running...".to_string()
                 }),
+                Some(if !is_roblox { "injecting" } else { "running" }),
             );
 
             log::info!(
