@@ -66,7 +66,6 @@ cargo build --release
 ## Credits
 
 -   [egui](https://github.com/emilk/egui)
--   [dll-syringe](https://github.com/OpenByteDev/dll-syringe)
 -   [egui-notify](https://github.com/ItsEthra/egui-notify)
 -   [egui_alignments](https://github.com/a-littlebit/egui_alignments)
 -   [egui-modal](https://github.com/n00kii/egui-modal)

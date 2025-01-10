@@ -1,3 +1,4 @@
+use std::process::Command;
 #[cfg(target_os = "windows")]
 use std::{env, io};
 
@@ -14,6 +15,14 @@ fn main() -> io::Result<()> {
             .set_language(0x0409) // US English
             .set_version_info(winres::VersionInfo::PRODUCTVERSION, version_info);
         res.compile()?;
+
+        // get commit
+        let output = Command::new("git")
+            .args(&["rev-parse", "HEAD"])
+            .output()
+            .unwrap();
+        let git_hash = String::from_utf8(output.stdout).unwrap();
+        println!("cargo:rustc-env=GIT_HASH={}", git_hash);
     }
     Ok(())
 }

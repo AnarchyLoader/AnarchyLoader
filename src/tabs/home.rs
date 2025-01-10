@@ -4,7 +4,7 @@ use egui::{CursorIcon::PointingHand as Clickable, RichText, Spinner, TextStyle};
 use egui_modal::Modal;
 
 use crate::{
-    custom_widgets::{Button, Hyperlink},
+    custom_widgets::{Button, CheckBox, Hyperlink},
     default_main_menu_message,
     hacks::{self, Hack},
     MyApp,
@@ -20,19 +20,12 @@ impl MyApp {
 
         if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Enter)) {
             if let Some(selected) = &self.app.selected_hack {
-                if selected.game == "CS:GO" {
-                    self.manual_map_injection(
-                        selected.clone(),
-                        ctx.clone(),
-                        self.communication.message_sender.clone(),
-                    );
-                } else {
-                    self.start_injection(
-                        selected.clone(),
-                        ctx.clone(),
-                        self.communication.message_sender.clone(),
-                    );
-                }
+                self.injection(
+                    selected.clone(),
+                    ctx.clone(),
+                    self.communication.message_sender.clone(),
+                    false,
+                );
             }
         }
 
@@ -96,8 +89,11 @@ impl MyApp {
                 .response
                 .on_hover_cursor(Clickable);
 
-            let is_csgo = self.ui.selected_process_dnd == "csgo.exe";
-            let is_cs2 = self.ui.selected_process_dnd == "cs2.exe";
+            ui.add_space(5.0);
+
+            let mut force_x64 = false;
+
+            ui.ccheckbox(&mut force_x64, "Force use x64 injector");
 
             ui.add_space(5.0);
 
@@ -111,33 +107,18 @@ impl MyApp {
                 }
 
                 self.toasts.info(format!(
-                    "Injecting {}{}",
-                    dropped_filename,
-                    if is_csgo || is_cs2 {
-                        " using manual map injection."
-                    } else {
-                        " using standard injection."
-                    }
+                    "Injecting {} using manual map injection",
+                    dropped_filename
                 ));
 
-                if is_csgo || is_cs2 {
-                    MyApp::manual_map_inject(
-                        self.ui.dropped_file.path.clone(),
-                        &self.ui.selected_process_dnd.clone(),
-                        self.communication.message_sender.clone(),
-                        self.communication.status_message.clone(),
-                        ctx.clone(),
-                    );
-                } else {
-                    MyApp::inject(
-                        self.ui.dropped_file.path.clone(),
-                        &self.ui.selected_process_dnd.clone(),
-                        self.communication.message_sender.clone(),
-                        self.communication.status_message.clone(),
-                        ctx.clone(),
-                    );
-                }
-
+                MyApp::manual_map_inject(
+                    self.ui.dropped_file.path.clone(),
+                    &self.ui.selected_process_dnd.clone(),
+                    self.communication.message_sender.clone(),
+                    self.communication.status_message.clone(),
+                    ctx.clone(),
+                    force_x64,
+                );
                 modal.close();
             }
         });
@@ -176,9 +157,6 @@ impl MyApp {
         selected: &Hack,
         theme_color: egui::Color32,
     ) {
-        let is_csgo = selected.process == "csgo.exe";
-        let is_cs2 = selected.process == "cs2.exe";
-        let is_rust = selected.process == "RustClient.exe";
         let is_roblox = selected.game == "Roblox";
 
         ui.vertical(|ui| {
@@ -229,8 +207,12 @@ impl MyApp {
         // MARK: Inject button
         let is_32bit = std::mem::size_of::<usize>() == 4;
         let is_cs2_32bit = is_32bit && selected.process == "cs2.exe";
+        let in_progress = self
+            .communication
+            .in_progress
+            .load(std::sync::atomic::Ordering::SeqCst);
         let inject_button = ui
-            .add_enabled_ui(!is_cs2_32bit, |ui| {
+            .add_enabled_ui(!in_progress && !is_cs2_32bit, |ui| {
                 ui.button_with_tooltip(
                     if !is_roblox {
                         format!("Inject {}", selected.name)
@@ -280,33 +262,25 @@ impl MyApp {
                 }
             );
 
-            if is_csgo || is_cs2 || is_rust {
-                self.manual_map_injection(
+            if !is_roblox {
+                self.injection(
+                    selected.clone(),
+                    ctx.clone(),
+                    self.communication.message_sender.clone(),
+                    if ctx.input(|i| i.modifiers.ctrl) {
+                        true
+                    } else {
+                        false
+                    },
+                );
+            } else {
+                self.run_executor(
                     selected.clone(),
                     ctx.clone(),
                     self.communication.message_sender.clone(),
                 );
-            } else {
-                if !is_roblox {
-                    self.start_injection(
-                        selected.clone(),
-                        ctx.clone(),
-                        self.communication.message_sender.clone(),
-                    );
-                } else {
-                    self.run_executor(
-                        selected.clone(),
-                        ctx.clone(),
-                        self.communication.message_sender.clone(),
-                    );
-                }
             }
         }
-
-        let in_progress = self
-            .communication
-            .in_progress
-            .load(std::sync::atomic::Ordering::SeqCst);
 
         if in_progress {
             ui.add_space(5.0);

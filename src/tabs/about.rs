@@ -1,3 +1,5 @@
+use std::env;
+
 use egui::{RichText, Sense, TextStyle};
 
 use crate::{
@@ -24,7 +26,16 @@ impl MyApp {
                     {
                         self.toasts.info("Hello there!");
                     }
-                    ui.label(RichText::new(format!("v{}", self.app_version)).size(15.0));
+
+                    ui.horizontal_wrapped(|ui| {
+                        let width =
+                            ui.fonts(|f| f.glyph_width(&TextStyle::Body.resolve(ui.style()), ' '));
+                        ui.spacing_mut().item_spacing.x = width;
+
+                        ui.label(RichText::new(format!("v{}", self.app_version)).size(15.0));
+                        ui.clink(RichText::new(format!("({:.7})", env!("GIT_HASH"))).color(egui::Color32::DARK_GRAY), &format!("https://github.com/AnarchyLoader/AnarchyLoader/commit/{}", env!("GIT_HASH")));
+                    });
+
                     ui.add_space(5.0);
                     ui.label(RichText::new("AnarchyLoader is a free and open-source cheat loader for various games.").size(16.0));
                     if !self.app.config.hide_statistics {

@@ -147,7 +147,12 @@ impl MyApp {
                     config.game_order.clone().into_iter().collect();
 
                 for hack in &hacks {
-                    if !existing_games.contains(&hack.game) {
+                    if !existing_games.contains(&"CSS".to_string()) && hack.game.starts_with("CSS")
+                    {
+                        config.game_order.push("CSS".to_string());
+                        existing_games.insert("CSS".to_string());
+                    } else if !existing_games.contains(&hack.game) && !hack.game.starts_with("CSS")
+                    {
                         config.game_order.push(hack.game.clone());
                         existing_games.insert(hack.game.clone());
                     }
@@ -289,11 +294,11 @@ impl MyApp {
         hacks_by_game: &mut BTreeMap<String, BTreeMap<String, Vec<Hack>>>,
         hack: Hack,
     ) {
-        let mut parts = hack.game.split_whitespace();
-        let game_name = parts.next().unwrap_or("CSS").to_string();
-        let version = parts.collect::<Vec<&str>>().join(" ");
+        let parts = hack.game.split_whitespace();
+        let game_name = "CSS".to_string();
+        let version = parts.skip(1).collect::<Vec<&str>>().join(" ");
         let version = if version.is_empty() {
-            "Unknown version".to_string()
+            "Default".to_string()
         } else {
             version
         };
@@ -410,13 +415,23 @@ impl MyApp {
                 label = self.apply_search_highlighting(label, &hack.name);
             }
 
-            let response =
-                ui.selectable_label(self.app.selected_hack.as_ref() == Some(hack), label);
+            let in_progress = self
+                .communication
+                .in_progress
+                .load(std::sync::atomic::Ordering::SeqCst);
+
+            let is_selected = self.app.selected_hack.as_ref() == Some(hack);
+
+            let response = ui
+                .add_enabled_ui(!in_progress || is_selected, |ui| {
+                    ui.selectable_label(self.app.selected_hack.as_ref() == Some(hack), label)
+                })
+                .inner;
 
             self.render_favorite_button(ui, hack);
             self.render_injection_count(ui, hack);
 
-            if response.clicked() {
+            if response.clicked() && !in_progress {
                 self.select_hack(&hack_clone);
             }
 

@@ -7,7 +7,6 @@ build = "build.rs"
 [dependencies]
 eframe = "0.30.0"
 egui = { version = "0.30.0", features = ["serde"] }
-dll-syringe = "0.15.2"
 serde = { version = "1.0.217", features = ["derive"] }
 opener = "0.7.2"
 dirs = "5.0.1"

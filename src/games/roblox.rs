@@ -6,7 +6,9 @@ use std::{
 
 use crate::{hacks::Hack, utils::downloader, MyApp};
 
-impl MyApp {
+pub struct Roblox {}
+
+impl Roblox {
     /// Download the roblox zip
     pub fn download_executor() -> Result<(), Box<dyn std::error::Error>> {
         downloader::download_file("roblox.zip")?;
@@ -44,7 +46,9 @@ impl MyApp {
 
         Ok(())
     }
+}
 
+impl MyApp {
     pub fn run_executor(&self, selected: Hack, ctx: egui::Context, message_sender: Sender<String>) {
         let in_progress = Arc::clone(&self.communication.in_progress);
         let selected_clone = selected.clone();
@@ -74,7 +78,7 @@ impl MyApp {
                 }
                 ctx_clone.request_repaint();
 
-                match MyApp::download_executor() {
+                match Roblox::download_executor() {
                     Ok(_) => {
                         let mut status = status_message.lock().unwrap();
                         *status = "Downloaded.".to_string();
@@ -93,7 +97,7 @@ impl MyApp {
             }
 
             if zip_path.exists() {
-                if let Err(e) = MyApp::extract_executor(status_message.clone()) {
+                if let Err(e) = Roblox::extract_executor(status_message.clone()) {
                     let mut status = status_message.lock().unwrap();
                     *status = format!("Failed to extract: {}", e);
                     in_progress.store(false, std::sync::atomic::Ordering::SeqCst);

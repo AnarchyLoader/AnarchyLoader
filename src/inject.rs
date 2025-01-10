@@ -6,7 +6,6 @@ use std::{
     time::Duration,
 };
 
-use dll_syringe::{process::OwnedProcess, Syringe};
 use eframe::egui::{self};
 
 use crate::{utils::downloader::download_file, Hack, MyApp};
@@ -37,63 +36,27 @@ impl MyApp {
         Ok(())
     }
 
-    pub fn inject(
-        dll_path: Option<std::path::PathBuf>,
-        target_process: &str,
-        message_sender: Sender<String>,
-        status_message: Arc<Mutex<String>>,
-        ctx: egui::Context,
-    ) {
-        if let Some(process) = OwnedProcess::find_first_by_name(target_process) {
-            let syringe = Syringe::for_process(process);
-            let dll_path_clone = dll_path.clone().unwrap();
-            if let Err(e) = syringe.inject(dll_path.unwrap()) {
-                let _ = message_sender.send(format!("Failed to inject: {}", e));
-                log::error!("Failed to inject: {}", e);
-                let mut status = status_message.lock().unwrap();
-                *status = format!("Failed to inject: {}", e);
-                ctx.request_repaint();
-            } else {
-                let success_message = format!(
-                    "SUCCESS: {}",
-                    dll_path_clone.file_name().unwrap().to_string_lossy()
-                );
-                let _ = message_sender.send(success_message.clone());
-                log::info!("Injected into {}", target_process);
-                let mut status = status_message.lock().unwrap();
-                *status = "Injection successful.".to_string();
-                ctx.request_repaint();
-            }
-        } else {
-            let error_message = format!(
-                "Failed to inject: process '{}' not found. Try running the loader as admin.",
-                target_process
-            );
-            let _ = message_sender.send(error_message.clone());
-            log::error!("Process '{}' not found.", target_process);
-            let mut status = status_message.lock().unwrap();
-            *status = error_message;
-            ctx.request_repaint();
-        }
-    }
-
     pub fn manual_map_inject(
         dll_path: Option<std::path::PathBuf>,
         target_process: &str,
         message_sender: Sender<String>,
         status_message: Arc<Mutex<String>>,
         ctx: egui::Context,
+        force_x64: bool,
     ) {
         let dll_path_clone = dll_path.clone().unwrap();
         let is_cs2 = target_process.eq_ignore_ascii_case("cs2.exe");
         let is_rust = target_process.eq_ignore_ascii_case("RustClient.exe");
-        let injector_process = if is_cs2 || is_rust {
+        let injector_process = if is_cs2 || is_rust || force_x64 {
             "AnarchyInjector_x64.exe"
         } else {
             "AnarchyInjector_x86.exe"
         };
 
         log::debug!("Using {} injector", injector_process);
+        if force_x64 {
+            log::debug!("Forcing x64 injector");
+        }
 
         let file_path = dirs::config_dir()
             .unwrap_or_else(|| PathBuf::from("."))
@@ -158,96 +121,13 @@ impl MyApp {
         }
     }
 
-    pub fn start_injection(
-        &mut self,
-        selected: Hack,
-        ctx: egui::Context,
-        message_sender: Sender<String>,
-    ) {
-        let in_progress = Arc::clone(&self.communication.in_progress);
-        let status_message = Arc::clone(&self.communication.status_message);
-        let selected_clone = selected.clone();
-        let ctx_clone = ctx.clone();
-        let skip_injects_clone = self.app.config.skip_injects_delay.clone();
-        let message_sender_clone = message_sender.clone();
-
-        {
-            let mut status = status_message.lock().unwrap();
-            *status = "Starting injection...".to_string();
-        }
-
-        in_progress.store(true, std::sync::atomic::Ordering::SeqCst);
-
-        thread::spawn(move || {
-            ctx_clone.request_repaint();
-            if !skip_injects_clone {
-                thread::sleep(Duration::from_secs(1));
-            }
-
-            if !selected_clone.file_path.exists() {
-                {
-                    let mut status = status_message.lock().unwrap();
-                    *status = "Downloading...".to_string();
-                }
-                ctx_clone.request_repaint();
-
-                match selected_clone
-                    .download(selected_clone.file_path.to_string_lossy().to_string())
-                {
-                    Ok(_) => {
-                        let mut status = status_message.lock().unwrap();
-                        *status = "Downloaded.".to_string();
-                        log::debug!("Downloaded {}", selected_clone.name);
-                        ctx_clone.request_repaint();
-                    }
-                    Err(e) => {
-                        let mut status = status_message.lock().unwrap();
-                        *status = format!("{}", e);
-                        in_progress.store(false, std::sync::atomic::Ordering::SeqCst);
-                        log::error!("Failed to download: {}", e);
-                        ctx_clone.request_repaint();
-                        let _ = message_sender_clone.send(format!("Failed to inject: {}", e));
-                    }
-                }
-            }
-
-            if !skip_injects_clone {
-                thread::sleep(Duration::from_secs(1));
-            }
-
-            {
-                let mut status = status_message.lock().unwrap();
-                *status = "Injecting...".to_string();
-            }
-
-            ctx_clone.request_repaint();
-
-            if !skip_injects_clone {
-                thread::sleep(Duration::from_secs(1));
-            }
-
-            let dll_path = Some(selected_clone.file_path.clone());
-            let target_process = &selected_clone.process;
-            let status_message_clone = status_message.clone();
-            MyApp::inject(
-                dll_path,
-                target_process,
-                message_sender_clone.clone(),
-                status_message_clone,
-                ctx_clone.clone(),
-            );
-
-            in_progress.store(false, std::sync::atomic::Ordering::SeqCst);
-            ctx_clone.request_repaint();
-        });
-    }
-
     // MARK: Manual map injection
-    pub fn manual_map_injection(
+    pub fn injection(
         &mut self,
         selected: Hack,
         ctx: egui::Context,
         message_sender: Sender<String>,
+        force_x64: bool,
     ) {
         let in_progress = Arc::clone(&self.communication.in_progress);
         let status_message = Arc::clone(&self.communication.status_message);
@@ -320,6 +200,7 @@ impl MyApp {
                 message_sender_clone.clone(),
                 status_message_clone,
                 ctx_clone.clone(),
+                force_x64,
             );
 
             in_progress.store(false, std::sync::atomic::Ordering::SeqCst);
