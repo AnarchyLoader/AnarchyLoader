@@ -61,7 +61,7 @@ impl MyApp {
                     ui.horizontal(|ui| {
                         ui.link_button(
                             "Discord",
-                            "https://discord.com/invite/YzwcDCsRe8",
+                            "https://discord.com/invite/VPGRgXUCsv",
                             &mut self.toasts,
                         );
                         ui.link_button("Telegram", "https://t.me/anarchyloader", &mut self.toasts);
