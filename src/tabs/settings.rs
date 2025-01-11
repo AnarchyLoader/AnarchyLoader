@@ -4,6 +4,7 @@ use egui_modal::Modal;
 
 use crate::{
     custom_widgets::{Button, CheckBox, TextEdit},
+    games::local::LocalHack,
     hacks,
     utils::{
         config::{default_api_endpoint, default_cdn_endpoint, default_cdn_fallback_endpoint},
@@ -125,7 +126,7 @@ impl MyApp {
                         if ui
                             .ccheckbox(
                                 &mut self.app.config.automatically_select_hack,
-                                "Automatically select recently injected hack",
+                                "Automatically select recently hack",
                             )
                             .changed()
                         {
@@ -174,6 +175,123 @@ impl MyApp {
                             self.app.config.reset_game_order();
                             self.toasts.success("Game order reset.");
                         }
+
+                        ui.add_space(5.0);
+
+                        let local_hack_modal = Modal::new(ctx, "add_local_hack_modal")
+                            .with_close_on_outside_click(true);
+                        local_hack_modal.show(|ui| {
+                            ui.label("Add Local Hack");
+                            ui.separator();
+
+                            let path_buf = &mut self.ui.local_hack_popup.new_local_dll;
+
+                            ui.label(if path_buf.is_empty() {
+                                "DLL:".to_string()
+                            } else {
+                                format!("DLL: {}", path_buf)
+                            });
+
+                            if ui.cbutton("Browse").clicked() {
+                                if let Some(path) = rfd::FileDialog::new()
+                                    .add_filter("DLL files", &["dll"])
+                                    .pick_file()
+                                {
+                                    *path_buf = path.to_string_lossy().into_owned();
+                                    if path_buf.ends_with(".dll") {
+                                        self.toasts.success("DLL selected.");
+                                    } else {
+                                        self.toasts.error("Please select a DLL file.");
+                                    }
+                                }
+                            }
+
+                            ui.label("Process:");
+                            ui.text_edit_singleline(
+                                &mut self.ui.local_hack_popup.new_local_process,
+                            );
+                            ui.label("Arch:");
+                            egui::ComboBox::from_id_salt("local_hack_arch")
+                                .selected_text(&self.ui.local_hack_popup.new_local_arch)
+                                .show_ui(ui, |ui| {
+                                    ui.selectable_value(
+                                        &mut self.ui.local_hack_popup.new_local_arch,
+                                        "x64".to_string(),
+                                        "x64",
+                                    )
+                                    .on_hover_cursor(Clickable);
+                                    ui.selectable_value(
+                                        &mut self.ui.local_hack_popup.new_local_arch,
+                                        "x86".to_string(),
+                                        "x86",
+                                    )
+                                    .on_hover_cursor(Clickable);
+                                })
+                                .response
+                                .on_hover_cursor(Clickable);
+
+                            ui.add_space(5.0);
+
+                            ui.horizontal(|ui| {
+                                if ui.cbutton("Confirm").clicked() {
+                                    if self.ui.local_hack_popup.new_local_dll.is_empty() {
+                                        self.toasts.error("Please select a DLL file.");
+                                        return;
+                                    }
+
+                                    if self.ui.local_hack_popup.new_local_process.is_empty() {
+                                        self.toasts.error("Please enter a process name.");
+                                        return;
+                                    }
+
+                                    if self.ui.local_hack_popup.new_local_arch.is_empty() {
+                                        self.toasts.error("Please select an architecture.");
+                                        return;
+                                    }
+
+                                    let hack = LocalHack {
+                                        dll: self.ui.local_hack_popup.new_local_dll.clone(),
+                                        process: self.ui.local_hack_popup.new_local_process.clone(),
+                                        arch: self.ui.local_hack_popup.new_local_arch.clone(),
+                                    };
+                                    self.add_local_hack(hack);
+                                    if !self.app.config.local_hacks.is_empty()
+                                        && !self
+                                            .app
+                                            .config
+                                            .game_order
+                                            .contains(&"Added".to_string())
+                                    {
+                                        self.app.config.game_order.push("Added".to_string());
+                                    }
+                                    MyApp::group_hacks_by_game_internal(
+                                        &self.app.hacks,
+                                        &self.app.config,
+                                    );
+
+                                    self.ui.local_hack_popup.new_local_dll.clear();
+                                    self.ui.local_hack_popup.new_local_process.clear();
+                                    self.ui.local_hack_popup.new_local_arch.clear();
+
+                                    self.toasts.success("Local hack added.");
+                                    local_hack_modal.close();
+                                }
+                                if ui.cbutton("Cancel").clicked() {
+                                    local_hack_modal.close();
+                                }
+                            });
+                        });
+
+                        ui.horizontal(|ui| {
+                            if ui.cbutton("Add local hack").clicked() {
+                                local_hack_modal.open();
+                            }
+                            if ui.cbutton("Reset local hacks").clicked() {
+                                self.app.config.local_hacks.clear();
+                                self.app.config.save();
+                                self.toasts.success("Local hacks reset.");
+                            }
+                        });
                     });
 
                     ui.add_space(5.0);

@@ -149,7 +149,7 @@ impl MyApp {
                 thread::sleep(Duration::from_secs(1));
             }
 
-            if !selected_clone.file_path.exists() {
+            if !selected_clone.file_path.exists() && !selected_clone.local {
                 {
                     let mut status = status_message.lock().unwrap();
                     *status = format!("Downloading {}...", selected_clone.name);
@@ -194,13 +194,20 @@ impl MyApp {
             let dll_path = Some(selected_clone.file_path.clone());
             let target_process = &selected_clone.process;
             let status_message_clone = status_message.clone();
+
+            log::debug!("Hack: {:?}", selected_clone);
+
             MyApp::manual_map_inject(
                 dll_path,
                 target_process,
                 message_sender_clone.clone(),
                 status_message_clone,
                 ctx_clone.clone(),
-                force_x64,
+                if selected_clone.arch == "x64" {
+                    true
+                } else {
+                    force_x64
+                },
             );
 
             in_progress.store(false, std::sync::atomic::Ordering::SeqCst);

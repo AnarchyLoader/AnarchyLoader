@@ -164,21 +164,25 @@ impl MyApp {
             ui.horizontal(|ui| {
                 ui.heading(&selected.name);
             });
+            if !selected.author.is_empty() {
+                ui.horizontal_wrapped(|ui| {
+                    let width =
+                        ui.fonts(|f| f.glyph_width(&TextStyle::Body.resolve(ui.style()), ' '));
+                    ui.spacing_mut().item_spacing.x = width;
 
-            ui.horizontal_wrapped(|ui| {
-                let width = ui.fonts(|f| f.glyph_width(&TextStyle::Body.resolve(ui.style()), ' '));
-                ui.spacing_mut().item_spacing.x = width;
-
-                ui.label("by");
-                ui.label(RichText::new(&selected.author).color(theme_color));
-                if !selected.source.is_empty() {
-                    ui.clink("(source)", &selected.source);
-                }
-            });
+                    ui.label("by");
+                    ui.label(RichText::new(&selected.author).color(theme_color));
+                    if !selected.source.is_empty() {
+                        ui.clink("(source)", &selected.source);
+                    }
+                });
+            }
         });
 
         ui.separator();
-        ui.label(&selected.description);
+        if !selected.description.is_empty() {
+            ui.label(&selected.description);
+        }
 
         if !self.app.config.hide_steam_account && !is_roblox {
             ui.horizontal_wrapped(|ui| {

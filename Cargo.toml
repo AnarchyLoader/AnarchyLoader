@@ -28,6 +28,7 @@ winreg = "0.53.0"
 egui_dnd = "0.11.0"
 zip-extract = "0.2.1"
 semver = "1.0.24"
+rfd = "0.15.2"
 
 [build-dependencies]
 winres = "0.1.12"

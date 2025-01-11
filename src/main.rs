@@ -28,6 +28,7 @@ use egui::{
 };
 use egui_alignments::center_vertical;
 use egui_notify::Toasts;
+use games::local::LocalUI;
 use hacks::{get_all_processes, get_hack_by_name, Hack};
 use is_elevated::is_elevated;
 use tabs::top_panel::AppTab;
@@ -94,6 +95,7 @@ struct UIState {
     main_menu_message: String,
     dropped_file: DroppedFile,
     selected_process_dnd: String,
+    local_hack_popup: LocalUI,
 }
 
 struct Communication {
@@ -162,6 +164,15 @@ impl MyApp {
                         config.game_order.push(hack.game.clone());
                         existing_games.insert(hack.game.clone());
                     }
+                    if !config.local_hacks.is_empty()
+                        && !config.game_order.contains(&"Added".to_string())
+                    {
+                        config.game_order.push("Added".to_string());
+                    } else if config.local_hacks.is_empty()
+                        && config.game_order.contains(&"Added".to_string())
+                    {
+                        config.game_order.retain(|game| game != "Added");
+                    }
                 }
                 config.save();
                 hacks
@@ -226,6 +237,11 @@ impl MyApp {
                 main_menu_message: default_main_menu_message(),
                 dropped_file: DroppedFile::default(),
                 selected_process_dnd: String::new(),
+                local_hack_popup: LocalUI {
+                    new_local_dll: String::new(),
+                    new_local_process: String::new(),
+                    new_local_arch: String::new(),
+                },
             },
             communication: Communication {
                 status_message,
@@ -286,7 +302,27 @@ impl MyApp {
     }
 
     fn group_hacks_by_game(&self) -> BTreeMap<String, BTreeMap<String, Vec<Hack>>> {
-        Self::group_hacks_by_game_internal(&self.app.hacks, &self.app.config)
+        let mut all_hacks = self.app.hacks.clone();
+        all_hacks.extend(self.app.config.local_hacks.iter().map(|lh| {
+            Hack {
+                name: std::path::Path::new(&lh.dll)
+                    .file_name()
+                    .map(|os_str| os_str.to_string_lossy().to_string())
+                    .unwrap_or_else(|| "Unknown".to_string()),
+                process: lh.process.clone(),
+                file: std::path::Path::new(&lh.dll)
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .to_string(),
+                file_path: std::path::Path::new(&lh.dll).to_path_buf(),
+                game: "Added".to_string(),
+                local: true,
+                arch: lh.arch.clone(),
+                ..Default::default()
+            }
+        }));
+        Self::group_hacks_by_game_internal(&all_hacks, &self.app.config)
     }
 
     fn group_hacks_by_game_internal(

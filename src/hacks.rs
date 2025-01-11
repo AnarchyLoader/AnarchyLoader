@@ -25,6 +25,8 @@ pub(crate) struct Hack {
     pub source: String,
     pub game: String,
     pub file_path: std::path::PathBuf,
+    pub local: bool,
+    pub arch: String,
 }
 
 impl Hack {
@@ -37,6 +39,7 @@ impl Hack {
         process: &str,
         source: &str,
         game: &str,
+        local: bool,
     ) -> Self {
         Self {
             name: name.to_string(),
@@ -51,6 +54,8 @@ impl Hack {
                 .unwrap_or_else(|| std::path::PathBuf::from("."))
                 .join("anarchyloader")
                 .join(&file),
+            local,
+            arch: String::new(),
         }
     }
 
@@ -62,6 +67,24 @@ impl Hack {
             }
         } else {
             Ok(())
+        }
+    }
+}
+
+impl Default for Hack {
+    fn default() -> Self {
+        Self {
+            name: "".to_string(),
+            description: "".to_string(),
+            author: "".to_string(),
+            status: "".to_string(),
+            file: "".to_string(),
+            process: "".to_string(),
+            source: "".to_string(),
+            game: "".to_string(),
+            file_path: std::path::PathBuf::new(),
+            local: false,
+            arch: "".to_string(),
         }
     }
 }
@@ -105,6 +128,7 @@ pub(crate) fn fetch_hacks(
                                     &hack.process,
                                     &hack.source,
                                     &hack.game,
+                                    false,
                                 )
                             })
                             .collect());

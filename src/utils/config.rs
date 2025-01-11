@@ -2,7 +2,7 @@ use std::{collections::HashSet, fs, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{hacks, MyApp};
+use crate::{games::local::LocalHack, hacks, MyApp};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Config {
@@ -24,6 +24,7 @@ pub struct Config {
     pub log_level: log::Level,
     pub skip_update_check: bool,
     pub game_order: Vec<String>,
+    pub local_hacks: Vec<LocalHack>,
 }
 
 fn default_favorites_color() -> egui::Color32 {
@@ -72,6 +73,7 @@ impl Default for Config {
             log_level: default_log_level(),
             skip_update_check: false,
             game_order: Vec::new(),
+            local_hacks: Vec::new(),
         }
     }
 }

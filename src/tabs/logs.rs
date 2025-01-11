@@ -1,4 +1,4 @@
-use egui::{RichText, TextStyle};
+use egui::{CursorIcon::PointingHand as Clickable, RichText, TextStyle};
 use log::Level;
 
 use crate::MyApp;
@@ -21,6 +21,7 @@ impl MyApp {
                             level,
                             format!("{:?}", level),
                         )
+                        .on_hover_cursor(Clickable)
                         .changed()
                     {
                         self.logger

@@ -33,7 +33,11 @@ impl MyApp {
                         ui.spacing_mut().item_spacing.x = width;
 
                         ui.label(RichText::new(format!("v{}", self.app_version)).size(15.0));
+                        ui.add_space(2.5);
                         ui.clink(RichText::new(format!("({:.7})", env!("GIT_HASH"))).color(egui::Color32::DARK_GRAY), &format!("https://github.com/AnarchyLoader/AnarchyLoader/commit/{}", env!("GIT_HASH")));
+                        ui.add_space(2.5);
+                        #[cfg(debug_assertions)]
+                        ui.label(RichText::new("⚠ debug build ⚠").color(egui::Color32::YELLOW));
                     });
 
                     ui.add_space(5.0);
@@ -67,8 +71,6 @@ impl MyApp {
 
                     ui.add_space(5.0);
                     ui.heading("Socials:");
-                    ui.add_space(5.0);
-
                     ui.horizontal(|ui| {
                         ui.link_button(
                             "Discord",
@@ -79,7 +81,6 @@ impl MyApp {
                     });
 
                     ui.add_space(5.0);
-
                     ui.heading("Keybinds:");
 
                     let keybinds = vec![
