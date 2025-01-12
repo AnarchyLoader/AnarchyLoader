@@ -35,7 +35,7 @@ impl MyApp {
             ctx.request_repaint();
             self.app.hacks = match hacks::fetch_hacks(
                 &self.app.config.api_endpoint,
-                &self.app.config.api_endpoint_fallback,
+                &self.app.config.api_extra_endpoints,
                 self.app.config.lowercase_hacks,
             ) {
                 Ok(hacks) => {
@@ -344,7 +344,7 @@ impl MyApp {
                 }
             }
 
-            if !is_roblox {
+            if !is_roblox && !hack.local {
                 // show only if file exists
                 if Path::new(&file_path_owned).exists() {
                     if ui
@@ -436,6 +436,22 @@ impl MyApp {
                         });
                         ui.close_menu();
                     }
+                }
+            }
+
+            if hack.local {
+                if ui.cbutton("Remove").clicked() {
+                    self.app.config.local_hacks.retain(|h| {
+                        Path::new(&h.dll)
+                            .file_name()
+                            .map_or(true, |f| f != hack.file_path.file_name().unwrap())
+                    });
+                    self.app.config.save();
+                    let grouped =
+                        MyApp::group_hacks_by_game_internal(&self.app.hacks, &self.app.config);
+                    self.app.config.game_order = grouped.keys().cloned().collect();
+                    self.toasts.success(format!("Removed {}.", hack.name));
+                    ui.close_menu();
                 }
             }
         });

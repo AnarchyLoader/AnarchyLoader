@@ -5,7 +5,6 @@ use std::{
     thread,
     time::Duration,
 };
-
 use eframe::egui::{self};
 
 use crate::{utils::downloader::download_file, Hack, MyApp};
@@ -33,6 +32,73 @@ impl MyApp {
                 log::info!("Deleted {}", injector);
             }
         }
+        Ok(())
+    }
+
+    pub fn download_injectors(&mut self) -> Result<(), String> {
+        let injectors = vec![0, 1];
+
+        let response = ureq::get(
+            "https://api.github.com/repos/AnarchyLoader/AnarchyInjector/actions/artifacts",
+        )
+        .call()
+        .unwrap();
+
+        let app_path = dirs::config_dir()
+            .unwrap_or_else(|| std::path::PathBuf::from("."))
+            .join("anarchyloader");
+
+        let artifacts = response.into_json::<serde_json::Value>().unwrap();
+        for &injector in &injectors {
+            let download_url = &artifacts["artifacts"][injector]["archive_download_url"];
+            let injector_name = if injector == 0 {
+                "AnarchyInjector_x86.exe"
+            } else {
+                "AnarchyInjector_x64.exe"
+            };
+
+            let injector_zip = if injector == 0 {
+                "AnarchyInjector_x86.zip"
+            } else {
+                "AnarchyInjector_x64.zip"
+            };
+
+            let injector_path = dirs::config_dir()
+                .unwrap_or_else(|| PathBuf::from("."))
+                .join("anarchyloader")
+                .join(injector_name);
+
+            if injector_path.exists() {
+                if let Err(e) = std::fs::remove_file(&injector_path) {
+                    log::error!("Failed to delete {}: {}", injector_name, e);
+                    return Err(format!("Failed to delete {}: {}", injector_name, e));
+                }
+                log::info!("Deleted {}", injector_name);
+            }
+
+            if let Err(e) = download_file(download_url.as_str().unwrap()) {
+                log::error!("Failed to download {}: {}", injector_name, e);
+                return Err(format!("Failed to download {}: {}", injector_name, e));
+            }
+
+            // unzip injector zip
+            if let Err(e) = zip_extract::extract(
+                std::fs::File::open(&app_path.join("zip")).unwrap(),
+                &app_path,
+                true,
+            ) {
+                log::error!("Failed to extract {}: {}", injector_zip, e);
+                return Err(format!("Failed to extract {}: {}", injector_zip, e));
+            }
+
+            if let Err(e) = std::fs::remove_file(&app_path.join("zip")) {
+                log::error!("Failed to delete {}: {}", injector_zip, e);
+                return Err(format!("Failed to delete {}: {}", injector_zip, e));
+            }
+
+            self.toasts.info(format!("Downloaded {}", injector_name));
+        }
+
         Ok(())
     }
 
@@ -102,7 +168,11 @@ impl MyApp {
                     *status = "Injection successful.".to_string();
                     ctx.request_repaint();
                 } else {
-                    let error_message = String::from_utf8_lossy(&output.stderr).trim().to_string();
+                    let mut error_message =
+                        String::from_utf8_lossy(&output.stderr).trim().to_string();
+                    if error_message.contains("Can not find process") {
+                        error_message += ", try running loader as admin.";
+                    }
                     let _ = message_sender.send(error_message.clone());
                     log::error!("Failed to execute injector: {}", error_message);
                     let mut status = status_message.lock().unwrap();

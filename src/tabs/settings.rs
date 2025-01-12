@@ -7,7 +7,10 @@ use crate::{
     games::local::LocalHack,
     hacks,
     utils::{
-        config::{default_api_endpoint, default_cdn_endpoint, default_cdn_fallback_endpoint},
+        config::{
+            default_api_endpoint, default_api_extra_endpoints, default_cdn_endpoint,
+            default_cdn_extra_endpoint,
+        },
         rpc::{Rpc, RpcUpdate},
     },
     MyApp,
@@ -47,7 +50,7 @@ impl MyApp {
                         {
                             self.app.hacks = match hacks::fetch_hacks(
                                 &self.app.config.api_endpoint,
-                                &self.app.config.api_endpoint_fallback,
+                                &self.app.config.api_extra_endpoints,
                                 self.app.config.lowercase_hacks,
                             ) {
                                 Ok(hacks) => hacks,
@@ -210,7 +213,7 @@ impl MyApp {
                             ui.text_edit_singleline(
                                 &mut self.ui.local_hack_popup.new_local_process,
                             );
-                            ui.label("Arch:");
+                            ui.label("Architecture:");
                             egui::ComboBox::from_id_salt("local_hack_arch")
                                 .selected_text(&self.ui.local_hack_popup.new_local_arch)
                                 .show_ui(ui, |ui| {
@@ -352,6 +355,13 @@ impl MyApp {
                         if ui.cbutton("Delete injector").clicked() {
                             modal_injector.open();
                         }
+                        if ui.cbutton("Download nightly injectors").clicked() {
+                            if let Err(err) = self.download_injectors() {
+                                self.toasts.error(err);
+                            } else {
+                                self.toasts.success("Nightly injectors downloaded.");
+                            }
+                        }
                     });
 
                     ui.add_space(5.0);
@@ -373,11 +383,11 @@ impl MyApp {
                     ui.add_space(2.0);
 
                     ui.horizontal(|ui| {
-                        ui.label("API Fallback Endpoint:");
+                        ui.label("API Extra Endpoints (comma-separated):");
                         if ui
                             .ctext_edit(
-                                &mut self.app.config.api_endpoint_fallback,
-                                default_api_endpoint(),
+                                &mut self.app.config.api_extra_endpoints.join(","),
+                                default_api_extra_endpoints().join(","),
                             )
                             .changed()
                         {
@@ -400,11 +410,11 @@ impl MyApp {
                     ui.add_space(2.0);
 
                     ui.horizontal(|ui| {
-                        ui.label("CDN Fallback Endpoint:");
+                        ui.label("CDN Extra Endpoints (comma-separated):");
                         if ui
                             .ctext_edit(
-                                &mut self.app.config.cdn_fallback_endpoint,
-                                default_cdn_fallback_endpoint(),
+                                &mut self.app.config.cdn_extra_endpoints.join(","),
+                                default_cdn_extra_endpoint().join(","),
                             )
                             .changed()
                         {

@@ -29,6 +29,7 @@ egui_dnd = "0.11.0"
 zip-extract = "0.2.1"
 semver = "1.0.24"
 rfd = "0.15.2"
+base64 = "0.22.1"
 
 [build-dependencies]
 winres = "0.1.12"

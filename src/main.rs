@@ -147,7 +147,7 @@ impl MyApp {
 
         let hacks = match hacks::fetch_hacks(
             &config.api_endpoint,
-            &config.api_endpoint_fallback,
+            &config.api_extra_endpoints,
             config.lowercase_hacks,
         ) {
             Ok(hacks) => {
@@ -533,6 +533,8 @@ impl MyApp {
                 .clicked()
             {
                 self.toggle_favorite(hack.name.clone());
+                self.toasts
+                    .success(format!("Removed {} from favorites.", hack.name));
             }
         }
     }

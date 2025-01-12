@@ -13,9 +13,9 @@ pub struct Config {
     pub skip_injects_delay: bool,
     pub lowercase_hacks: bool,
     pub api_endpoint: String,
-    pub api_endpoint_fallback: String,
+    pub api_extra_endpoints: Vec<String>,
     pub cdn_endpoint: String,
-    pub cdn_fallback_endpoint: String,
+    pub cdn_extra_endpoints: Vec<String>,
     pub hide_steam_account: bool,
     pub hide_statistics: bool,
     pub disable_notifications: bool,
@@ -35,16 +35,16 @@ pub(crate) fn default_api_endpoint() -> String {
     "https://api.anarchy.my/api/hacks/".to_string()
 }
 
-pub(crate) fn default_api_fallback_endpoint() -> String {
-    "https://anarchy.ttfdk.lol/api/hacks/".to_string()
+pub(crate) fn default_api_extra_endpoints() -> Vec<String> {
+    vec!["https://anarchy.ttfdk.lol/api/hacks/".to_string()]
 }
 
 pub(crate) fn default_cdn_endpoint() -> String {
     "https://cdn.collapseloader.org/anarchy/".to_string()
 }
 
-pub(crate) fn default_cdn_fallback_endpoint() -> String {
-    "https://cdn-ru.collapseloader.org/anarchy/".to_string()
+pub(crate) fn default_cdn_extra_endpoint() -> Vec<String> {
+    vec!["https://cdn-ru.collapseloader.org/anarchy/".to_string()]
 }
 
 pub(crate) fn default_log_level() -> log::Level {
@@ -62,9 +62,9 @@ impl Default for Config {
             skip_injects_delay: false,
             lowercase_hacks: true,
             api_endpoint: default_api_endpoint(),
-            api_endpoint_fallback: default_api_fallback_endpoint(),
+            api_extra_endpoints: default_api_extra_endpoints(),
             cdn_endpoint: default_cdn_endpoint(),
-            cdn_fallback_endpoint: default_cdn_fallback_endpoint(),
+            cdn_extra_endpoints: default_cdn_extra_endpoint(),
             hide_steam_account: false,
             hide_statistics: false,
             disable_notifications: false,
@@ -93,7 +93,7 @@ impl Config {
 
                 let hacks = match hacks::fetch_hacks(
                     &default_config.api_endpoint,
-                    &default_config.api_endpoint_fallback,
+                    &default_config.api_extra_endpoints,
                     default_config.lowercase_hacks,
                 ) {
                     Ok(hacks) => hacks,
@@ -108,7 +108,7 @@ impl Config {
 
             let hacks = match hacks::fetch_hacks(
                 &default_config.api_endpoint,
-                &default_config.api_endpoint_fallback,
+                &default_config.api_extra_endpoints,
                 default_config.lowercase_hacks,
             ) {
                 Ok(hacks) => hacks,
@@ -136,7 +136,7 @@ impl Config {
     pub fn reset_game_order(&mut self) {
         let hacks = match hacks::fetch_hacks(
             &self.api_endpoint,
-            &self.api_endpoint_fallback,
+            &self.api_extra_endpoints,
             self.lowercase_hacks,
         ) {
             Ok(h) => h,

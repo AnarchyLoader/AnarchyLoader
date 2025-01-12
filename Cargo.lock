@@ -164,6 +164,7 @@ checksum = "4aa90d7ce82d4be67b64039a3d588d38dbcc6736577de4a847025ce5b0c468d1"
 name = "anarchyloader"
 version = "1.1.2"
 dependencies = [
+ "base64 0.22.1",
  "chrono",
  "dirs",
  "discord-rich-presence",

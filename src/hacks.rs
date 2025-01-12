@@ -91,10 +91,11 @@ impl Default for Hack {
 
 pub(crate) fn fetch_hacks(
     api_endpoint: &str,
-    api_endpoint_fallback: &str,
+    api_extra_endpoints: &Vec<String>,
     lowercase: bool,
 ) -> Result<Vec<Hack>, String> {
-    let endpoints = [api_endpoint, api_endpoint_fallback];
+    let mut endpoints = vec![api_endpoint.to_string()];
+    endpoints.extend(api_extra_endpoints.clone());
 
     for endpoint in endpoints {
         match ureq::get(&endpoint).call() {
