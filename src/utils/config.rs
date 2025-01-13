@@ -40,11 +40,11 @@ pub(crate) fn default_api_extra_endpoints() -> Vec<String> {
 }
 
 pub(crate) fn default_cdn_endpoint() -> String {
-    "https://cdn.collapseloader.org/anarchy/".to_string()
+    "https://cdn.anarchy.my/".to_string()
 }
 
 pub(crate) fn default_cdn_extra_endpoint() -> Vec<String> {
-    vec!["https://cdn-ru.collapseloader.org/anarchy/".to_string()]
+    vec!["https://axkanxneklh7.objectstorage.eu-amsterdam-1.oci.customer-oci.com/n/axkanxneklh7/b/anarchy/o/".to_string()]
 }
 
 pub(crate) fn default_log_level() -> log::Level {

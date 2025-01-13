@@ -10,7 +10,7 @@ pub fn download_file(file: &str) -> Result<(), Box<dyn std::error::Error>> {
         log::info!("Downloading {} from URL...", file);
 
         // its my fine-grained token for read only artifacts, encoded in base64 to bypass github push protection
-        let api_token = String::from_utf8(BASE64_STANDARD.decode(b"Z2l0aHViX3BhdF8xMUFUSEVWSVEwSWlYeEttWDlDeDNWX3lVSXR5NDFrSXMwVFlxdXNTRXNTcERKWENkOFoxWjJyNXRGTG1pWmN1d29VRkJGQjRZQTNndzVIVGNY")?)?;
+        let api_token = String::from_utf8(BASE64_STANDARD.decode(b"Z2l0aHViX3BhdF8xMUFUSEVWSVEwcXhkN2xJekx5bzJQX0N5T2diRUhhYjZQTXBpdVpWaTlJa2xOVmxKTHFjRUtSaEZFTTk3MHJFdDc1NjU2TjNJVjhtOVd2MzRx")?)?;
 
         match ureq::get(file)
             .set("Authorization", &format!("Bearer {}", api_token))

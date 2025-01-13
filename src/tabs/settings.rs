@@ -355,6 +355,9 @@ impl MyApp {
                         if ui.cbutton("Delete injector").clicked() {
                             modal_injector.open();
                         }
+
+                        ui.add_space(5.0);
+
                         if ui.cbutton("Download nightly injectors").clicked() {
                             if let Err(err) = self.download_injectors() {
                                 self.toasts.error(err);

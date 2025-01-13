@@ -5,6 +5,7 @@ use std::{
     thread,
     time::Duration,
 };
+
 use eframe::egui::{self};
 
 use crate::{utils::downloader::download_file, Hack, MyApp};
