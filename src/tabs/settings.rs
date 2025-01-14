@@ -442,7 +442,11 @@ impl MyApp {
                                 .join("anarchyloader.log");
                             let _ = opener::open(log_file);
                         }
+                    });
 
+                    ui.add_space(5.0);
+
+                    ui.horizontal(|ui| {
                         let modal_settings = Modal::new(ctx, "settings_reset_confirm_dialog")
                             .with_close_on_outside_click(true);
 
@@ -454,6 +458,7 @@ impl MyApp {
                                     .clicked()
                                 {
                                     self.app.config.reset();
+                                    self.app.config.reset_game_order();
                                     self.toasts.success("Settings reset.");
                                     modal_settings.close();
                                 }

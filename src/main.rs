@@ -298,7 +298,7 @@ impl MyApp {
         } else {
             "Selecting hack".to_string()
         };
-        self.rpc.update(Some(&version), Some(&status), None);
+        self.rpc.update(Some(&version), Some(&status), Some("home"));
     }
 
     fn group_hacks_by_game(&self) -> BTreeMap<String, BTreeMap<String, Vec<Hack>>> {
