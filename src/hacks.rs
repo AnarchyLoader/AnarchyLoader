@@ -1,4 +1,4 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::utils::downloader::download_file;
 
@@ -14,7 +14,7 @@ pub(crate) struct HackApiResponse {
     pub game: String,
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Deserialize, Serialize)]
 pub(crate) struct Hack {
     pub name: String,
     pub description: String,
@@ -139,7 +139,14 @@ pub(crate) fn fetch_hacks(
             Err(e) => log::warn!("Failed to connect to {}: {}", endpoint, e),
         }
     }
-    Err("All endpoints failed.".to_string())
+
+    match load_cached_hacks() {
+        Ok(cached_hacks) => {
+            log::info!("Loaded hacks from cache.");
+            Ok(cached_hacks)
+        }
+        Err(e) => Err(format!("All endpoints failed and no cache available: {}", e)),
+    }
 }
 
 pub(crate) fn get_hack_by_name(hacks: &[Hack], name: &str) -> Option<Hack> {
@@ -154,4 +161,29 @@ pub(crate) fn get_all_processes(hacks: &[Hack]) -> Vec<String> {
         .into_iter()
         .cloned()
         .collect()
+}
+
+fn load_cached_hacks() -> Result<Vec<Hack>, String> {
+    let cache_path = dirs::config_dir()
+        .unwrap_or_else(|| std::path::PathBuf::from("."))
+        .join("anarchyloader")
+        .join("hacks_cache.json");
+
+    if cache_path.exists() {
+        let data = std::fs::read_to_string(&cache_path).map_err(|e| e.to_string())?;
+        let hacks: Vec<Hack> = serde_json::from_str(&data).map_err(|e| e.to_string())?;
+        Ok(hacks)
+    } else {
+        Err("Cache file does not exist.".to_string())
+    }
+}
+
+pub(crate) fn save_hacks_to_cache(hacks: &[Hack]) -> Result<(), String> {
+    let cache_path = dirs::config_dir()
+        .unwrap_or_else(|| std::path::PathBuf::from("."))
+        .join("anarchyloader")
+        .join("hacks_cache.json");
+
+    let data = serde_json::to_string(hacks).map_err(|e| e.to_string())?;
+    std::fs::write(cache_path, data).map_err(|e| e.to_string())
 }
