@@ -1,4 +1,4 @@
-use crate::{custom_widgets::SelectableLabel, MyApp};
+use crate::{utils::custom_widgets::SelectableLabel, MyApp};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum AppTab {

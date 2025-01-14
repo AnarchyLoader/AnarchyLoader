@@ -3,7 +3,6 @@ use egui_dnd::dnd;
 use egui_modal::Modal;
 
 use crate::{
-    custom_widgets::{Button, CheckBox, TextEdit},
     games::local::LocalHack,
     hacks,
     utils::{
@@ -11,6 +10,7 @@ use crate::{
             default_api_endpoint, default_api_extra_endpoints, default_cdn_endpoint,
             default_cdn_extra_endpoint,
         },
+        custom_widgets::{Button, CheckBox, TextEdit},
         rpc::{Rpc, RpcUpdate},
     },
     MyApp,

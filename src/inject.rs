@@ -8,7 +8,10 @@ use std::{
 
 use eframe::egui::{self};
 
-use crate::{utils::downloader::download_file, Hack, MyApp};
+use crate::{
+    utils::downloader::{self, download_file},
+    Hack, MyApp,
+};
 
 impl MyApp {
     pub fn delete_injectors(&mut self, arch: &str) -> Result<(), String> {
@@ -39,67 +42,40 @@ impl MyApp {
     pub fn download_injectors(&mut self) -> Result<(), String> {
         let injectors = vec![0, 1];
 
-        let response = ureq::get(
-            "https://api.github.com/repos/AnarchyLoader/AnarchyInjector/actions/artifacts",
-        )
-        .call()
-        .unwrap();
+        let response =
+            ureq::get("https://api.github.com/repos/AnarchyLoader/AnarchyInjector/releases")
+                .call()
+                .unwrap();
 
-        let app_path = dirs::config_dir()
-            .unwrap_or_else(|| std::path::PathBuf::from("."))
-            .join("anarchyloader");
+        let data: serde_json::Value = response.into_json().unwrap();
 
-        let artifacts = response.into_json::<serde_json::Value>().unwrap();
-        for &injector in &injectors {
-            let download_url = &artifacts["artifacts"][injector]["archive_download_url"];
+        for injector in injectors {
             let injector_name = if injector == 0 {
                 "AnarchyInjector_x86.exe"
             } else {
                 "AnarchyInjector_x64.exe"
             };
 
-            let injector_zip = if injector == 0 {
-                "AnarchyInjector_x86.zip"
-            } else {
-                "AnarchyInjector_x64.zip"
-            };
+            let download_url = data
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|release| release["prerelease"].as_bool().unwrap_or(false))
+                .and_then(|release| release["assets"].as_array())
+                .and_then(|assets| assets.get(injector))
+                .and_then(|asset| asset["browser_download_url"].as_str())
+                .unwrap_or("")
+                .to_string();
 
-            let injector_path = dirs::config_dir()
-                .unwrap_or_else(|| PathBuf::from("."))
-                .join("anarchyloader")
-                .join(injector_name);
-
-            if injector_path.exists() {
-                if let Err(e) = std::fs::remove_file(&injector_path) {
-                    log::error!("Failed to delete {}: {}", injector_name, e);
-                    return Err(format!("Failed to delete {}: {}", injector_name, e));
-                }
-                log::info!("Deleted {}", injector_name);
+            if download_url.is_empty() {
+                return Err("No download URL found for prerelease".to_string());
             }
 
-            if let Err(e) = download_file(download_url.as_str().unwrap()) {
+            if let Err(e) = downloader::download_file(&download_url) {
                 log::error!("Failed to download {}: {}", injector_name, e);
                 return Err(format!("Failed to download {}: {}", injector_name, e));
             }
-
-            // unzip injector zip
-            if let Err(e) = zip_extract::extract(
-                std::fs::File::open(&app_path.join("zip")).unwrap(),
-                &app_path,
-                true,
-            ) {
-                log::error!("Failed to extract {}: {}", injector_zip, e);
-                return Err(format!("Failed to extract {}: {}", injector_zip, e));
-            }
-
-            if let Err(e) = std::fs::remove_file(&app_path.join("zip")) {
-                log::error!("Failed to delete {}: {}", injector_zip, e);
-                return Err(format!("Failed to delete {}: {}", injector_zip, e));
-            }
-
-            self.toasts.info(format!("Downloaded {}", injector_name));
         }
-
         Ok(())
     }
 

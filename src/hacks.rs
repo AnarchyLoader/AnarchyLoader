@@ -106,7 +106,7 @@ pub(crate) fn fetch_hacks(
                     if parsed_hacks.is_empty() {
                         return Err("No hacks available.".to_string());
                     } else {
-                        log::debug!("Fetched {} hacks from API.", parsed_hacks.len());
+                        log::info!("Fetched {} hacks from API", parsed_hacks.len());
                         return Ok(parsed_hacks
                             .into_iter()
                             .map(|hack| {
@@ -145,7 +145,10 @@ pub(crate) fn fetch_hacks(
             log::info!("Loaded hacks from cache.");
             Ok(cached_hacks)
         }
-        Err(e) => Err(format!("All endpoints failed and no cache available: {}", e)),
+        Err(e) => Err(format!(
+            "All endpoints failed and no cache available: {}",
+            e
+        )),
     }
 }
 

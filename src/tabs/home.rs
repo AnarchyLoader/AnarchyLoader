@@ -4,9 +4,9 @@ use egui::{CursorIcon::PointingHand as Clickable, RichText, Spinner, TextStyle};
 use egui_modal::Modal;
 
 use crate::{
-    custom_widgets::{Button, CheckBox, Hyperlink},
     default_main_menu_message,
     hacks::{self, Hack},
+    utils::custom_widgets::{Button, CheckBox, Hyperlink},
     MyApp,
 };
 

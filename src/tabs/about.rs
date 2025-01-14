@@ -3,7 +3,7 @@ use std::env;
 use egui::{RichText, Sense, TextStyle};
 
 use crate::{
-    custom_widgets::{Button, Hyperlink},
+    utils::custom_widgets::{Button, Hyperlink},
     MyApp,
 };
 

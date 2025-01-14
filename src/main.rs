@@ -1,6 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-mod custom_widgets;
 mod games;
 mod hacks;
 mod inject;
@@ -17,7 +16,6 @@ use std::{
     time::Duration,
 };
 
-use custom_widgets::{Button, CheckBox, Hyperlink};
 use eframe::{
     egui::{self, RichText},
     App,
@@ -34,6 +32,7 @@ use is_elevated::is_elevated;
 use tabs::top_panel::AppTab;
 use utils::{
     config::Config,
+    custom_widgets::{Button, CheckBox, Hyperlink},
     logger::MyLogger,
     rpc::Rpc,
     statistics::Statistics,

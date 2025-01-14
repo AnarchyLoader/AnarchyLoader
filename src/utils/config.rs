@@ -87,35 +87,16 @@ impl Config {
         fs::create_dir_all(&config_dir).ok();
         let config_path = config_dir.join("config.json");
 
+        let mut default_config = Config::default();
+
         if let Ok(data) = fs::read_to_string(&config_path) {
             serde_json::from_str::<Config>(&data).unwrap_or_else(|_| {
-                let mut default_config = Config::default();
-
-                let hacks = match hacks::fetch_hacks(
-                    &default_config.api_endpoint,
-                    &default_config.api_extra_endpoints,
-                    default_config.lowercase_hacks,
-                ) {
-                    Ok(hacks) => hacks,
-                    Err(_) => Vec::new(),
-                };
-                let grouped_hacks = MyApp::group_hacks_by_game_internal(&hacks, &default_config);
-                default_config.game_order = grouped_hacks.keys().cloned().collect();
+                default_config.update_game_order();
                 default_config
             })
         } else {
-            let mut default_config = Config::default();
-
-            let hacks = match hacks::fetch_hacks(
-                &default_config.api_endpoint,
-                &default_config.api_extra_endpoints,
-                default_config.lowercase_hacks,
-            ) {
-                Ok(hacks) => hacks,
-                Err(_) => Vec::new(),
-            };
-            let grouped_hacks = MyApp::group_hacks_by_game_internal(&hacks, &default_config);
-            default_config.game_order = grouped_hacks.keys().cloned().collect();
+            log::info!("No config file found, creating a new one");
+            default_config.update_game_order();
             default_config
         }
     }
@@ -133,7 +114,22 @@ impl Config {
         }
     }
 
+    pub fn update_game_order(&mut self) {
+        log::info!("Updating game order");
+        let hacks = match hacks::fetch_hacks(
+            &self.api_endpoint,
+            &self.api_extra_endpoints,
+            self.lowercase_hacks,
+        ) {
+            Ok(h) => h,
+            Err(_) => Vec::new(),
+        };
+        let grouped = MyApp::group_hacks_by_game_internal(&hacks, self);
+        self.game_order = grouped.keys().cloned().collect();
+    }
+
     pub fn reset_game_order(&mut self) {
+        log::info!("Resetting game order");
         let hacks = match hacks::fetch_hacks(
             &self.api_endpoint,
             &self.api_extra_endpoints,

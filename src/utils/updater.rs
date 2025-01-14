@@ -17,14 +17,17 @@ impl Updater {
         if let Ok(releases) = self.get_latest_releases() {
             for release in releases {
                 if !release.prerelease {
+                    log::info!("Found remote version: {}", release.tag_name);
                     return Some(release.tag_name.trim_start_matches('v').to_string());
                 }
             }
         }
+        log::info!("No suitable remote version found");
         None
     }
 
     pub fn check_version(&mut self) -> bool {
+        log::info!("Checking version");
         if let Some(remote_version) = self.get_remote_version() {
             match (
                 semver::Version::parse(&self.current_version),
@@ -32,15 +35,24 @@ impl Updater {
             ) {
                 (Ok(current), Ok(remote)) => {
                     if remote > current {
+                        log::info!(
+                            "Update needed: current version {} < remote version {}",
+                            current,
+                            remote
+                        );
                         self.need_update = true;
                         return true;
                     } else {
                         return false;
                     }
                 }
-                _ => false,
+                _ => {
+                    log::info!("Failed to parse versions");
+                    false
+                }
             }
         } else {
+            log::info!("Failed to get remote version");
             false
         }
     }
