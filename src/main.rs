@@ -184,6 +184,10 @@ impl MyApp {
             }
         };
 
+        if let Err(e) = hacks::save_hacks_to_cache(&hacks) {
+            log::error!("Failed to save hacks to cache: {}", e);
+        }
+
         let hacks_processes = get_all_processes(&hacks);
 
         let account = match SteamAccount::new() {
