@@ -1,4 +1,4 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::utils::downloader::download_file;
 
@@ -14,7 +14,7 @@ pub(crate) struct HackApiResponse {
     pub game: String,
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Deserialize, Serialize)]
 pub(crate) struct Hack {
     pub name: String,
     pub description: String,
