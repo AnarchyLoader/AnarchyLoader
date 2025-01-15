@@ -87,7 +87,7 @@ impl MyApp {
                         ("F5", "Refresh hacks"),
                         ("Enter", "Inject selected hack"),
                         ("Escape", "Deselect hack"),
-                        ("Hold Shift", "Debug tab"),
+                        ("Hold Ctrl + Shift", "Debug tab"),
                     ];
 
                     for (key, action) in &keybinds {
