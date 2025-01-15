@@ -25,6 +25,7 @@ use egui::{
     DroppedFile, Frame, Margin, Sense,
 };
 use egui_alignments::center_vertical;
+use egui_commonmark::CommonMarkCache;
 use egui_notify::Toasts;
 use games::local::LocalUI;
 use hacks::{get_all_processes, get_hack_by_name, Hack};
@@ -86,6 +87,7 @@ struct AppState {
     statistics: Statistics,
     account: SteamAccount,
     updater: Updater,
+    cache: CommonMarkCache,
 }
 
 struct UIState {
@@ -233,6 +235,7 @@ impl MyApp {
                 statistics,
                 account,
                 updater,
+                cache: CommonMarkCache::default(),
             },
             ui: UIState {
                 tab: AppTab::default(),

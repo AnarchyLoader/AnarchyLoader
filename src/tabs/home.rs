@@ -1,6 +1,7 @@
 use std::{fs, path::Path, process::Command, sync::Arc, thread, time::Duration};
 
 use egui::{CursorIcon::PointingHand as Clickable, RichText, Spinner, TextStyle};
+use egui_commonmark::CommonMarkViewer;
 use egui_modal::Modal;
 
 use crate::{
@@ -180,8 +181,9 @@ impl MyApp {
         });
 
         ui.separator();
+
         if !selected.description.is_empty() {
-            ui.label(&selected.description);
+            CommonMarkViewer::new().show(ui, &mut self.app.cache, &selected.description);
         }
 
         if !self.app.config.hide_steam_account && !is_roblox {
