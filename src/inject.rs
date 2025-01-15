@@ -9,7 +9,10 @@ use std::{
 use eframe::egui::{self};
 
 use crate::{
-    utils::downloader::{self, download_file},
+    utils::{
+        downloader::{self, download_file},
+        messages::MessageSender,
+    },
     Hack, MyApp,
 };
 
@@ -39,44 +42,71 @@ impl MyApp {
         Ok(())
     }
 
-    pub fn download_injectors(&mut self) -> Result<(), String> {
-        let injectors = vec![0, 1];
+    pub fn download_injectors(&mut self, message_sender: Sender<String>, nightly: bool) {
+        if nightly {
+            let injectors = vec![0, 1];
 
-        let response =
-            ureq::get("https://api.github.com/repos/AnarchyLoader/AnarchyInjector/releases")
+            thread::spawn(move || {
+                let response = ureq::get(
+                    "https://api.github.com/repos/AnarchyLoader/AnarchyInjector/releases",
+                )
                 .call()
                 .unwrap();
 
-        let data: serde_json::Value = response.into_json().unwrap();
+                let data: serde_json::Value = response.into_json().unwrap();
 
-        for injector in injectors {
-            let injector_name = if injector == 0 {
-                "AnarchyInjector_x86.exe"
-            } else {
-                "AnarchyInjector_x64.exe"
-            };
+                for injector in injectors {
+                    let injector_name = if injector == 0 {
+                        "AnarchyInjector_x86.exe"
+                    } else {
+                        "AnarchyInjector_x64.exe"
+                    };
 
-            let download_url = data
-                .as_array()
-                .unwrap()
-                .iter()
-                .find(|release| release["prerelease"].as_bool().unwrap_or(false))
-                .and_then(|release| release["assets"].as_array())
-                .and_then(|assets| assets.get(injector))
-                .and_then(|asset| asset["browser_download_url"].as_str())
-                .unwrap_or("")
-                .to_string();
+                    let download_url = data
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .find(|release| release["prerelease"].as_bool().unwrap_or(false))
+                        .and_then(|release| release["assets"].as_array())
+                        .and_then(|assets| assets.get(injector))
+                        .and_then(|asset| asset["browser_download_url"].as_str())
+                        .unwrap_or("")
+                        .to_string();
 
-            if download_url.is_empty() {
-                return Err("No download URL found for prerelease".to_string());
-            }
+                    if download_url.is_empty() {
+                        log::error!("Failed to get download URL for {}", injector_name);
+                        let _ = message_sender
+                            .error(&format!("Failed to get download URL for {}", injector_name));
+                    }
 
-            if let Err(e) = downloader::download_file(&download_url) {
-                log::error!("Failed to download {}: {}", injector_name, e);
-                return Err(format!("Failed to download {}: {}", injector_name, e));
-            }
+                    if let Err(e) = downloader::download_file(&download_url) {
+                        log::error!("Failed to download {}: {}", injector_name, e);
+                        let _ = message_sender
+                            .error(&format!("Failed to download {}: {}", injector_name, e));
+                    }
+
+                    let _ = message_sender.raw(&format!("Downloaded (nightly) {}", injector_name));
+                }
+            });
+        } else {
+            let injectors = vec!["AnarchyInjector_x86.exe", "AnarchyInjector_x64.exe"];
+            thread::spawn(move || {
+                for injector in injectors {
+                    match download_file(injector) {
+                        Ok(_) => {
+                            log::info!("Downloaded {}", injector);
+                            let _ =
+                                message_sender.raw(&format!("Downloaded (from cdn) {}", injector));
+                        }
+                        Err(e) => {
+                            log::error!("Failed to download {}: {}", injector, e);
+                            let _ = message_sender
+                                .error(&format!("Failed to download {}: {}", injector, e));
+                        }
+                    }
+                }
+            });
         }
-        Ok(())
     }
 
     pub fn manual_map_inject(
@@ -113,7 +143,7 @@ impl MyApp {
                 }
                 Err(e) => {
                     let error_message = format!("Failed to download manual map injector: {}", e);
-                    let _ = message_sender.send(error_message.clone());
+                    let _ = message_sender.error(&error_message.clone());
                     log::error!("{}", error_message);
                     let mut status = status_message.lock().unwrap();
                     *status = error_message;
@@ -135,11 +165,8 @@ impl MyApp {
                 if output.status.success() {
                     let stdout_message = String::from_utf8_lossy(&output.stdout).trim().to_string();
                     log::info!("{}", stdout_message);
-                    let success_message = format!(
-                        "SUCCESS: {}",
-                        dll_path_clone.file_name().unwrap().to_string_lossy()
-                    );
-                    let _ = message_sender.send(success_message.clone());
+                    let _ = message_sender
+                        .success(&dll_path_clone.file_name().unwrap().to_string_lossy());
                     log::info!("Injected into {}", target_process);
                     let mut status = status_message.lock().unwrap();
                     *status = "Injection successful.".to_string();
@@ -150,7 +177,7 @@ impl MyApp {
                     if error_message.contains("Can not find process") {
                         error_message += ", try running loader as admin.";
                     }
-                    let _ = message_sender.send(error_message.clone());
+                    let _ = message_sender.error(&error_message.clone());
                     log::error!("Failed to execute injector: {}", error_message);
                     let mut status = status_message.lock().unwrap();
                     *status = format!("Failed to execute injector: {}", error_message);
@@ -159,7 +186,7 @@ impl MyApp {
             }
             Err(e) => {
                 let error_message = format!("Failed to execute injector: {}", e);
-                let _ = message_sender.send(error_message.clone());
+                let _ = message_sender.error(&error_message.clone());
                 log::error!("{}", error_message);
                 let mut status = status_message.lock().unwrap();
                 *status = error_message;
@@ -218,7 +245,7 @@ impl MyApp {
                         in_progress.store(false, std::sync::atomic::Ordering::SeqCst);
                         ctx_clone.request_repaint();
                         log::error!("Failed to download: {}", e);
-                        let _ = message_sender_clone.send(format!("Failed to download: {}", e));
+                        let _ = message_sender_clone.error(&format!("Failed to download: {}", e));
                         return;
                     }
                 }

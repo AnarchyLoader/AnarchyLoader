@@ -9,11 +9,7 @@ mod utils;
 use std::{
     collections::BTreeMap,
     env,
-    sync::{
-        mpsc::{self, Receiver, Sender, TryRecvError},
-        Arc, Mutex, OnceLock,
-    },
-    time::Duration,
+    sync::{Arc, Mutex, OnceLock},
 };
 
 use eframe::{
@@ -21,8 +17,8 @@ use eframe::{
     App,
 };
 use egui::{
-    scroll_area::ScrollBarVisibility::AlwaysHidden, Color32, CursorIcon::PointingHand as Clickable,
-    DroppedFile, Frame, Margin, Sense,
+    scroll_area::ScrollBarVisibility::AlwaysHidden, CursorIcon::PointingHand as Clickable,
+    DroppedFile, Sense,
 };
 use egui_alignments::center_vertical;
 use egui_commonmark::CommonMarkCache;
@@ -35,6 +31,7 @@ use utils::{
     config::Config,
     custom_widgets::{Button, CheckBox, Hyperlink},
     logger::MyLogger,
+    messages::ToastsMessages,
     rpc::Rpc,
     statistics::Statistics,
     steam::SteamAccount,
@@ -102,8 +99,7 @@ struct UIState {
 struct Communication {
     status_message: Arc<Mutex<String>>,
     in_progress: Arc<std::sync::atomic::AtomicBool>,
-    message_sender: Sender<String>,
-    message_receiver: Receiver<String>,
+    messages: ToastsMessages,
 }
 
 struct MyApp {
@@ -137,7 +133,7 @@ impl MyApp {
         log::set_max_level(config.log_level.to_level_filter());
         log::info!("Running AnarchyLoader v{}", env!("CARGO_PKG_VERSION"));
 
-        let (message_sender, message_receiver) = mpsc::channel();
+        let messages = ToastsMessages::new();
         let mut statistics = Statistics::load();
 
         statistics.increment_opened_count();
@@ -252,8 +248,7 @@ impl MyApp {
             communication: Communication {
                 status_message,
                 in_progress,
-                message_sender,
-                message_receiver,
+                messages,
             },
             rpc,
             log_buffer,
@@ -262,39 +257,6 @@ impl MyApp {
             parse_error,
             app_version: env!("CARGO_PKG_VERSION").to_string(),
         }
-    }
-
-    fn handle_received_messages(&mut self) {
-        match self.communication.message_receiver.try_recv() {
-            Ok(message) => {
-                if message.starts_with("SUCCESS: ") {
-                    self.handle_successful_injection_message(message);
-                } else {
-                    self.handle_error_message(message);
-                }
-
-                self.update_rpc_status_selecting();
-            }
-            Err(TryRecvError::Empty) => {}
-            Err(e) => {
-                log::error!("Error receiving from channel: {:?}", e);
-            }
-        }
-    }
-
-    fn handle_successful_injection_message(&mut self, message: String) {
-        let name = message.trim_start_matches("SUCCESS: ").to_string();
-        self.toasts
-            .success(format!("Successfully injected {}", name))
-            .duration(Some(Duration::from_secs(4)));
-
-        self.app.statistics.increment_inject_count(&name);
-    }
-
-    fn handle_error_message(&mut self, message: String) {
-        self.toasts
-            .error(message)
-            .duration(Some(Duration::from_secs(4)));
     }
 
     fn update_rpc_status_selecting(&mut self) {
@@ -394,16 +356,13 @@ impl MyApp {
             .resizable(true)
             .default_width(200.0)
             .max_width(300.0)
-            .frame(
-                Frame::default()
-                    .fill(Color32::from_rgb(27, 27, 27))
-                    .inner_margin(Margin::symmetric(10.0, 8.0)),
-            )
             .show(ctx, |ui| {
                 egui::ScrollArea::vertical()
                     .scroll_bar_visibility(AlwaysHidden)
                     .show(ui, |ui| {
                         ui.style_mut().interaction.selectable_labels = false;
+
+                        ui.add_space(5.0);
 
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Min), |ui| {
                             ui.add(
@@ -594,7 +553,6 @@ impl MyApp {
 
     // MARK: Home tab
     fn render_home_tab(&mut self, ctx: &egui::Context, theme_color: egui::Color32) {
-        self.handle_received_messages();
         self.handle_key_events(ctx);
 
         let hacks_by_game = self.group_hacks_by_game();
@@ -692,6 +650,7 @@ impl App for MyApp {
         self.render_top_panel(ctx);
 
         self.handle_dnd(ctx);
+        self.handle_received_messages();
 
         match self.ui.tab {
             AppTab::Home => self.render_home_tab(ctx, theme_color),

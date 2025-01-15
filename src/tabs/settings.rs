@@ -358,12 +358,20 @@ impl MyApp {
 
                         ui.add_space(5.0);
 
+                        if ui.cbutton("Download stable injectors").clicked() {
+                            self.download_injectors(
+                                self.communication.messages.sender.clone(),
+                                false,
+                            );
+                        }
+
+                        ui.add_space(5.0);
+
                         if ui.cbutton("Download nightly injectors").clicked() {
-                            if let Err(err) = self.download_injectors() {
-                                self.toasts.error(err);
-                            } else {
-                                self.toasts.success("Nightly injectors downloaded.");
-                            }
+                            self.download_injectors(
+                                self.communication.messages.sender.clone(),
+                                true,
+                            );
                         }
                     });
 

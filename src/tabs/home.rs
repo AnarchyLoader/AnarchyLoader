@@ -25,7 +25,7 @@ impl MyApp {
                 self.injection(
                     selected.clone(),
                     ctx.clone(),
-                    self.communication.message_sender.clone(),
+                    self.communication.messages.sender.clone(),
                     false,
                 );
             }
@@ -116,7 +116,7 @@ impl MyApp {
                 MyApp::manual_map_inject(
                     self.ui.dropped_file.path.clone(),
                     &self.ui.selected_process_dnd.clone(),
-                    self.communication.message_sender.clone(),
+                    self.communication.messages.sender.clone(),
                     self.communication.status_message.clone(),
                     ctx.clone(),
                     force_x64,
@@ -274,7 +274,7 @@ impl MyApp {
                 self.injection(
                     selected.clone(),
                     ctx.clone(),
-                    self.communication.message_sender.clone(),
+                    self.communication.messages.sender.clone(),
                     if ctx.input(|i| i.modifiers.ctrl) {
                         true
                     } else {
@@ -285,7 +285,7 @@ impl MyApp {
                 self.run_executor(
                     selected.clone(),
                     ctx.clone(),
-                    self.communication.message_sender.clone(),
+                    self.communication.messages.sender.clone(),
                 );
             }
         }
