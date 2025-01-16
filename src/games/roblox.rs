@@ -55,11 +55,9 @@ impl MyApp {
         let status_message = Arc::clone(&self.communication.status_message);
         let ctx_clone = ctx.clone();
         let message_sender_clone = message_sender.clone();
-        let app_path = dirs::config_dir()
-            .unwrap_or_else(|| std::path::PathBuf::from("."))
-            .join("anarchyloader");
-        let folder_path = app_path.join("roblox");
-        let zip_path = app_path.join("roblox.zip");
+        let folder_path = self.app_path.join("roblox");
+        let zip_path = self.app_path.join("roblox.zip");
+        let app_path_clone = self.app_path.clone();
 
         {
             let mut status = status_message.lock().unwrap();
@@ -110,10 +108,10 @@ impl MyApp {
             let mut status = status_message.lock().unwrap();
             *status = "Running...".to_string();
 
-            let executor_path = app_path.join("roblox").join(&selected_clone.file);
+            let executor_path = app_path_clone.join("roblox").join(&selected_clone.file);
 
             let status = Command::new("cmd")
-                .current_dir(app_path.join("roblox"))
+                .current_dir(app_path_clone.join("roblox"))
                 .arg("/C")
                 .arg("start")
                 .arg(format!("{}", executor_path.display()))

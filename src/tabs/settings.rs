@@ -25,7 +25,11 @@ impl MyApp {
                     ui.heading("Settings");
                     ui.separator();
 
-                    ui.add_space(5.0);
+                    #[cfg(feature = "scanner")]
+                    {
+                        ui.add_space(3.0);
+                        self.render_scanner(ctx, ui);
+                    }
 
                     // MARK: - Display Options
                     ui.group(|ui| {
@@ -187,7 +191,7 @@ impl MyApp {
                             ui.label("Add Local Hack");
                             ui.separator();
 
-                            let path_buf = &mut self.ui.local_hack_popup.new_local_dll;
+                            let path_buf = &mut self.ui.popups.local_hack.new_local_dll;
 
                             ui.label(if path_buf.is_empty() {
                                 "DLL:".to_string()
@@ -211,20 +215,20 @@ impl MyApp {
 
                             ui.label("Process:");
                             ui.text_edit_singleline(
-                                &mut self.ui.local_hack_popup.new_local_process,
+                                &mut self.ui.popups.local_hack.new_local_process,
                             );
                             ui.label("Architecture:");
                             egui::ComboBox::from_id_salt("local_hack_arch")
-                                .selected_text(&self.ui.local_hack_popup.new_local_arch)
+                                .selected_text(&self.ui.popups.local_hack.new_local_arch)
                                 .show_ui(ui, |ui| {
                                     ui.selectable_value(
-                                        &mut self.ui.local_hack_popup.new_local_arch,
+                                        &mut self.ui.popups.local_hack.new_local_arch,
                                         "x64".to_string(),
                                         "x64",
                                     )
                                     .on_hover_cursor(Clickable);
                                     ui.selectable_value(
-                                        &mut self.ui.local_hack_popup.new_local_arch,
+                                        &mut self.ui.popups.local_hack.new_local_arch,
                                         "x86".to_string(),
                                         "x86",
                                     )
@@ -237,25 +241,30 @@ impl MyApp {
 
                             ui.horizontal(|ui| {
                                 if ui.cbutton("Confirm").clicked() {
-                                    if self.ui.local_hack_popup.new_local_dll.is_empty() {
+                                    if self.ui.popups.local_hack.new_local_dll.is_empty() {
                                         self.toasts.error("Please select a DLL file.");
                                         return;
                                     }
 
-                                    if self.ui.local_hack_popup.new_local_process.is_empty() {
+                                    if self.ui.popups.local_hack.new_local_process.is_empty() {
                                         self.toasts.error("Please enter a process name.");
                                         return;
                                     }
 
-                                    if self.ui.local_hack_popup.new_local_arch.is_empty() {
+                                    if self.ui.popups.local_hack.new_local_arch.is_empty() {
                                         self.toasts.error("Please select an architecture.");
                                         return;
                                     }
 
                                     let hack = LocalHack {
-                                        dll: self.ui.local_hack_popup.new_local_dll.clone(),
-                                        process: self.ui.local_hack_popup.new_local_process.clone(),
-                                        arch: self.ui.local_hack_popup.new_local_arch.clone(),
+                                        dll: self.ui.popups.local_hack.new_local_dll.clone(),
+                                        process: self
+                                            .ui
+                                            .popups
+                                            .local_hack
+                                            .new_local_process
+                                            .clone(),
+                                        arch: self.ui.popups.local_hack.new_local_arch.clone(),
                                     };
                                     self.add_local_hack(hack);
                                     if !self.app.config.local_hacks.is_empty()
@@ -272,9 +281,9 @@ impl MyApp {
                                         &self.app.config,
                                     );
 
-                                    self.ui.local_hack_popup.new_local_dll.clear();
-                                    self.ui.local_hack_popup.new_local_process.clear();
-                                    self.ui.local_hack_popup.new_local_arch.clear();
+                                    self.ui.popups.local_hack.new_local_dll.clear();
+                                    self.ui.popups.local_hack.new_local_process.clear();
+                                    self.ui.popups.local_hack.new_local_arch.clear();
 
                                     self.toasts.success("Local hack added.");
                                     local_hack_modal.close();

@@ -3,6 +3,7 @@
 mod games;
 mod hacks;
 mod inject;
+mod scanner;
 mod tabs;
 mod utils;
 
@@ -26,6 +27,8 @@ use egui_notify::Toasts;
 use games::local::LocalUI;
 use hacks::{get_all_processes, get_hack_by_name, Hack};
 use is_elevated::is_elevated;
+#[cfg(feature = "scanner")]
+use scanner::scanner::ScannerPopup;
 use tabs::top_panel::AppTab;
 use utils::{
     config::Config,
@@ -93,7 +96,13 @@ struct UIState {
     main_menu_message: String,
     dropped_file: DroppedFile,
     selected_process_dnd: String,
-    local_hack_popup: LocalUI,
+    popups: Popups,
+}
+
+struct Popups {
+    local_hack: LocalUI,
+    #[cfg(feature = "scanner")]
+    scanner: ScannerPopup,
 }
 
 struct Communication {
@@ -111,6 +120,7 @@ struct MyApp {
     logger: MyLogger,
     toasts: Toasts,
     parse_error: Option<String>,
+    app_path: std::path::PathBuf,
     app_version: String,
 }
 
@@ -239,10 +249,18 @@ impl MyApp {
                 main_menu_message: default_main_menu_message(),
                 dropped_file: DroppedFile::default(),
                 selected_process_dnd: String::new(),
-                local_hack_popup: LocalUI {
-                    new_local_dll: String::new(),
-                    new_local_process: String::new(),
-                    new_local_arch: String::new(),
+                popups: Popups {
+                    local_hack: LocalUI {
+                        new_local_dll: String::new(),
+                        new_local_process: String::new(),
+                        new_local_arch: String::new(),
+                    },
+
+                    #[cfg(feature = "scanner")]
+                    scanner: ScannerPopup {
+                        dll: String::new(),
+                        show_results: false,
+                    },
                 },
             },
             communication: Communication {
@@ -255,6 +273,9 @@ impl MyApp {
             logger: logger.clone(),
             toasts: Toasts::default(),
             parse_error,
+            app_path: dirs::config_dir()
+                .unwrap_or_else(|| std::path::PathBuf::from("."))
+                .join("anarchyloader"),
             app_version: env!("CARGO_PKG_VERSION").to_string(),
         }
     }

@@ -71,6 +71,7 @@ cargo build --release
 -   [egui-modal](https://github.com/n00kii/egui-modal)
 -   [vdf_reader](https://github.com/icewind1991/vdf-reader)
 -   [discord-rich-presence](https://github.com/vionya/discord-rich-presence)
+-   [pelite](https://github.com/CasualX/pelite)
 
 Contributions are welcome! Please open an issue or submit a pull request on GitHub.
 

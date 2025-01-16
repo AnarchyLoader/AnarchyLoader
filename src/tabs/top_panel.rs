@@ -49,7 +49,9 @@ impl MyApp {
                 );
                 self.render_tab(ui, AppTab::Logs, "Logs", "Check the logs", "Viewing Logs");
 
-                if (ctx.input_mut(|i| i.modifiers.shift) && ctx.input_mut(|i| i.modifiers.ctrl)) || self.ui.tab == AppTab::Debug {
+                if (ctx.input_mut(|i| i.modifiers.shift) && ctx.input_mut(|i| i.modifiers.ctrl))
+                    || self.ui.tab == AppTab::Debug
+                {
                     self.render_tab(
                         ui,
                         AppTab::Debug,
