@@ -11,6 +11,10 @@ use crate::{
     MyApp,
 };
 
+#[rustfmt::skip]
+#[cfg(feature = "scanner")]
+use crate::scanner::scanner::Scanner;
+
 impl MyApp {
     // MARK: Key events
     pub fn handle_key_events(&mut self, ctx: &egui::Context) {
@@ -418,6 +422,33 @@ impl MyApp {
                                 }
                             }
                         });
+                        ui.close_menu();
+                    }
+
+                    #[cfg(feature = "scanner")]
+                    if ui
+                        .button_with_tooltip("Scan", "Scan the selected hack")
+                        .clicked()
+                    {
+                        let scanner =
+                            Scanner::new(std::path::PathBuf::from(hack.file_path.clone()));
+
+                        match scanner.scan(self.app_path.clone()) {
+                            Ok(()) => {
+                                match opener::open(self.app_path.join("scanner_results.txt")) {
+                                    Ok(_) => {
+                                        self.toasts.success("Results opened.");
+                                    }
+                                    Err(err) => {
+                                        self.toasts
+                                            .error(format!("Failed to open results: {}", err));
+                                    }
+                                }
+                            }
+                            Err(err) => {
+                                self.toasts.error(err);
+                            }
+                        }
                         ui.close_menu();
                     }
                 } else {

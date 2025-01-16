@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use egui_modal::Modal;
+// use pelite::strings::Config;
 #[cfg(feature = "scanner")]
 use pelite::{
     pe64::{Pe, PeFile},
@@ -35,6 +36,11 @@ impl Scanner {
             Err(err) => return Err(format!("Failed to parse PE file: {}", err)),
         };
 
+        output += "PE-File Information:\n";
+        output += &format!("{:?}", file.section_headers());
+
+        output += "\n\n====================\n";
+
         let imports = match file.imports() {
             Ok(imports) => imports,
             Err(err) => return Err(format!("Failed to read imports: {}", err)),
@@ -61,6 +67,27 @@ impl Scanner {
         }
 
         output += "====================\n\n";
+
+        // output += "Strings:\n";
+
+        // let config = Config::default();
+
+        // for sect in file.section_headers() {
+        //     if let Ok(bytes) = file.get_section_bytes(sect) {
+        //         for s in config.clone().enumerate(sect.VirtualAddress, bytes) {
+        //             output += &format!(
+        //                 "{}!{:?}:{:#x} {} {:?}",
+        //                 self.file.file_name().unwrap().to_str().unwrap(),
+        //                 sect.name(),
+        //                 s.address,
+        //                 if s.has_nul { "!" } else { "?" },
+        //                 std::str::from_utf8(s.string).unwrap()
+        //             );
+        //         }
+        //     }
+        // }
+
+        // output += "====================\n\n";
 
         std::fs::write(app_path.join("scanner_results.txt"), output).unwrap();
 
