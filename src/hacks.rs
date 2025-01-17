@@ -12,6 +12,7 @@ pub(crate) struct HackApiResponse {
     pub process: String,
     pub source: String,
     pub game: String,
+    pub working: bool,
 }
 
 #[derive(Clone, PartialEq, Debug, Deserialize, Serialize)]
@@ -27,6 +28,7 @@ pub(crate) struct Hack {
     pub file_path: std::path::PathBuf,
     pub local: bool,
     pub arch: String,
+    pub working: bool,
 }
 
 impl Hack {
@@ -40,6 +42,7 @@ impl Hack {
         source: &str,
         game: &str,
         local: bool,
+        working: bool,
     ) -> Self {
         Self {
             name: name.to_string(),
@@ -56,6 +59,7 @@ impl Hack {
                 .join(&file),
             local,
             arch: String::new(),
+            working,
         }
     }
 
@@ -85,6 +89,7 @@ impl Default for Hack {
             file_path: std::path::PathBuf::new(),
             local: false,
             arch: "".to_string(),
+            working: true,
         }
     }
 }
@@ -130,6 +135,7 @@ pub(crate) fn fetch_hacks(
                                     &hack.source,
                                     &hack.game,
                                     false,
+                                    hack.working,
                                 )
                             })
                             .collect());

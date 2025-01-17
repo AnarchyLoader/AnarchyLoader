@@ -466,11 +466,12 @@ impl MyApp {
             let is_selected = self.app.selected_hack.as_ref() == Some(hack);
 
             let response = ui
-                .add_enabled_ui(!in_progress || is_selected, |ui| {
+                .add_enabled_ui((!in_progress || is_selected) && hack.working, |ui| {
                     ui.selectable_label(self.app.selected_hack.as_ref() == Some(hack), label)
                 })
                 .inner;
 
+            self.render_working_state(ui, hack);
             self.render_favorite_button(ui, hack);
             self.render_injection_count(ui, hack);
 
@@ -503,6 +504,12 @@ impl MyApp {
             search_index = end;
         }
         label
+    }
+
+    fn render_working_state(&mut self, ui: &mut egui::Ui, hack: &Hack) {
+        if !hack.working {
+            ui.label("❌");
+        }
     }
 
     fn render_favorite_button(&mut self, ui: &mut egui::Ui, hack: &Hack) {
