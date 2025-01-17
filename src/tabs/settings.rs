@@ -1,6 +1,7 @@
 use egui::{CursorIcon::PointingHand as Clickable, RichText};
 use egui_dnd::dnd;
 use egui_modal::Modal;
+use egui_theme_switch::global_theme_switch;
 
 use crate::{
     games::local::LocalHack,
@@ -52,6 +53,7 @@ impl MyApp {
                             )
                             .changed()
                         {
+                            self.app.selected_hack = None; // unselect hack because of name change
                             self.app.hacks = match hacks::fetch_hacks(
                                 &self.app.config.api_endpoint,
                                 &self.app.config.api_extra_endpoints,
@@ -96,6 +98,12 @@ impl MyApp {
                                 &mut self.app.config.hide_steam_account,
                                 "Hide Steam account",
                             )
+                            .changed()
+                        {
+                            self.app.config.save();
+                        }
+                        if ui
+                            .ccheckbox(&mut self.app.config.hide_tabs_icons, "Hide tabs icons")
                             .changed()
                         {
                             self.app.config.save();
@@ -150,6 +158,8 @@ impl MyApp {
                                 self.app.config.save();
                             }
                         });
+
+                        global_theme_switch(ui);
                     });
 
                     ui.add_space(5.0);

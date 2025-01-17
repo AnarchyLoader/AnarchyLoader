@@ -1,3 +1,5 @@
+use egui_material_icons::*;
+
 use crate::{utils::custom_widgets::SelectableLabel, MyApp};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -29,6 +31,7 @@ impl MyApp {
                 self.render_tab(
                     ui,
                     AppTab::Home,
+                    icons::ICON_HOME,
                     "Home",
                     "Go to the home screen",
                     &home_rpc_message,
@@ -36,6 +39,7 @@ impl MyApp {
                 self.render_tab(
                     ui,
                     AppTab::Settings,
+                    icons::ICON_SETTINGS,
                     "Settings",
                     "Adjust your settings",
                     "Configuring settings",
@@ -43,11 +47,19 @@ impl MyApp {
                 self.render_tab(
                     ui,
                     AppTab::About,
+                    icons::ICON_DESCRIPTION,
                     "About",
                     "Learn more about this loader",
                     "Reading about",
                 );
-                self.render_tab(ui, AppTab::Logs, "Logs", "Check the logs", "Viewing Logs");
+                self.render_tab(
+                    ui,
+                    AppTab::Logs,
+                    icons::ICON_EDIT_DOCUMENT,
+                    "Logs",
+                    "Check the logs",
+                    "Viewing Logs",
+                );
 
                 if (ctx.input_mut(|i| i.modifiers.shift) && ctx.input_mut(|i| i.modifiers.ctrl))
                     || self.ui.tab == AppTab::Debug
@@ -55,6 +67,7 @@ impl MyApp {
                     self.render_tab(
                         ui,
                         AppTab::Debug,
+                        icons::ICON_BUG_REPORT,
                         "Debug",
                         "Get some debug info",
                         "🪲 Debugging",
@@ -73,12 +86,19 @@ impl MyApp {
         &mut self,
         ui: &mut egui::Ui,
         tab: AppTab,
+        icon: &str,
         label: &str,
         tooltip: &str,
         rpc_message: &str,
     ) {
+        let tab_label = if self.app.config.hide_tabs_icons {
+            label.to_string()
+        } else {
+            format!("{} {}", icon, label)
+        };
+
         if ui
-            .cselectable_label(self.ui.tab == tab, label)
+            .cselectable_label(self.ui.tab == tab, &tab_label)
             .on_hover_text(tooltip)
             .clicked()
         {

@@ -23,6 +23,7 @@ use egui::{
 };
 use egui_alignments::center_vertical;
 use egui_commonmark::CommonMarkCache;
+use egui_material_icons::icons::{ICON_AWARD_STAR, ICON_EDITOR_CHOICE, ICON_MILITARY_TECH};
 use egui_notify::Toasts;
 use games::local::LocalUI;
 use hacks::{get_all_processes, get_hack_by_name, Hack};
@@ -137,6 +138,9 @@ impl MyApp {
     // MARK: Init
     fn new(_cc: &eframe::CreationContext<'_>) -> Self {
         let mut config = Config::load();
+        let app_path = dirs::config_dir()
+            .unwrap_or_else(|| std::path::PathBuf::from("."))
+            .join("anarchyloader");
 
         let logger = MyLogger::init();
         let log_buffer = logger.buffer.clone();
@@ -147,6 +151,8 @@ impl MyApp {
         let mut statistics = Statistics::load();
 
         statistics.increment_opened_count();
+
+        egui_material_icons::initialize(&_cc.egui_ctx);
 
         let status_message = Arc::new(Mutex::new(String::new()));
         let in_progress = Arc::new(std::sync::atomic::AtomicBool::new(false));
@@ -273,9 +279,7 @@ impl MyApp {
             logger: logger.clone(),
             toasts: Toasts::default(),
             parse_error,
-            app_path: dirs::config_dir()
-                .unwrap_or_else(|| std::path::PathBuf::from("."))
-                .join("anarchyloader"),
+            app_path,
             app_version: env!("CARGO_PKG_VERSION").to_string(),
         }
     }
@@ -508,17 +512,16 @@ impl MyApp {
 
     fn render_working_state(&mut self, ui: &mut egui::Ui, hack: &Hack) {
         if !hack.working {
-            ui.label("❌");
+            ui.label(egui_material_icons::icons::ICON_BLOCK);
         }
     }
 
     fn render_favorite_button(&mut self, ui: &mut egui::Ui, hack: &Hack) {
         let is_favorite = self.app.config.favorites.contains(&hack.name);
         if is_favorite {
-            let favorite_icon = "★";
             if ui
                 .add(
-                    egui::Button::new(RichText::new(favorite_icon))
+                    egui::Button::new(egui_material_icons::icons::ICON_STAR)
                         .frame(false)
                         .sense(Sense::click()),
                 )
@@ -542,16 +545,24 @@ impl MyApp {
     }
 
     fn render_injection_count(&self, ui: &mut egui::Ui, hack: &Hack) {
-        if !self.app.config.hide_statistics {
-            let count = self
-                .app
-                .statistics
-                .inject_counts
-                .get(&hack.file)
-                .unwrap_or(&0);
-            if count != &0 {
-                ui.label(format!("{}x", count));
+        if self.app.config.hide_statistics {
+            return;
+        }
+
+        if let Some(&count) = self.app.statistics.inject_counts.get(&hack.file) {
+            if count == 0 {
+                return;
             }
+
+            let label = match count {
+                100.. => RichText::new(format!("{}x {}", count, ICON_AWARD_STAR))
+                    .color(egui::Color32::YELLOW),
+                25.. => format!("{}x {}", count, ICON_EDITOR_CHOICE).into(),
+                10.. => format!("{}x {}", count, ICON_MILITARY_TECH).into(),
+                _ => format!("{}x", count).into(),
+            };
+
+            ui.label(label);
         }
     }
 

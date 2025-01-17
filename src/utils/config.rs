@@ -18,6 +18,7 @@ pub struct Config {
     pub cdn_extra_endpoints: Vec<String>,
     pub hide_steam_account: bool,
     pub hide_statistics: bool,
+    pub hide_tabs_icons: bool,
     pub disable_notifications: bool,
     pub disable_rpc: bool,
     pub selected_hack: String,
@@ -67,13 +68,14 @@ impl Default for Config {
             cdn_extra_endpoints: default_cdn_extra_endpoint(),
             hide_steam_account: false,
             hide_statistics: false,
+            hide_tabs_icons: false,
             disable_notifications: false,
             disable_rpc: false,
             selected_hack: "".to_string(),
             log_level: default_log_level(),
             skip_update_check: false,
             game_order: Vec::new(),
-            local_hacks: Vec::new(),
+            local_hacks: Vec::new()
         }
     }
 }

@@ -69,6 +69,8 @@ cargo build --release
 -   [egui-notify](https://github.com/ItsEthra/egui-notify)
 -   [egui_alignments](https://github.com/a-littlebit/egui_alignments)
 -   [egui-modal](https://github.com/n00kii/egui-modal)
+-   [egui-material-icons](https://github.com/lucasmerlin/hello_egui/tree/main/crates/egui_material_icons)
+-   [egui-theme-switch](https://github.com/bash/egui-theme-switch)
 -   [vdf_reader](https://github.com/icewind1991/vdf-reader)
 -   [discord-rich-presence](https://github.com/vionya/discord-rich-presence)
 -   [pelite](https://github.com/CasualX/pelite)

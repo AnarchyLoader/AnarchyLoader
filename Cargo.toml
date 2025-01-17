@@ -34,6 +34,8 @@ semver = "1.0.24"
 rfd = "0.15.2"
 egui_commonmark = "0.19.0"
 pelite = { version = "0.10.0", optional = true}
+egui-theme-switch = "0.2.3"
+egui_material_icons = "0.2.0"
 
 [build-dependencies]
 winres = "0.1.12"
