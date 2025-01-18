@@ -173,7 +173,13 @@ impl MyApp {
                     {
                         config.game_order.push("CSS".to_string());
                         existing_games.insert("CSS".to_string());
-                    } else if !existing_games.contains(&hack.game) && !hack.game.starts_with("CSS")
+                    } else if !existing_games.contains(&"Rust (NonSteam)".to_string()) && hack.game.starts_with("Rust")
+                    {
+                        config.game_order.push("Rust (NonSteam)".to_string());
+                        existing_games.insert("Rust (NonSteam)".to_string());
+                    } else if !existing_games.contains(&hack.game)
+                        && !hack.game.starts_with("CSS")
+                        && !hack.game.starts_with("Rust")
                     {
                         config.game_order.push(hack.game.clone());
                         existing_games.insert(hack.game.clone());
@@ -334,6 +340,8 @@ impl MyApp {
 
             if game.starts_with("CSS") {
                 Self::group_css_hacks_internal(&mut hacks_by_game, hack.clone());
+            } else if game.starts_with("Rust") {
+                Self::group_rust_hacks_internal(&mut hacks_by_game, hack.clone());
             } else {
                 Self::group_other_hacks_internal(&mut hacks_by_game, hack.clone());
             }
@@ -353,6 +361,27 @@ impl MyApp {
         } else {
             version
         };
+        hacks_by_game
+            .entry(game_name)
+            .or_insert_with(BTreeMap::new)
+            .entry(version)
+            .or_insert_with(Vec::new)
+            .push(hack);
+    }
+
+    fn group_rust_hacks_internal(
+        hacks_by_game: &mut BTreeMap<String, BTreeMap<String, Vec<Hack>>>,
+        hack: Hack,
+    ) {
+        let parts = hack.game.split(",");
+        let game_name = "Rust (NonSteam)".to_string();
+        let version = parts.skip(1).collect::<Vec<&str>>().join(",");
+        let version = if version.is_empty() {
+            "Default".to_string()
+        } else {
+            version
+        };
+
         hacks_by_game
             .entry(game_name)
             .or_insert_with(BTreeMap::new)
