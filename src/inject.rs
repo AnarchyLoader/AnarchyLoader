@@ -16,6 +16,11 @@ use crate::{
     Hack, MyApp,
 };
 
+fn change_status_message(status_message: &Arc<Mutex<String>>, message: &str) {
+    let mut status = status_message.lock().unwrap();
+    *status = message.to_string();
+}
+
 impl MyApp {
     pub fn delete_injectors(&mut self, arch: &str) -> Result<(), String> {
         let injectors = match arch {
@@ -145,8 +150,7 @@ impl MyApp {
                     let error_message = format!("Failed to download manual map injector: {}", e);
                     let _ = message_sender.error(&error_message.clone());
                     log::error!("{}", error_message);
-                    let mut status = status_message.lock().unwrap();
-                    *status = error_message;
+                    change_status_message(&status_message, &error_message);
                     ctx.request_repaint();
                     return;
                 }
@@ -168,8 +172,7 @@ impl MyApp {
                     let _ = message_sender
                         .success(&dll_path_clone.file_name().unwrap().to_string_lossy());
                     log::info!("Injected into {}", target_process);
-                    let mut status = status_message.lock().unwrap();
-                    *status = "Injection successful.".to_string();
+                    change_status_message(&status_message, "Injection successful.");
                     ctx.request_repaint();
                 } else {
                     let mut error_message =
@@ -179,8 +182,10 @@ impl MyApp {
                     }
                     let _ = message_sender.error(&error_message.clone());
                     log::error!("Failed to execute injector: {}", error_message);
-                    let mut status = status_message.lock().unwrap();
-                    *status = format!("Failed to execute injector: {}", error_message);
+                    change_status_message(
+                        &status_message,
+                        &format!("Failed to execute injector: {}", error_message),
+                    );
                     ctx.request_repaint();
                 }
             }
@@ -188,8 +193,7 @@ impl MyApp {
                 let error_message = format!("Failed to execute injector: {}", e);
                 let _ = message_sender.error(&error_message.clone());
                 log::error!("{}", error_message);
-                let mut status = status_message.lock().unwrap();
-                *status = error_message;
+                change_status_message(&status_message, &error_message);
                 ctx.request_repaint();
             }
         }
@@ -210,10 +214,7 @@ impl MyApp {
         let skip_inject_delay = self.app.config.skip_injects_delay;
         let message_sender_clone = message_sender.clone();
 
-        {
-            let mut status = status_message.lock().unwrap();
-            *status = "Starting injection...".to_string();
-        }
+        change_status_message(&status_message, "Starting injection...");
 
         in_progress.store(true, std::sync::atomic::Ordering::SeqCst);
 
@@ -224,25 +225,23 @@ impl MyApp {
             }
 
             if !selected_clone.file_path.exists() && !selected_clone.local {
-                {
-                    let mut status = status_message.lock().unwrap();
-                    *status = format!("Downloading {}...", selected_clone.name);
-                }
+                change_status_message(
+                    &status_message,
+                    &format!("Downloading {}...", selected_clone.name),
+                );
                 ctx_clone.request_repaint();
 
                 match selected_clone
                     .download(selected_clone.file_path.to_string_lossy().to_string())
                 {
                     Ok(_) => {
-                        let mut status = status_message.lock().unwrap();
-                        *status = "Downloaded.".to_string();
+                        change_status_message(&status_message, "Downloaded.");
                         ctx_clone.request_repaint();
                         log::debug!("Downloaded {}", selected_clone.name);
                     }
                     Err(e) => {
-                        let mut status = status_message.lock().unwrap();
-                        *status = format!("{}", e);
                         in_progress.store(false, std::sync::atomic::Ordering::SeqCst);
+                        change_status_message(&status_message, &format!("{}", e));
                         ctx_clone.request_repaint();
                         log::error!("Failed to download: {}", e);
                         let _ = message_sender_clone.error(&format!("Failed to download: {}", e));
@@ -255,10 +254,7 @@ impl MyApp {
                 thread::sleep(Duration::from_secs(1));
             }
 
-            {
-                let mut status = status_message.lock().unwrap();
-                *status = "Injecting...".to_string();
-            }
+            change_status_message(&status_message, "Injecting...");
             ctx_clone.request_repaint();
 
             if !skip_inject_delay {

@@ -136,7 +136,7 @@ static LOGGER: OnceLock<MyLogger> = OnceLock::new();
 
 impl MyApp {
     // MARK: Init
-    fn new(_cc: &eframe::CreationContext<'_>) -> Self {
+    fn new(cc: &eframe::CreationContext<'_>) -> Self {
         let mut config = Config::load();
         let app_path = dirs::config_dir()
             .unwrap_or_else(|| std::path::PathBuf::from("."))
@@ -152,7 +152,8 @@ impl MyApp {
 
         statistics.increment_opened_count();
 
-        egui_material_icons::initialize(&_cc.egui_ctx);
+        egui_material_icons::initialize(&cc.egui_ctx);
+        cc.egui_ctx.set_theme(config.theme);
 
         let status_message = Arc::new(Mutex::new(String::new()));
         let in_progress = Arc::new(std::sync::atomic::AtomicBool::new(false));

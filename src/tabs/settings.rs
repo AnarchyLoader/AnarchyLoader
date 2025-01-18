@@ -1,7 +1,7 @@
 use egui::{CursorIcon::PointingHand as Clickable, RichText};
 use egui_dnd::dnd;
 use egui_modal::Modal;
-use egui_theme_switch::global_theme_switch;
+use egui_theme_switch::ThemeSwitch;
 
 use crate::{
     games::local::LocalHack,
@@ -159,7 +159,12 @@ impl MyApp {
                             }
                         });
 
-                        global_theme_switch(ui);
+                        let mut preference = ui.ctx().options(|opt| opt.theme_preference);
+                        if ui.add(ThemeSwitch::new(&mut preference)).changed() {
+                            ui.ctx().set_theme(preference);
+                            self.app.config.theme = preference;
+                            self.app.config.save();
+                        }
                     });
 
                     ui.add_space(5.0);

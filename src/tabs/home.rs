@@ -2,6 +2,7 @@ use std::{fs, path::Path, process::Command, sync::Arc, thread, time::Duration};
 
 use egui::{CursorIcon::PointingHand as Clickable, RichText, Spinner, TextStyle};
 use egui_commonmark::CommonMarkViewer;
+use egui_material_icons::icons::ICON_SYRINGE;
 use egui_modal::Modal;
 
 use crate::{
@@ -226,7 +227,7 @@ impl MyApp {
             .add_enabled_ui(!in_progress && !is_cs2_32bit, |ui| {
                 ui.button_with_tooltip(
                     if !is_roblox {
-                        format!("Inject {}", selected.name)
+                        format!("{} Inject {}", ICON_SYRINGE, selected.name)
                     } else {
                         "Run".to_string()
                     },

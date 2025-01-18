@@ -1,5 +1,6 @@
 use std::{collections::HashSet, fs, path::PathBuf};
 
+use egui::ThemePreference;
 use serde::{Deserialize, Serialize};
 
 use crate::{games::local::LocalHack, hacks, MyApp};
@@ -26,6 +27,7 @@ pub struct Config {
     pub skip_update_check: bool,
     pub game_order: Vec<String>,
     pub local_hacks: Vec<LocalHack>,
+    pub theme: ThemePreference,
 }
 
 fn default_favorites_color() -> egui::Color32 {
@@ -75,7 +77,8 @@ impl Default for Config {
             log_level: default_log_level(),
             skip_update_check: false,
             game_order: Vec::new(),
-            local_hacks: Vec::new()
+            local_hacks: Vec::new(),
+            theme: ThemePreference::System,
         }
     }
 }
