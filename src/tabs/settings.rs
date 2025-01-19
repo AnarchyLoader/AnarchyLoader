@@ -1,5 +1,6 @@
 use egui::{CursorIcon::PointingHand as Clickable, RichText};
 use egui_dnd::dnd;
+use egui_material_icons::icons::{ICON_VISIBILITY, ICON_VISIBILITY_OFF};
 use egui_modal::Modal;
 use egui_theme_switch::ThemeSwitch;
 
@@ -169,17 +170,41 @@ impl MyApp {
 
                     ui.add_space(5.0);
 
+                    // MARK: - Game order
                     ui.group(|ui| {
                         ui.label("Game Order (Drag to reorder):");
                         ui.add_space(5.0);
 
-                        let game_order = &mut self.app.config.game_order;
+                        let mut game_order = self.app.config.game_order.clone();
+                        let mut hidden_games = self.app.config.hidden_games.clone();
                         let response = dnd(ui, "dnd_game_order_settings").show(
                             game_order.iter_mut(),
                             |ui, game_name, handle, _| {
-                                handle.ui(ui, |ui| {
+                                let hidden_games = &mut hidden_games;
+                                handle.show_drag_cursor_on_hover(false).ui(ui, |ui| {
                                     ui.horizontal(|ui| {
-                                        ui.label("☰");
+                                        ui.label("☰").on_hover_cursor(egui::CursorIcon::Grab);
+                                        if hidden_games.contains(game_name) {
+                                            if ui
+                                                .cbutton(ICON_VISIBILITY_OFF)
+                                                .on_hover_text("Toggle on visibility")
+                                                .clicked()
+                                            {
+                                                hidden_games.remove(game_name);
+                                                self.app.config.hidden_games = hidden_games.clone();
+                                                self.app.config.save();
+                                            }
+                                        } else {
+                                            if ui
+                                                .cbutton(ICON_VISIBILITY)
+                                                .on_hover_text("Toggle on visibility")
+                                                .clicked()
+                                            {
+                                                hidden_games.insert(game_name.clone());
+                                                self.app.config.hidden_games = hidden_games.clone();
+                                                self.app.config.save();
+                                            }
+                                        }
                                         ui.label(game_name.clone());
                                     });
                                 });
@@ -187,18 +212,38 @@ impl MyApp {
                         );
 
                         if response.is_drag_finished() {
-                            response.update_vec(game_order);
+                            response.update_vec(&mut game_order);
+                            self.app.config.game_order = game_order;
                             self.app.config.save();
                         }
 
                         ui.add_space(5.0);
 
-                        if ui.cbutton(RichText::new("Reset game order")).clicked() {
-                            self.app.config.reset_game_order();
-                            self.toasts.success("Game order reset.");
-                        }
+                        ui.horizontal(|ui| {
+                            if ui.icon_button(ICON_VISIBILITY_OFF, "Hide all").clicked() {
+                                self.app.config.hidden_games =
+                                    self.app.config.game_order.clone().into_iter().collect();
+                                self.app.config.save();
+                            }
 
-                        ui.add_space(5.0);
+                            if ui.icon_button(ICON_VISIBILITY, "Show all").clicked() {
+                                self.app.config.hidden_games.clear();
+                                self.app.config.save();
+                            }
+                        });
+
+                        ui.horizontal(|ui| {
+                            if ui.cbutton("Reset game order").clicked() {
+                                self.app.config.reset_game_order();
+                                self.toasts.success("Game order reset.");
+                            }
+
+                            if ui.cbutton(RichText::new("Reset hidden games")).clicked() {
+                                self.app.config.hidden_games.clear();
+                                self.app.config.save();
+                                self.toasts.success("Hidden games reset.");
+                            }
+                        });
 
                         let local_hack_modal = Modal::new(ctx, "add_local_hack_modal")
                             .with_close_on_outside_click(true);

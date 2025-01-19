@@ -4,6 +4,7 @@ use egui::{CursorIcon::PointingHand as Clickable, RichText, Spinner, TextStyle};
 use egui_commonmark::CommonMarkViewer;
 use egui_material_icons::icons::ICON_SYRINGE;
 use egui_modal::Modal;
+use url::Url;
 
 use crate::{
     default_main_menu_message,
@@ -178,8 +179,18 @@ impl MyApp {
 
                     ui.label("by");
                     ui.label(RichText::new(&selected.author).color(theme_color));
-                    if !selected.source.is_empty() {
-                        ui.clink("(source)", &selected.source);
+
+                    if !selected.source.is_empty() && selected.source != "n/a" {
+                        if let Ok(url) = Url::parse(&selected.source) {
+                            ui.clink(
+                                format!("(source, {})", url.domain().unwrap()),
+                                &selected.source,
+                            );
+                        } else {
+                            ui.label("(source not available)");
+                        }
+                    } else {
+                        ui.label("(source not available)");
                     }
                 });
             }

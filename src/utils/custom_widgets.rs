@@ -14,6 +14,7 @@ pub trait Button {
         url: &str,
         toasts: &mut Toasts,
     ) -> egui::Response;
+    fn icon_button(&mut self, icon: &str, label: &str) -> egui::Response;
 }
 
 impl Button for egui::Ui {
@@ -49,6 +50,11 @@ impl Button for egui::Ui {
         }
 
         response
+    }
+
+    fn icon_button(&mut self, icon: &str, label: &str) -> egui::Response {
+        self.button(format!("{} {}", icon, label))
+            .on_hover_cursor(Clickable)
     }
 }
 

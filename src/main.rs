@@ -428,12 +428,27 @@ impl MyApp {
                         });
 
                         ui.add_space(5.0);
-
+                        let mut all_games_hidden = true;
                         for game_name in self.app.config.game_order.clone() {
                             if let Some(versions) = hacks_by_game.get(&game_name) {
-                                self.render_game_hacks(ui, game_name, versions.clone(), ctx);
-                                ui.add_space(5.0);
+                                if !self.app.config.hidden_games.contains(&game_name) {
+                                    self.render_game_hacks(ui, game_name, versions.clone(), ctx);
+                                    ui.add_space(5.0);
+                                    all_games_hidden = false;
+                                }
                             }
+                        }
+                        if all_games_hidden {
+                            if self.app.config.show_only_favorites {
+                                ui.label("You enabled 'Show only favorites' and no favorites are available.");
+                            } else {
+                                ui.label("All games are hidden");
+                            }
+                            if ui.cbutton("Go to settings").clicked() {
+                                self.ui.tab = AppTab::Settings;
+                            }
+                        } else if hacks_by_game.is_empty() {
+                            ui.label("No hacks available.");
                         }
                     });
             });
@@ -689,6 +704,7 @@ impl App for MyApp {
                         RichText::new("New version available!").size(24.0).strong(),
                     );
 
+                    ui.label(format!("Newest version is: {} (you are on {})", self.app.updater.new_version.as_ref().unwrap(), self.app_version));
                     ui.label("Please download the latest version from the website.");
 
                     ui.add_space(5.0);
@@ -698,10 +714,11 @@ impl App for MyApp {
                         "https://github.com/AnarchyLoader/AnarchyLoader/releases/latest",
                     );
 
-                    ui.add_space(5.0);
-
                     if ui
-                        .ccheckbox(&mut self.app.config.skip_update_check, "Skip update check")
+                        .ccheckbox(
+                            &mut self.app.config.skip_update_check,
+                            "Skip update check (you can disable it in settings)",
+                        )
                         .changed()
                     {
                         self.app.config.save();

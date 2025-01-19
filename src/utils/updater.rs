@@ -2,6 +2,7 @@ use serde::Deserialize;
 
 pub struct Updater {
     pub current_version: String,
+    pub new_version: Option<String>,
     pub repository: String,
     pub need_update: bool,
 }
@@ -40,6 +41,7 @@ impl Updater {
                             current,
                             remote
                         );
+                        self.new_version = Some(remote_version);
                         self.need_update = true;
                         return true;
                     } else {
@@ -64,6 +66,7 @@ impl Default for Updater {
             current_version: env!("CARGO_PKG_VERSION").to_string(),
             repository: "AnarchyLoader/AnarchyLoader".to_string(),
             need_update: false,
+            new_version: None,
         }
     }
 }

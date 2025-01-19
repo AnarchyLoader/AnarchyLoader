@@ -26,6 +26,7 @@ pub struct Config {
     pub log_level: log::Level,
     pub skip_update_check: bool,
     pub game_order: Vec<String>,
+    pub hidden_games: HashSet<String>,
     pub local_hacks: Vec<LocalHack>,
     pub theme: ThemePreference,
 }
@@ -77,6 +78,7 @@ impl Default for Config {
             log_level: default_log_level(),
             skip_update_check: false,
             game_order: Vec::new(),
+            hidden_games: HashSet::new(),
             local_hacks: Vec::new(),
             theme: ThemePreference::System,
         }

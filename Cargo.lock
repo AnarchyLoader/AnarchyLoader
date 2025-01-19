@@ -189,6 +189,7 @@ dependencies = [
  "serde_json",
  "simplelog",
  "ureq",
+ "url",
  "vdf-reader",
  "whoami",
  "winreg",

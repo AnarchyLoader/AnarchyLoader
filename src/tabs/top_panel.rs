@@ -103,11 +103,14 @@ impl MyApp {
             .clicked()
         {
             self.ui.tab = tab.clone();
-            self.rpc.update(
-                None,
-                Some(rpc_message),
-                Some(&format!("{:?}", tab).to_lowercase()),
-            );
+
+            if !self.app.config.disable_rpc {
+                self.rpc.update(
+                    None,
+                    Some(rpc_message),
+                    Some(&format!("{:?}", tab).to_lowercase()),
+                );
+            }
         }
     }
 }
