@@ -1,12 +1,13 @@
 use std::path::PathBuf;
 
 use egui_modal::Modal;
-// use pelite::strings::Config;
+use pelite::{pe, strings::Config};
 #[cfg(feature = "scanner")]
 use pelite::{
     pe64::{Pe, PeFile},
     FileMap,
 };
+use regex::Regex;
 
 use crate::{utils::custom_widgets::Button, MyApp};
 
@@ -31,7 +32,7 @@ impl Scanner {
 
         let file_map = FileMap::open(self.file.as_path()).unwrap();
 
-        let file = match PeFile::from_bytes(file_map.as_ref()) {
+        let file = match pe::PeFile::from_bytes(file_map.as_ref()) {
             Ok(file) => file,
             Err(err) => return Err(format!("Failed to parse PE file: {}", err)),
         };
@@ -40,6 +41,28 @@ impl Scanner {
         output += &format!("{:?}", file.section_headers());
 
         output += "\n\n====================\n";
+
+        match self.scan_imports(&file) {
+            Ok(import_output) => output += &import_output,
+            Err(err) => output += &format!("Failed to scan imports: {}\n", err),
+        }
+
+        output += "====================\n\n";
+
+        match self.scan_links(&file) {
+            Ok(links_output) => output += &links_output,
+            Err(err) => output += &format!("Failed to scan links: {}\n", err),
+        }
+
+        output += "====================\n\n";
+
+        std::fs::write(app_path.join("scanner_results.txt"), output).unwrap();
+
+        Ok(())
+    }
+
+    fn scan_imports(&self, file: &PeFile) -> Result<String, String> {
+        let mut output = String::new();
 
         let imports = match file.imports() {
             Ok(imports) => imports,
@@ -50,48 +73,48 @@ impl Scanner {
 
         for desc in imports {
             let dll_name = desc.dll_name();
-            let iat = match desc.iat() {
-                Ok(iat) => iat,
-                Err(err) => {
-                    return Err(format!(
-                        "Failed to read imports for {:?}: {}",
-                        dll_name, err
-                    ))
-                }
-            };
-            output += &format!(
-                "Imported {} functions from {}\n",
-                iat.len(),
-                dll_name.unwrap()
-            );
+            if let Ok(iat) = desc.iat() {
+                output += &format!(
+                    "Imported {} functions from {}\n",
+                    iat.len(),
+                    dll_name.unwrap()
+                );
+            } else {
+                output += &format!("Failed to read imports for {:?}\n", dll_name);
+            }
         }
 
-        output += "====================\n\n";
+        Ok(output)
+    }
 
-        // output += "Strings:\n";
+    fn scan_links(&self, file: &PeFile) -> Result<String, String> {
+        let mut output = String::new();
 
-        // let config = Config::default();
+        output += "Links:\n";
+        let config = Config::default();
+        let url_regex =
+            Regex::new(r"\b(?:https?|ftp|ssh|telnet|file)://[^\s/$.?#].[^\s]*\b").unwrap();
+        let ip_regex = Regex::new(r"\b(?:\d{1,3}\.){3}\d{1,3}\b").unwrap();
 
-        // for sect in file.section_headers() {
-        //     if let Ok(bytes) = file.get_section_bytes(sect) {
-        //         for s in config.clone().enumerate(sect.VirtualAddress, bytes) {
-        //             output += &format!(
-        //                 "{}!{:?}:{:#x} {} {:?}",
-        //                 self.file.file_name().unwrap().to_str().unwrap(),
-        //                 sect.name(),
-        //                 s.address,
-        //                 if s.has_nul { "!" } else { "?" },
-        //                 std::str::from_utf8(s.string).unwrap()
-        //             );
-        //         }
-        //     }
-        // }
+        for sect in file.section_headers() {
+            if let Ok(bytes) = file.get_section_bytes(sect) {
+                for s in config.clone().enumerate(sect.VirtualAddress, bytes) {
+                    let string = std::str::from_utf8(s.string).unwrap();
+                    if url_regex.is_match(string) || ip_regex.is_match(string) {
+                        output += &format!(
+                            "{}!{:?}:{:#x} {} {:?}\n",
+                            self.file.file_name().unwrap().to_str().unwrap(),
+                            sect.name(),
+                            s.address,
+                            if s.has_nul { "!" } else { "?" },
+                            string
+                        );
+                    }
+                }
+            }
+        }
 
-        // output += "====================\n\n";
-
-        std::fs::write(app_path.join("scanner_results.txt"), output).unwrap();
-
-        Ok(())
+        Ok(output)
     }
 }
 

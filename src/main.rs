@@ -173,7 +173,8 @@ impl MyApp {
                     {
                         config.game_order.push("CSS".to_string());
                         existing_games.insert("CSS".to_string());
-                    } else if !existing_games.contains(&"Rust (NonSteam)".to_string()) && hack.game.starts_with("Rust")
+                    } else if !existing_games.contains(&"Rust (NonSteam)".to_string())
+                        && hack.game.starts_with("Rust")
                     {
                         config.game_order.push("Rust (NonSteam)".to_string());
                         existing_games.insert("Rust (NonSteam)".to_string());

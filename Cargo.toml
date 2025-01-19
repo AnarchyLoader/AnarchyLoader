@@ -5,7 +5,7 @@ edition = "2021"
 build = "build.rs"
 
 [features]
-scanner = ["dep:pelite"]
+scanner = ["dep:pelite", "dep:regex"]
 
 [dependencies]
 eframe = "0.30.0"
@@ -13,7 +13,7 @@ egui = { version = "0.30.0", features = ["serde"] }
 serde = { version = "1.0.217", features = ["derive"] }
 opener = "0.7.2"
 dirs = "6.0.0"
-serde_json = "1.0.135"
+serde_json = "1.0.136"
 image = { version = "0.25.5", features = ["png"] }
 is_elevated = "0.1.2"
 egui-notify = "0.18.0"
@@ -33,9 +33,10 @@ zip-extract = "0.2.1"
 semver = "1.0.24"
 rfd = "0.15.2"
 egui_commonmark = "0.19.0"
-pelite = { version = "0.10.0", optional = true}
+pelite = { version = "0.10.0", optional = true }
 egui-theme-switch = "0.2.3"
 egui_material_icons = "0.2.0"
+regex = { version = "1.11.1", optional = true }
 
 [build-dependencies]
 winres = "0.1.12"

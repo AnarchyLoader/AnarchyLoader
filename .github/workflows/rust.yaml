@@ -1,74 +1,87 @@
 name: Rust
 
 on:
-  push:
-    branches: ["main"]
-  pull_request:
-    branches: ["main"]
+    push:
+        branches: ['main']
+        paths:
+            - '**.rs'
+            - '**.yaml'
+            - '**.toml'
+            - '**.lock'
+
+    pull_request:
+        branches: ['main']
 
 env:
-  CARGO_TERM_COLOR: always
+    CARGO_TERM_COLOR: always
 
 jobs:
-  build-overlay:
-    name: AnarchyLoader
-    runs-on: windows-latest
+    build-overlay:
+        name: AnarchyLoader
+        runs-on: windows-latest
 
-    steps:
-      - name: Install toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: nightly
-          override: true
-      
-      - uses: actions/checkout@v3
-        with:
-          submodules: recursive
-          
-      - uses: Swatinem/rust-cache@v2
-        with:
-          cache-on-failure: true
+        steps:
+            - name: Install toolchain
+              uses: actions-rs/toolchain@v1
+              with:
+                  toolchain: nightly
+                  override: true
 
-      - name: Build
-        run: |
-          cargo build --verbose --release
-          $ARTIFACT_HASH=git rev-parse --short HEAD
-          echo "ARTIFACT_HASH=$ARTIFACT_HASH" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+            - uses: actions/checkout@v3
+              with:
+                  submodules: recursive
 
-      - name: Rename Executable
-        id: rename
-        run: copy target/release/anarchyloader.exe ./anarchyloader-${{ env.ARTIFACT_HASH }}.exe
+            - uses: Swatinem/rust-cache@v2
+              with:
+                  cache-on-failure: true
 
-      - name: VirusTotal Scan
-        id: virustotal
-        uses: crazy-max/ghaction-virustotal@v4
-        with:
-          vt_api_key: ${{ secrets.VT_API_KEY }}
-          files: |
-            anarchyloader-${{ env.ARTIFACT_HASH }}.exe
+            - name: Build
+              run: |
+                  cargo build --verbose --release
+                  $ARTIFACT_HASH=git rev-parse --short HEAD
+                  echo "ARTIFACT_HASH=$ARTIFACT_HASH" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
-      - name: Extract and Print URL of VirusTotal Scan
-        run: |
-             $analysis = "${{ steps.virustotal.outputs.analysis }}"
-             $url = $analysis -split '=', 2 | Select-Object -Last 1
-             echo "VIRUSTOTAL_URL=$url" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+            - name: Run UPX
+              uses: crazy-max/ghaction-upx@v3
+              with:
+                version: latest
+                files: |
+                  target/release/anarchyloader.exe
+                args: --best --lzma
 
+            - name: Rename Executable
+              id: rename
+              run: copy target/release/anarchyloader.exe ./anarchyloader-${{ env.ARTIFACT_HASH }}.exe
 
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: Build_${{ env.ARTIFACT_HASH }}
-          path: anarchyloader-${{ env.ARTIFACT_HASH }}.exe
+            - name: VirusTotal Scan
+              id: virustotal
+              uses: crazy-max/ghaction-virustotal@v4
+              with:
+                  vt_api_key: ${{ secrets.VT_API_KEY }}
+                  files: |
+                      anarchyloader-${{ env.ARTIFACT_HASH }}.exe
 
-      - name: Release
-        id: release
-        uses: ncipollo/release-action@v1
-        with:
-          body: |
-            Automatic pre-release created by GitHub Actions
-            Builded from commit ${{ env.ARTIFACT_HASH }}
-            VirusTotal Scan: ${{ env.VIRUSTOTAL_URL }}
-          name: "Nightly Build ${{ env.ARTIFACT_HASH }}"
-          tag: "prerelease-${{ env.ARTIFACT_HASH }}"
-          prerelease: true
-          artifacts: anarchyloader-${{ env.ARTIFACT_HASH }}.exe
+            - name: Extract and Print URL of VirusTotal Scan
+              run: |
+                  $analysis = "${{ steps.virustotal.outputs.analysis }}"
+                  $url = $analysis -split '=', 2 | Select-Object -Last 1
+                  echo "VIRUSTOTAL_URL=$url" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+            - name: Upload Artifact
+              uses: actions/upload-artifact@v4
+              with:
+                  name: Build_${{ env.ARTIFACT_HASH }}
+                  path: anarchyloader-${{ env.ARTIFACT_HASH }}.exe
+
+            - name: Release
+              id: release
+              uses: ncipollo/release-action@v1
+              with:
+                  body: |
+                      Automatic pre-release created by GitHub Actions
+                      Builded from commit ${{ env.ARTIFACT_HASH }}
+                      VirusTotal Scan: ${{ env.VIRUSTOTAL_URL }}
+                  name: 'Nightly Build ${{ env.ARTIFACT_HASH }}'
+                  tag: 'prerelease-${{ env.ARTIFACT_HASH }}'
+                  prerelease: true
+                  artifacts: anarchyloader-${{ env.ARTIFACT_HASH }}.exe
