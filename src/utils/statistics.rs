@@ -52,7 +52,7 @@ impl Statistics {
         fs::create_dir_all(&statistics_dir).ok();
         let statistics_path = statistics_dir.join("statistics.json");
 
-        if let Ok(data) = serde_json::to_string(&self) {
+        if let Ok(data) = serde_json::to_string_pretty(&self) {
             fs::write(statistics_path, data).ok();
         }
     }

@@ -24,7 +24,8 @@ impl MyApp {
                         .on_hover_cursor(Clickable)
                         .changed()
                     {
-                        self.logger
+                        self.communication
+                            .logger
                             .set_level(self.app.config.log_level.to_level_filter());
                         self.app.config.save();
                     }
@@ -35,7 +36,7 @@ impl MyApp {
                 .auto_shrink([false; 2])
                 .stick_to_bottom(true)
                 .show(ui, |ui| {
-                    let buffer = self.log_buffer.lock().unwrap();
+                    let buffer = self.communication.log_buffer.lock().unwrap();
                     let buffer_string = buffer.clone();
                     drop(buffer);
 

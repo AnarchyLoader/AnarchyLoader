@@ -13,25 +13,13 @@ impl MyApp {
 
                     ui.collapsing("Variables", |ui| {
                         let debug_info = vec![
+                            ("Hacks:", format!("{:#?}", self.app.hacks)),
                             ("Config:", format!("{:#?}", self.app.config)),
                             ("Statistics:", format!("{:#?}", self.app.statistics)),
-                            ("Hacks:", format!("{:#?}", self.app.hacks)),
                             ("Selected Hack:", format!("{:#?}", self.app.selected_hack)),
-                            (
-                                "Status Message:",
-                                format!("{:#?}", self.communication.status_message),
-                            ),
-                            ("Parse Error:", format!("{:#?}", self.parse_error)),
-                            (
-                                "Inject in Progress:",
-                                format!("{:#?}", self.communication.in_progress),
-                            ),
-                            ("Search Query:", format!("{:#?}", self.ui.search_query)),
-                            (
-                                "Main Menu Message:",
-                                format!("{:#?}", self.ui.main_menu_message),
-                            ),
-                            ("App Version:", format!("{:#?}", self.app_version)),
+                            ("Updater:", format!("{:#?}", self.app.updater)),
+                            ("Cache:", format!("{:#?}", self.app.cache)),
+                            ("Ui states:", format!("{:#?}", self.ui)),
                         ];
 
                         for (label, value) in &debug_info {

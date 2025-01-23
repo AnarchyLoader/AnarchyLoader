@@ -9,6 +9,7 @@ pub struct LocalHack {
     pub arch: String,
 }
 
+#[derive(Debug)]
 pub struct LocalUI {
     pub(crate) new_local_dll: String,
     pub(crate) new_local_process: String,

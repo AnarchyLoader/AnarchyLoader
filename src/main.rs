@@ -23,7 +23,9 @@ use egui::{
 };
 use egui_alignments::center_vertical;
 use egui_commonmark::CommonMarkCache;
-use egui_material_icons::icons::{ICON_AWARD_STAR, ICON_EDITOR_CHOICE, ICON_MILITARY_TECH};
+use egui_material_icons::icons::{
+    ICON_AWARD_STAR, ICON_EDITOR_CHOICE, ICON_MILITARY_TECH, ICON_VISIBILITY,
+};
 use egui_notify::Toasts;
 use games::local::LocalUI;
 use hacks::{get_all_processes, get_hack_by_name, Hack};
@@ -80,6 +82,7 @@ fn main() {
     .unwrap();
 }
 
+#[derive(Debug)]
 struct AppState {
     hacks: Vec<Hack>,
     hacks_processes: Vec<String>,
@@ -89,8 +92,10 @@ struct AppState {
     account: SteamAccount,
     updater: Updater,
     cache: CommonMarkCache,
+    meta: AppMeta,
 }
 
+#[derive(Debug)]
 struct UIState {
     tab: AppTab,
     search_query: String,
@@ -98,8 +103,10 @@ struct UIState {
     dropped_file: DroppedFile,
     selected_process_dnd: String,
     popups: Popups,
+    parse_error: Option<String>,
 }
 
+#[derive(Debug)]
 struct Popups {
     local_hack: LocalUI,
     #[cfg(feature = "scanner")]
@@ -110,6 +117,15 @@ struct Communication {
     status_message: Arc<Mutex<String>>,
     in_progress: Arc<std::sync::atomic::AtomicBool>,
     messages: ToastsMessages,
+    log_buffer: Arc<Mutex<String>>,
+    logger: MyLogger,
+}
+
+#[derive(Debug)]
+struct AppMeta {
+    version: String,
+    path: std::path::PathBuf,
+    commit: String,
 }
 
 struct MyApp {
@@ -117,12 +133,7 @@ struct MyApp {
     ui: UIState,
     communication: Communication,
     rpc: Rpc,
-    log_buffer: Arc<Mutex<String>>,
-    logger: MyLogger,
     toasts: Toasts,
-    parse_error: Option<String>,
-    app_path: std::path::PathBuf,
-    app_version: String,
 }
 
 fn default_main_menu_message() -> String {
@@ -136,7 +147,7 @@ static LOGGER: OnceLock<MyLogger> = OnceLock::new();
 
 impl MyApp {
     // MARK: Init
-    fn new(cc: &eframe::CreationContext<'_>) -> Self {
+    fn new(cc: &eframe::CreationContext) -> Self {
         let mut config = Config::load();
         let app_path = dirs::config_dir()
             .unwrap_or_else(|| std::path::PathBuf::from("."))
@@ -256,6 +267,11 @@ impl MyApp {
                 account,
                 updater,
                 cache: CommonMarkCache::default(),
+                meta: AppMeta {
+                    version: env!("CARGO_PKG_VERSION").to_string(),
+                    path: app_path,
+                    commit: env!("GIT_HASH").to_string(),
+                },
             },
             ui: UIState {
                 tab: AppTab::default(),
@@ -276,19 +292,17 @@ impl MyApp {
                         show_results: false,
                     },
                 },
+                parse_error,
             },
             communication: Communication {
                 status_message,
                 in_progress,
                 messages,
+                log_buffer,
+                logger: logger.clone(),
             },
             rpc,
-            log_buffer,
-            logger: logger.clone(),
             toasts: Toasts::default(),
-            parse_error,
-            app_path,
-            app_version: env!("CARGO_PKG_VERSION").to_string(),
         }
     }
 
@@ -300,107 +314,6 @@ impl MyApp {
             "Selecting hack".to_string()
         };
         self.rpc.update(Some(&version), Some(&status), Some("home"));
-    }
-
-    fn group_hacks_by_game(&self) -> BTreeMap<String, BTreeMap<String, Vec<Hack>>> {
-        let mut all_hacks = self.app.hacks.clone();
-        all_hacks.extend(self.app.config.local_hacks.iter().map(|lh| {
-            Hack {
-                name: std::path::Path::new(&lh.dll)
-                    .file_name()
-                    .map(|os_str| os_str.to_string_lossy().to_string())
-                    .unwrap_or_else(|| "Unknown".to_string()),
-                process: lh.process.clone(),
-                file: std::path::Path::new(&lh.dll)
-                    .file_name()
-                    .unwrap_or_default()
-                    .to_string_lossy()
-                    .to_string(),
-                file_path: std::path::Path::new(&lh.dll).to_path_buf(),
-                game: "Added".to_string(),
-                local: true,
-                arch: lh.arch.clone(),
-                ..Default::default()
-            }
-        }));
-        Self::group_hacks_by_game_internal(&all_hacks, &self.app.config)
-    }
-
-    fn group_hacks_by_game_internal(
-        hacks: &[Hack],
-        config: &Config,
-    ) -> BTreeMap<String, BTreeMap<String, Vec<Hack>>> {
-        let mut hacks_by_game: BTreeMap<String, BTreeMap<String, Vec<Hack>>> = BTreeMap::new();
-
-        for hack in hacks {
-            if config.show_only_favorites && !config.favorites.contains(&hack.name) {
-                continue;
-            }
-
-            let game = hack.game.clone();
-
-            if game.starts_with("CSS") {
-                Self::group_css_hacks_internal(&mut hacks_by_game, hack.clone());
-            } else if game.starts_with("Rust") {
-                Self::group_rust_hacks_internal(&mut hacks_by_game, hack.clone());
-            } else {
-                Self::group_other_hacks_internal(&mut hacks_by_game, hack.clone());
-            }
-        }
-        hacks_by_game
-    }
-
-    fn group_css_hacks_internal(
-        hacks_by_game: &mut BTreeMap<String, BTreeMap<String, Vec<Hack>>>,
-        hack: Hack,
-    ) {
-        let parts = hack.game.split_whitespace();
-        let game_name = "CSS".to_string();
-        let version = parts.skip(1).collect::<Vec<&str>>().join(" ");
-        let version = if version.is_empty() {
-            "Default".to_string()
-        } else {
-            version
-        };
-        hacks_by_game
-            .entry(game_name)
-            .or_insert_with(BTreeMap::new)
-            .entry(version)
-            .or_insert_with(Vec::new)
-            .push(hack);
-    }
-
-    fn group_rust_hacks_internal(
-        hacks_by_game: &mut BTreeMap<String, BTreeMap<String, Vec<Hack>>>,
-        hack: Hack,
-    ) {
-        let parts = hack.game.split(",");
-        let game_name = "Rust (NonSteam)".to_string();
-        let version = parts.skip(1).collect::<Vec<&str>>().join(",");
-        let version = if version.is_empty() {
-            "Default".to_string()
-        } else {
-            version
-        };
-
-        hacks_by_game
-            .entry(game_name)
-            .or_insert_with(BTreeMap::new)
-            .entry(version)
-            .or_insert_with(Vec::new)
-            .push(hack);
-    }
-
-    fn group_other_hacks_internal(
-        hacks_by_game: &mut BTreeMap<String, BTreeMap<String, Vec<Hack>>>,
-        hack: Hack,
-    ) {
-        hacks_by_game
-            .entry(hack.game.clone())
-            .or_insert_with(BTreeMap::new)
-            .entry("".to_string())
-            .or_insert_with(Vec::new)
-            .push(hack);
     }
 
     fn render_left_panel(
@@ -443,6 +356,11 @@ impl MyApp {
                                 ui.label("You enabled 'Show only favorites' and no favorites are available.");
                             } else {
                                 ui.label("All games are hidden");
+
+                                if ui.icon_button(ICON_VISIBILITY, "Show all").clicked() {
+                                    self.app.config.hidden_games.clear();
+                                    self.app.config.save();
+                                }
                             }
                             if ui.cbutton("Go to settings").clicked() {
                                 self.ui.tab = AppTab::Settings;
@@ -659,13 +577,13 @@ impl App for MyApp {
             egui::Color32::DARK_GRAY
         };
 
-        if self.parse_error.is_some() {
+        if self.ui.parse_error.is_some() {
             egui::CentralPanel::default().show(ctx, |ui| {
                 ui.vertical_centered(|ui| {
                     ui.add_space(130.0);
                     ui.colored_label(
                         egui::Color32::RED,
-                        RichText::new(self.parse_error.as_ref().unwrap())
+                        RichText::new(self.ui.parse_error.as_ref().unwrap())
                             .size(24.0)
                             .strong(),
                     );
@@ -704,7 +622,11 @@ impl App for MyApp {
                         RichText::new("New version available!").size(24.0).strong(),
                     );
 
-                    ui.label(format!("Newest version is: {} (you are on {})", self.app.updater.new_version.as_ref().unwrap(), self.app_version));
+                    ui.label(format!(
+                        "Newest version is: {} (you are on {})",
+                        self.app.updater.new_version.as_ref().unwrap(),
+                        self.app.meta.version
+                    ));
                     ui.label("Please download the latest version from the website.");
 
                     ui.add_space(5.0);

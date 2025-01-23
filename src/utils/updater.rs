@@ -1,5 +1,6 @@
 use serde::Deserialize;
 
+#[derive(Debug)]
 pub struct Updater {
     pub current_version: String,
     pub new_version: Option<String>,

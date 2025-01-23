@@ -197,7 +197,7 @@ impl MyApp {
                                         } else {
                                             if ui
                                                 .cbutton(ICON_VISIBILITY)
-                                                .on_hover_text("Toggle on visibility")
+                                                .on_hover_text("Toggle off visibility")
                                                 .clicked()
                                             {
                                                 hidden_games.insert(game_name.clone());
@@ -220,14 +220,14 @@ impl MyApp {
                         ui.add_space(5.0);
 
                         ui.horizontal(|ui| {
-                            if ui.icon_button(ICON_VISIBILITY_OFF, "Hide all").clicked() {
-                                self.app.config.hidden_games =
-                                    self.app.config.game_order.clone().into_iter().collect();
+                            if ui.icon_button(ICON_VISIBILITY, "Show all").clicked() {
+                                self.app.config.hidden_games.clear();
                                 self.app.config.save();
                             }
 
-                            if ui.icon_button(ICON_VISIBILITY, "Show all").clicked() {
-                                self.app.config.hidden_games.clear();
+                            if ui.icon_button(ICON_VISIBILITY_OFF, "Hide all").clicked() {
+                                self.app.config.hidden_games =
+                                    self.app.config.game_order.clone().into_iter().collect();
                                 self.app.config.save();
                             }
                         });
@@ -425,16 +425,12 @@ impl MyApp {
                             modal_injector.open();
                         }
 
-                        ui.add_space(5.0);
-
                         if ui.cbutton("Download stable injectors").clicked() {
                             self.download_injectors(
                                 self.communication.messages.sender.clone(),
                                 false,
                             );
                         }
-
-                        ui.add_space(5.0);
 
                         if ui.cbutton("Download nightly injectors").clicked() {
                             self.download_injectors(
@@ -506,18 +502,12 @@ impl MyApp {
 
                     ui.horizontal(|ui| {
                         if ui.cbutton("Open loader folder").clicked() {
-                            let downloads_dir = dirs::config_dir()
-                                .unwrap_or_else(|| std::path::PathBuf::from("."))
-                                .join("anarchyloader");
-                            let _ = opener::open(downloads_dir);
+                            let _ = opener::open(self.app.meta.path.clone());
                         }
 
-                        if ui.cbutton("Open log file").clicked() {
-                            let log_file = dirs::config_dir()
-                                .unwrap_or_else(|| std::path::PathBuf::from("."))
-                                .join("anarchyloader")
-                                .join("anarchyloader.log");
-                            let _ = opener::open(log_file);
+                        #[cfg(debug_assertions)]
+                        if ui.cbutton("Open config file").clicked() {
+                            let _ = opener::open(self.app.meta.path.join("config.json").clone());
                         }
                     });
 

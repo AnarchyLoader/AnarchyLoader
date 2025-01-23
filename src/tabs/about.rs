@@ -32,9 +32,9 @@ impl MyApp {
                             ui.fonts(|f| f.glyph_width(&TextStyle::Body.resolve(ui.style()), ' '));
                         ui.spacing_mut().item_spacing.x = width;
 
-                        ui.label(RichText::new(format!("v{}", self.app_version)).size(15.0));
+                        ui.label(RichText::new(format!("v{}", self.app.meta.version)).size(15.0));
                         ui.add_space(2.5);
-                        ui.clink(RichText::new(format!("({:.7})", env!("GIT_HASH"))).color(egui::Color32::DARK_GRAY), &format!("https://github.com/AnarchyLoader/AnarchyLoader/commit/{}", env!("GIT_HASH")));
+                        ui.clink(RichText::new(format!("({:.7})", self.app.meta.commit)).color(egui::Color32::DARK_GRAY), &format!("https://github.com/AnarchyLoader/AnarchyLoader/commit/{}", env!("GIT_HASH")));
                         ui.add_space(2.5);
                         #[cfg(debug_assertions)]
                         ui.label(RichText::new("⚠ debug build ⚠").color(egui::Color32::YELLOW));

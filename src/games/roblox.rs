@@ -8,6 +8,11 @@ use crate::{hacks::Hack, utils::downloader, MyApp};
 
 pub struct Roblox {}
 
+fn change_status_message(status_message: &Arc<Mutex<String>>, message: &str) {
+    let mut status = status_message.lock().unwrap();
+    *status = message.to_string();
+}
+
 impl Roblox {
     /// Download the roblox zip
     pub fn download_executor() -> Result<(), Box<dyn std::error::Error>> {
@@ -19,8 +24,7 @@ impl Roblox {
     pub fn extract_executor(
         status_message: Arc<Mutex<String>>,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let mut status = status_message.lock().unwrap();
-        *status = "Extracting...".to_string();
+        change_status_message(&status_message, "Extracting...");
 
         let app_path = dirs::config_dir()
             .unwrap_or_else(|| std::path::PathBuf::from("."))
@@ -55,14 +59,11 @@ impl MyApp {
         let status_message = Arc::clone(&self.communication.status_message);
         let ctx_clone = ctx.clone();
         let message_sender_clone = message_sender.clone();
-        let folder_path = self.app_path.join("roblox");
-        let zip_path = self.app_path.join("roblox.zip");
-        let app_path_clone = self.app_path.clone();
+        let folder_path = self.app.meta.path.join("roblox");
+        let zip_path = self.app.meta.path.join("roblox.zip");
+        let app_path_clone = self.app.meta.path.clone();
 
-        {
-            let mut status = status_message.lock().unwrap();
-            *status = "Running...".to_string();
-        }
+        change_status_message(&status_message, "Running...");
 
         in_progress.store(true, std::sync::atomic::Ordering::SeqCst);
 
@@ -70,22 +71,17 @@ impl MyApp {
             ctx_clone.request_repaint();
 
             if !folder_path.exists() {
-                {
-                    let mut status = status_message.lock().unwrap();
-                    *status = "Downloading...".to_string();
-                }
+                change_status_message(&status_message, "Downloading...");
                 ctx_clone.request_repaint();
 
                 match Roblox::download_executor() {
                     Ok(_) => {
-                        let mut status = status_message.lock().unwrap();
-                        *status = "Downloaded.".to_string();
+                        change_status_message(&status_message, "Downloaded.");
                         log::debug!("Downloaded executor");
                         ctx_clone.request_repaint();
                     }
                     Err(e) => {
-                        let mut status = status_message.lock().unwrap();
-                        *status = format!("{}", e);
+                        change_status_message(&status_message, &format!("{}", e));
                         in_progress.store(false, std::sync::atomic::Ordering::SeqCst);
                         log::error!("Failed to download: {}", e);
                         ctx_clone.request_repaint();
@@ -96,8 +92,7 @@ impl MyApp {
 
             if zip_path.exists() {
                 if let Err(e) = Roblox::extract_executor(status_message.clone()) {
-                    let mut status = status_message.lock().unwrap();
-                    *status = format!("Failed to extract: {}", e);
+                    change_status_message(&status_message, &format!("Failed to extract: {}", e));
                     in_progress.store(false, std::sync::atomic::Ordering::SeqCst);
                     log::error!("Failed to extract: {}", e);
                     ctx_clone.request_repaint();
@@ -105,8 +100,7 @@ impl MyApp {
                 }
             }
 
-            let mut status = status_message.lock().unwrap();
-            *status = "Running...".to_string();
+            change_status_message(&status_message, "Running...");
 
             let executor_path = app_path_clone.join("roblox").join(&selected_clone.file);
 
@@ -123,8 +117,7 @@ impl MyApp {
                     std::process::exit(0);
                 }
                 Err(e) => {
-                    let mut status = status_message.lock().unwrap();
-                    *status = format!("Failed to run: {}", e);
+                    change_status_message(&status_message, &format!("Failed to run: {}", e));
                     in_progress.store(false, std::sync::atomic::Ordering::SeqCst);
                     log::error!("Failed to run: {}", e);
                     ctx_clone.request_repaint();

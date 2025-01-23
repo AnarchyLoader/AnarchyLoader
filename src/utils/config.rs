@@ -116,7 +116,7 @@ impl Config {
         fs::create_dir_all(&config_dir).ok();
         let config_path = config_dir.join("config.json");
 
-        if let Ok(data) = serde_json::to_string(&self) {
+        if let Ok(data) = serde_json::to_string_pretty(&self) {
             fs::write(config_path, data).ok();
         }
     }
