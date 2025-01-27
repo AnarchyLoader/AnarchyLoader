@@ -10,7 +10,7 @@ use simplelog::{CombinedLogger, LevelFilter, SharedLogger, TermLogger, WriteLogg
 
 use crate::LOGGER;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct MyLogger {
     pub buffer: Arc<Mutex<String>>,
 }

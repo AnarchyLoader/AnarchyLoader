@@ -8,18 +8,17 @@ impl MyApp {
             egui::ScrollArea::vertical()
                 .drag_to_scroll(false)
                 .show(ui, |ui| {
-                    ui.heading("Debug");
-                    ui.separator();
+                    ui.set_width(ui.available_width());
 
                     ui.collapsing("Variables", |ui| {
                         let debug_info = vec![
                             ("Hacks:", format!("{:#?}", self.app.hacks)),
                             ("Config:", format!("{:#?}", self.app.config)),
                             ("Statistics:", format!("{:#?}", self.app.statistics)),
-                            ("Selected Hack:", format!("{:#?}", self.app.selected_hack)),
                             ("Updater:", format!("{:#?}", self.app.updater)),
                             ("Cache:", format!("{:#?}", self.app.cache)),
                             ("Ui states:", format!("{:#?}", self.ui)),
+                            ("Communication:", format!("{:#?}", self.communication)),
                         ];
 
                         for (label, value) in &debug_info {

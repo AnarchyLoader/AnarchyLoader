@@ -18,8 +18,8 @@ use eframe::{
     App,
 };
 use egui::{
-    scroll_area::ScrollBarVisibility::AlwaysHidden, CursorIcon::PointingHand as Clickable,
-    DroppedFile, Sense,
+    emath::easing, scroll_area::ScrollBarVisibility::AlwaysHidden,
+    CursorIcon::PointingHand as Clickable, DroppedFile, Sense,
 };
 use egui_alignments::center_vertical;
 use egui_commonmark::CommonMarkCache;
@@ -27,22 +27,24 @@ use egui_material_icons::icons::{
     ICON_AWARD_STAR, ICON_EDITOR_CHOICE, ICON_MILITARY_TECH, ICON_VISIBILITY,
 };
 use egui_notify::Toasts;
+use egui_transition_animation::{animated_pager, TransitionStyle, TransitionType};
 use games::local::LocalUI;
 use hacks::{get_all_processes, get_hack_by_name, Hack};
 use is_elevated::is_elevated;
 #[cfg(feature = "scanner")]
 use scanner::scanner::ScannerPopup;
-use tabs::top_panel::AppTab;
+use tabs::{settings::TransitionPopup, top_panel::AppTab};
 use utils::{
     config::Config,
     custom_widgets::{Button, CheckBox, Hyperlink},
     logger::MyLogger,
     messages::ToastsMessages,
-    rpc::Rpc,
+    rpc::{Rpc, RpcUpdate},
     statistics::Statistics,
     steam::SteamAccount,
     updater::{self, Updater},
 };
+use winreg::{enums::HKEY_LOCAL_MACHINE, RegKey};
 
 pub(crate) fn load_icon() -> egui::IconData {
     let (icon_rgba, icon_width, icon_height) = {
@@ -109,16 +111,19 @@ struct UIState {
 #[derive(Debug)]
 struct Popups {
     local_hack: LocalUI,
+    transition: TransitionPopup,
     #[cfg(feature = "scanner")]
     scanner: ScannerPopup,
 }
 
+#[derive(Debug)]
 struct Communication {
     status_message: Arc<Mutex<String>>,
     in_progress: Arc<std::sync::atomic::AtomicBool>,
     messages: ToastsMessages,
     log_buffer: Arc<Mutex<String>>,
     logger: MyLogger,
+    transitioning: bool,
 }
 
 #[derive(Debug)]
@@ -126,6 +131,8 @@ struct AppMeta {
     version: String,
     path: std::path::PathBuf,
     commit: String,
+    os_version: String,
+    session: String,
 }
 
 struct MyApp {
@@ -138,9 +145,43 @@ struct MyApp {
 
 fn default_main_menu_message() -> String {
     format!(
-        "Hello {}!\nPlease select a cheat from the list.",
+        "Hello {}!\nPlease select a hack from the list.",
         whoami::username()
     )
+}
+
+fn get_windows_version() -> Option<String> {
+    let hkey = RegKey::predef(HKEY_LOCAL_MACHINE);
+    let key = hkey
+        .open_subkey("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion")
+        .ok()?;
+    let product_name: String = key.get_value("ProductName").ok()?;
+    let release_id: String = key.get_value("ReleaseId").ok()?;
+    let build: String = key.get_value("CurrentBuild").ok()?;
+    Some(format!(
+        "{} (Release ID: {}, Build: {})",
+        product_name, release_id, build
+    ))
+}
+
+fn calculate_session(time: String) -> String {
+    let session_start = chrono::DateTime::parse_from_rfc3339(&time)
+        .unwrap()
+        .with_timezone(&chrono::Local);
+    let session_duration = chrono::Local::now() - session_start;
+    let hours = session_duration.num_hours();
+    let minutes = session_duration.num_minutes() % 60;
+    let seconds = session_duration.num_seconds() % 60;
+    if hours > 0 {
+        format!(
+            "Your session was running for: {} hours and {} minutes",
+            hours, minutes
+        )
+    } else if minutes > 0 {
+        format!("Your session was running for: {} minutes", minutes)
+    } else {
+        format!("Your session was running for: {} seconds", seconds)
+    }
 }
 
 static LOGGER: OnceLock<MyLogger> = OnceLock::new();
@@ -149,6 +190,7 @@ impl MyApp {
     // MARK: Init
     fn new(cc: &eframe::CreationContext) -> Self {
         let mut config = Config::load();
+        let config_clone = config.clone();
         let app_path = dirs::config_dir()
             .unwrap_or_else(|| std::path::PathBuf::from("."))
             .join("anarchyloader");
@@ -271,6 +313,8 @@ impl MyApp {
                     version: env!("CARGO_PKG_VERSION").to_string(),
                     path: app_path,
                     commit: env!("GIT_HASH").to_string(),
+                    os_version: get_windows_version().unwrap_or_else(|| "Unknown".to_string()),
+                    session: chrono::Local::now().to_rfc3339(),
                 },
             },
             ui: UIState {
@@ -284,6 +328,11 @@ impl MyApp {
                         new_local_dll: String::new(),
                         new_local_process: String::new(),
                         new_local_arch: String::new(),
+                    },
+
+                    transition: TransitionPopup {
+                        duration: config_clone.transition_duration.clone(),
+                        amount: config_clone.transition_amount.clone(),
                     },
 
                     #[cfg(feature = "scanner")]
@@ -300,6 +349,7 @@ impl MyApp {
                 messages,
                 log_buffer,
                 logger: logger.clone(),
+                transitioning: false,
             },
             rpc,
             toasts: Toasts::default(),
@@ -563,6 +613,16 @@ impl MyApp {
         self.render_left_panel(ctx, hacks_by_game);
         self.render_central_panel(ctx, theme_color);
     }
+
+    fn render_tabs(&mut self, ctx: &egui::Context, tab: AppTab, theme_color: egui::Color32) {
+        match tab {
+            AppTab::Home => self.render_home_tab(ctx, theme_color),
+            AppTab::Settings => self.render_settings_tab(ctx),
+            AppTab::About => self.render_about_tab(ctx),
+            AppTab::Logs => self.render_logs_tab(ctx),
+            AppTab::Debug => self.render_debug_tab(ctx),
+        }
+    }
 }
 
 impl App for MyApp {
@@ -661,12 +721,33 @@ impl App for MyApp {
         self.handle_dnd(ctx);
         self.handle_received_messages();
 
-        match self.ui.tab {
-            AppTab::Home => self.render_home_tab(ctx, theme_color),
-            AppTab::Settings => self.render_settings_tab(ctx),
-            AppTab::About => self.render_about_tab(ctx),
-            AppTab::Logs => self.render_logs_tab(ctx),
-            AppTab::Debug => self.render_debug_tab(ctx),
-        }
+        egui::CentralPanel::default().show(ctx, |ui| {
+            if self.app.config.enable_tab_animations {
+                let transition_style = TransitionStyle {
+                    easing: easing::cubic_in_out,
+                    t_type: TransitionType::HorizontalMove,
+                    duration: self.app.config.transition_duration,
+                    amount: self.app.config.transition_amount,
+                };
+
+                let state = animated_pager(
+                    ui,
+                    self.ui.tab.clone(),
+                    &transition_style,
+                    egui::Id::new("tabs"),
+                    |_, tab| self.render_tabs(ctx, tab, theme_color),
+                );
+
+                self.communication.transitioning = state.animation_running;
+            } else {
+                self.render_tabs(ctx, self.ui.tab.clone(), theme_color);
+            }
+        });
+    }
+
+    fn on_exit(&mut self, _gl: Option<&eframe::glow::Context>) {
+        self.rpc.sender.send(RpcUpdate::Shutdown).ok();
+
+        log::info!("{}", calculate_session(self.app.meta.session.clone()));
     }
 }

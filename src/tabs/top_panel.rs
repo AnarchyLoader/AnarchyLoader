@@ -2,7 +2,7 @@ use egui_material_icons::*;
 
 use crate::{utils::custom_widgets::SelectableLabel, MyApp};
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Eq)]
 pub enum AppTab {
     Home,
     Settings,
@@ -102,6 +102,10 @@ impl MyApp {
             .on_hover_text(tooltip)
             .clicked()
         {
+            if self.communication.transitioning {
+                return;
+            }
+
             self.ui.tab = tab.clone();
 
             if !self.app.config.disable_rpc {

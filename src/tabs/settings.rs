@@ -4,8 +4,10 @@ use egui_material_icons::icons::{ICON_VISIBILITY, ICON_VISIBILITY_OFF};
 use egui_modal::Modal;
 use egui_theme_switch::ThemeSwitch;
 
+#[cfg(feature = "scanner")]
+use crate::scanner::scanner::ScannerPopup;
 use crate::{
-    games::local::LocalHack,
+    games::local::{LocalHack, LocalUI},
     hacks,
     utils::{
         config::{
@@ -18,14 +20,28 @@ use crate::{
     MyApp,
 };
 
+#[derive(Debug)]
+pub struct TransitionPopup {
+    pub duration: f32,
+    pub amount: f32,
+}
+
+impl Default for TransitionPopup {
+    fn default() -> Self {
+        TransitionPopup {
+            duration: 0.20,
+            amount: 32.0,
+        }
+    }
+}
+
 impl MyApp {
     pub fn render_settings_tab(&mut self, ctx: &egui::Context) -> () {
         egui::CentralPanel::default().show(ctx, |ui| {
             egui::ScrollArea::vertical()
                 .drag_to_scroll(false)
                 .show(ui, |ui| {
-                    ui.heading("Settings");
-                    ui.separator();
+                    ui.set_width(ui.available_width());
 
                     #[cfg(feature = "scanner")]
                     {
@@ -148,6 +164,63 @@ impl MyApp {
                         {
                             self.app.config.save();
                         }
+
+                        let modal_transition = Modal::new(ctx, "transition_configure_dialog")
+                            .with_close_on_outside_click(true);
+
+                        modal_transition.show(|ui| {
+                            ui.label("Transition duration (secs):");
+
+                            ui.add(
+                                egui::Slider::new(
+                                    &mut self.ui.popups.transition.duration,
+                                    0.10..=1.0,
+                                )
+                                .text("secs"),
+                            );
+
+                            ui.label("Transition amount:");
+                            ui.add(
+                                egui::Slider::new(
+                                    &mut self.ui.popups.transition.amount,
+                                    0.0..=64.0,
+                                )
+                                .text("amount"),
+                            );
+
+                            ui.horizontal(|ui| {
+                                if ui.cbutton("Confirm").clicked() {
+                                    self.app.config.transition_duration =
+                                        self.ui.popups.transition.duration;
+
+                                    self.app.config.transition_amount =
+                                        self.ui.popups.transition.amount;
+
+                                    self.app.config.save();
+                                    self.toasts.success("Transition updated.");
+                                    modal_transition.close();
+                                }
+                                if ui.cbutton("Cancel").clicked() {
+                                    modal_transition.close();
+                                }
+                            });
+                        });
+
+                        if ui
+                            .ccheckbox(
+                                &mut self.app.config.enable_tab_animations,
+                                "Enable tab animations",
+                            )
+                            .changed()
+                        {
+                            self.app.config.save();
+                        }
+
+                        if ui.cbutton("Configure transitions").clicked() {
+                            modal_transition.open();
+                        }
+
+                        ui.add_space(5.0);
 
                         ui.horizontal(|ui| {
                             ui.label("Favorites Color:");
@@ -526,6 +599,16 @@ impl MyApp {
                                 {
                                     self.app.config.reset();
                                     self.app.config.reset_game_order();
+
+                                    // clear popups
+                                    self.ui.popups.transition = TransitionPopup::default();
+                                    self.ui.popups.local_hack = LocalUI::default();
+
+                                    #[cfg(feature = "scanner")]
+                                    {
+                                        self.ui.popups.scanner = ScannerPopup::default();
+                                    }
+
                                     self.toasts.success("Settings reset.");
                                     modal_settings.close();
                                 }

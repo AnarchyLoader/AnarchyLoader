@@ -15,10 +15,19 @@ pub struct Scanner {
     pub file: PathBuf,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ScannerPopup {
     pub dll: String,
     pub show_results: bool,
+}
+
+impl Default for ScannerPopup {
+    fn default() -> Self {
+        Self {
+            dll: String::new(),
+            show_results: false,
+        }
+    }
 }
 
 #[cfg(feature = "scanner")]
@@ -152,7 +161,7 @@ impl MyApp {
 
             if self.ui.popups.scanner.show_results {
                 if ui.cbutton("Open results").clicked() {
-                    match opener::open(self.app_path.join("scanner_results.txt")) {
+                    match opener::open(self.app.meta.path.join("scanner_results.txt")) {
                         Ok(_) => {
                             self.toasts.success("Results opened.");
                         }
@@ -179,7 +188,7 @@ impl MyApp {
                         .info("Scanning PE-File using pelite...")
                         .duration(Some(std::time::Duration::from_secs(5)));
 
-                    match scanner.scan(self.app_path.clone()) {
+                    match scanner.scan(self.app.meta.path.clone()) {
                         Ok(()) => {
                             self.ui.popups.scanner.show_results = true;
                         }

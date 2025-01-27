@@ -3,6 +3,7 @@ use std::env;
 use egui::{RichText, Sense, TextStyle};
 
 use crate::{
+    calculate_session,
     utils::custom_widgets::{Button, Hyperlink},
     MyApp,
 };
@@ -13,9 +14,9 @@ impl MyApp {
             egui::ScrollArea::vertical()
                 .drag_to_scroll(false)
                 .show(ui, |ui| {
-                    ui.heading("About");
-                    ui.separator();
-                    if ui
+                    ui.set_width(ui.available_width());
+
+                   if ui
                         .add(
                             egui::Image::new(egui::include_image!("../../resources/img/icon.ico"))
                                 .max_width(100.0)
@@ -43,8 +44,17 @@ impl MyApp {
                     ui.add_space(5.0);
                     ui.label(RichText::new("AnarchyLoader is a free and open-source cheat loader for various games.").size(16.0));
                     if !self.app.config.hide_statistics {
-                        ui.label(format!("btw, you opened it {} times", self.app.statistics.opened_count));
+                       let opened_message = if self.app.statistics.opened_count == 0 {
+                                "You're new here! Welcome!".to_string()
+                            } else {
+                                format!("btw, you opened it {} times", self.app.statistics.opened_count)
+                            };
+                       ui.label(opened_message);
                     }
+
+                    ui.label(format!("Running on {}", self.app.meta.os_version));
+                    ui.label(format!("{}", calculate_session(self.app.meta.session.clone())));
+
                     ui.add_space(5.0);
                     ui.horizontal_wrapped(|ui| {
                         let width =

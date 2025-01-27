@@ -13,7 +13,7 @@ egui = { version = "0.30.0", features = ["serde"] }
 serde = { version = "1.0.217", features = ["derive"] }
 opener = "0.7.2"
 dirs = "6.0.0"
-serde_json = "1.0.136"
+serde_json = "1.0.137"
 image = { version = "0.25.5", features = ["png"] }
 is_elevated = "0.1.2"
 egui-notify = "0.18.0"
@@ -30,7 +30,7 @@ egui-modal = "0.6.0"
 winreg = "0.55.0"
 egui_dnd = "0.11.0"
 zip-extract = "0.2.1"
-semver = "1.0.24"
+semver = "1.0.25"
 rfd = "0.15.2"
 egui_commonmark = "0.19.0"
 pelite = { version = "0.10.0", optional = true }
@@ -38,6 +38,8 @@ egui-theme-switch = "0.2.3"
 egui_material_icons = "0.2.0"
 regex = { version = "1.11.1", optional = true }
 url = "2.5.4"
+egui_transition_animation = { git = "https://github.com/dest4590/egui_transition_animation.git"}
+windows-version = "0.1.2"
 
 [build-dependencies]
 winres = "0.1.12"

@@ -5,6 +5,7 @@ use std::{
 
 use crate::MyApp;
 
+#[derive(Debug)]
 pub struct ToastsMessages {
     pub sender: mpsc::Sender<String>,
     pub receiver: mpsc::Receiver<String>,
