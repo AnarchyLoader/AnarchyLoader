@@ -1,4 +1,4 @@
-use std::{fs::File, io::{copy, Read}, thread, time::Duration};
+use std::{fs::File, io::{copy, Read, Write}, thread, time::Duration};
 
 use super::config::Config;
 
