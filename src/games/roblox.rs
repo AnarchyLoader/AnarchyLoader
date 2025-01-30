@@ -2,6 +2,7 @@ use std::{
     process::Command,
     sync::{mpsc::Sender, Arc, Mutex},
     thread,
+    time::Duration,
 };
 
 use crate::{hacks::Hack, utils::downloader, MyApp};
@@ -15,7 +16,10 @@ fn change_status_message(status_message: &Arc<Mutex<String>>, message: &str) {
 
 impl Roblox {
     /// Download the roblox zip
-    pub fn download_executor() -> Result<(), Box<dyn std::error::Error>> {
+    pub fn download_executor(
+        status_message: Arc<Mutex<String>>,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        change_status_message(&status_message, "Downloading...");
         downloader::download_file("roblox.zip")?;
         Ok(())
     }
@@ -74,7 +78,7 @@ impl MyApp {
                 change_status_message(&status_message, "Downloading...");
                 ctx_clone.request_repaint();
 
-                match Roblox::download_executor() {
+                match Roblox::download_executor(status_message.clone()) {
                     Ok(_) => {
                         change_status_message(&status_message, "Downloaded.");
                         log::debug!("Downloaded executor");
