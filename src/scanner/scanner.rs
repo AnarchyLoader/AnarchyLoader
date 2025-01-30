@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use egui_modal::Modal;
-use pelite::{pe, strings::Config};
+use pelite::strings::Config;
 #[cfg(feature = "scanner")]
 use pelite::{
     pe64::{Pe, PeFile},
@@ -41,7 +41,7 @@ impl Scanner {
 
         let file_map = FileMap::open(self.file.as_path()).unwrap();
 
-        let file = match pe::PeFile::from_bytes(file_map.as_ref()) {
+        let file = match PeFile::from_bytes(file_map.as_ref()) {
             Ok(file) => file,
             Err(err) => return Err(format!("Failed to parse PE file: {}", err)),
         };

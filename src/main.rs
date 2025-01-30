@@ -19,7 +19,7 @@ use eframe::{
 };
 use egui::{
     emath::easing, scroll_area::ScrollBarVisibility::AlwaysHidden,
-    CursorIcon::PointingHand as Clickable, DroppedFile, Sense,
+    CursorIcon::PointingHand as Clickable, DroppedFile, Id, Sense,
 };
 use egui_alignments::center_vertical;
 use egui_commonmark::CommonMarkCache;
@@ -42,9 +42,11 @@ use utils::{
     rpc::{Rpc, RpcUpdate},
     statistics::Statistics,
     steam::SteamAccount,
-    updater::{self, Updater},
+    updater::Updater,
 };
 use winreg::{enums::HKEY_LOCAL_MACHINE, RegKey};
+
+use crate::utils::intro::{AnimationPhase, AnimationState};
 
 pub(crate) fn load_icon() -> egui::IconData {
     let (icon_rgba, icon_width, icon_height) = {
@@ -69,7 +71,7 @@ fn main() {
         viewport: egui::ViewportBuilder::default()
             .with_min_inner_size(egui::vec2(600.0, 200.0))
             .with_inner_size(egui::vec2(800.0, 400.0))
-            .with_icon(std::sync::Arc::new(load_icon())),
+            .with_icon(Arc::new(load_icon())),
         ..Default::default()
     };
     eframe::run_native(
@@ -106,6 +108,8 @@ struct UIState {
     selected_process_dnd: String,
     popups: Popups,
     parse_error: Option<String>,
+    animation: AnimationState,
+    transitioning: bool,
 }
 
 #[derive(Debug)]
@@ -123,7 +127,6 @@ struct Communication {
     messages: ToastsMessages,
     log_buffer: Arc<Mutex<String>>,
     logger: MyLogger,
-    transitioning: bool,
 }
 
 #[derive(Debug)]
@@ -173,14 +176,11 @@ fn calculate_session(time: String) -> String {
     let minutes = session_duration.num_minutes() % 60;
     let seconds = session_duration.num_seconds() % 60;
     if hours > 0 {
-        format!(
-            "Your session was running for: {} hours and {} minutes",
-            hours, minutes
-        )
+        format!("{} hours and {} minutes", hours, minutes)
     } else if minutes > 0 {
-        format!("Your session was running for: {} minutes", minutes)
+        format!("{} minutes", minutes)
     } else {
-        format!("Your session was running for: {} seconds", seconds)
+        format!("{} seconds", seconds)
     }
 }
 
@@ -264,13 +264,10 @@ impl MyApp {
 
         let hacks_processes = get_all_processes(&hacks);
 
-        let account = match SteamAccount::new() {
-            Ok(account) => account,
-            Err(_) => {
-                log::warn!("Failed to get Steam account details");
-                SteamAccount::default()
-            }
-        };
+        let account = SteamAccount::new().unwrap_or_else(|_| {
+            log::warn!("Failed to get Steam account details");
+            SteamAccount::default()
+        });
 
         let rpc = Rpc::new(!config.disable_rpc);
         rpc.update(
@@ -290,7 +287,7 @@ impl MyApp {
             );
         }
 
-        let mut updater = updater::Updater::default();
+        let mut updater = Updater::default();
 
         if updater.check_version() {
             log::info!(
@@ -305,7 +302,7 @@ impl MyApp {
                 hacks_processes,
                 selected_hack,
                 config,
-                statistics,
+                statistics: statistics.clone(),
                 account,
                 updater,
                 cache: CommonMarkCache::default(),
@@ -342,6 +339,8 @@ impl MyApp {
                     },
                 },
                 parse_error,
+                animation: AnimationState::default(),
+                transitioning: false,
             },
             communication: Communication {
                 status_message,
@@ -349,7 +348,6 @@ impl MyApp {
                 messages,
                 log_buffer,
                 logger: logger.clone(),
-                transitioning: false,
             },
             rpc,
             toasts: Toasts::default(),
@@ -716,6 +714,22 @@ impl App for MyApp {
             return;
         }
 
+        if self.app.statistics.opened_count == 1
+            && self.ui.animation.phase != AnimationPhase::Complete
+        {
+            // uncomment to show always show intro screen
+            // if true {
+            let dt = ctx.input(|i| i.unstable_dt);
+            self.update_animation(dt);
+            self.render_intro_screen(ctx);
+
+            if self.ui.animation.phase != AnimationPhase::Complete {
+                ctx.request_repaint();
+            }
+
+            return;
+        }
+
         self.render_top_panel(ctx);
 
         self.handle_dnd(ctx);
@@ -734,11 +748,11 @@ impl App for MyApp {
                     ui,
                     self.ui.tab.clone(),
                     &transition_style,
-                    egui::Id::new("tabs"),
+                    Id::new("tabs"),
                     |_, tab| self.render_tabs(ctx, tab, theme_color),
                 );
 
-                self.communication.transitioning = state.animation_running;
+                self.ui.transitioning = state.animation_running;
             } else {
                 self.render_tabs(ctx, self.ui.tab.clone(), theme_color);
             }
@@ -748,6 +762,9 @@ impl App for MyApp {
     fn on_exit(&mut self, _gl: Option<&eframe::glow::Context>) {
         self.rpc.sender.send(RpcUpdate::Shutdown).ok();
 
-        log::info!("{}", calculate_session(self.app.meta.session.clone()));
+        log::info!(
+            "Your session was running for: {}",
+            calculate_session(self.app.meta.session.clone())
+        );
     }
 }

@@ -57,7 +57,7 @@ impl MyLogger {
                             .join("anarchyloader")
                             .join("anarchyloader.log"),
                     )
-                    .expect("Failed to create log file"),
+                        .expect("Failed to create log file"),
                 ),
                 Box::new(logger.clone()),
             ];

@@ -46,10 +46,10 @@ impl Rpc {
                 loop {
                     match rx.recv() {
                         Ok(RpcUpdate::Update {
-                            state,
-                            details,
-                            small_image,
-                        }) => {
+                               state,
+                               details,
+                               small_image,
+                           }) => {
                             if let Some(s) = state {
                                 current_state = s;
                             }
@@ -64,7 +64,7 @@ impl Rpc {
                                 let mut activity = activity::Activity::new()
                                     .state(&current_state)
                                     .details(&current_details)
-                                    .assets(activity::Assets::new().large_image("logo"));
+                                    .assets(Assets::new().large_image("logo"));
 
                                 if let Some(ref image) = current_small_image {
                                     activity = activity.assets(

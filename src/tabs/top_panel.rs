@@ -102,7 +102,7 @@ impl MyApp {
             .on_hover_text(tooltip)
             .clicked()
         {
-            if self.communication.transitioning {
+            if self.ui.transitioning {
                 return;
             }
 

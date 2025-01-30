@@ -10,9 +10,12 @@
     <img src="https://github.com/user-attachments/assets/df220eb2-3740-4f41-8a25-0f68b5b87195" width=500>
 </div>
 
+<h3 align="center"><a href="https://www.youtube.com/watch?v=Q-vz4y1qIZs">(Youtube video)</a></h3>
+
 ## Installation
 
-To install AnarchyLoader, you can download [release](https://github.com/AnarchyLoader/AnarchyLoader/releases/latest), or build it by yourself!
+To install AnarchyLoader, you can download [release](https://github.com/AnarchyLoader/AnarchyLoader/releases/latest), or
+build it by yourself!
 
 ## Contributing
 
@@ -42,19 +45,20 @@ cargo build --release
 
 ## Credits
 
--   [egui](https://github.com/emilk/egui)
--   [egui-notify](https://github.com/ItsEthra/egui-notify)
--   [egui_alignments](https://github.com/a-littlebit/egui_alignments)
--   [egui-modal](https://github.com/n00kii/egui-modal)
--   [egui-material-icons](https://github.com/lucasmerlin/hello_egui/tree/main/crates/egui_material_icons)
--   [egui-theme-switch](https://github.com/bash/egui-theme-switch)
--   [egui_transition_animation (but using fork)](https://github.com/dest4590/egui_transition_animation)
--   [vdf_reader](https://github.com/icewind1991/vdf-reader)
--   [discord-rich-presence](https://github.com/vionya/discord-rich-presence)
--   [pelite](https://github.com/CasualX/pelite)
+- [egui](https://github.com/emilk/egui)
+- [egui-notify](https://github.com/ItsEthra/egui-notify)
+- [egui_alignments](https://github.com/a-littlebit/egui_alignments)
+- [egui-modal](https://github.com/n00kii/egui-modal)
+- [egui-material-icons](https://github.com/lucasmerlin/hello_egui/tree/main/crates/egui_material_icons)
+- [egui-theme-switch](https://github.com/bash/egui-theme-switch)
+- [egui_transition_animation (but using fork)](https://github.com/dest4590/egui_transition_animation)
+- [vdf_reader](https://github.com/icewind1991/vdf-reader)
+- [discord-rich-presence](https://github.com/vionya/discord-rich-presence)
+- [pelite](https://github.com/CasualX/pelite)
 
 Contributions are welcome! Please open an issue or submit a pull request on GitHub.
 
 # License
 
-This project is licensed under the GPL 3.0 License. See the [LICENSE](https://github.com/AnarchyLoader/AnarchyLoader/blob/main/LICENSE) file for details.
+This project is licensed under the GPL 3.0 License. See
+the [LICENSE](https://github.com/AnarchyLoader/AnarchyLoader/blob/main/LICENSE) file for details.

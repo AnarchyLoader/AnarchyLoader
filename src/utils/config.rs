@@ -129,28 +129,24 @@ impl Config {
 
     pub fn update_game_order(&mut self) {
         log::info!("Updating game order");
-        let hacks = match hacks::fetch_hacks(
+        let hacks = hacks::fetch_hacks(
             &self.api_endpoint,
             &self.api_extra_endpoints,
             self.lowercase_hacks,
-        ) {
-            Ok(h) => h,
-            Err(_) => Vec::new(),
-        };
+        )
+            .unwrap_or_else(|_| Vec::new());
         let grouped = MyApp::group_hacks_by_game_internal(&hacks, self);
         self.game_order = grouped.keys().cloned().collect();
     }
 
     pub fn reset_game_order(&mut self) {
         log::info!("Resetting game order");
-        let hacks = match hacks::fetch_hacks(
+        let hacks = hacks::fetch_hacks(
             &self.api_endpoint,
             &self.api_extra_endpoints,
             self.lowercase_hacks,
-        ) {
-            Ok(h) => h,
-            Err(_) => Vec::new(),
-        };
+        )
+            .unwrap_or_else(|_| Vec::new());
         let grouped = MyApp::group_hacks_by_game_internal(&hacks, self);
         self.game_order = grouped.keys().cloned().collect();
         self.save();

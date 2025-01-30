@@ -108,11 +108,11 @@ pub(crate) fn fetch_hacks(
                 if res.status() == 200 {
                     let parsed_hacks: Vec<HackApiResponse> =
                         res.into_json().map_err(|e| e.to_string())?;
-                    if parsed_hacks.is_empty() {
-                        return Err("No hacks available.".to_string());
+                    return if parsed_hacks.is_empty() {
+                        Err("No hacks available.".to_string())
                     } else {
                         log::info!("Fetched {} hacks from API", parsed_hacks.len());
-                        return Ok(parsed_hacks
+                        Ok(parsed_hacks
                             .into_iter()
                             .map(|hack| {
                                 let name = if lowercase {
@@ -138,8 +138,8 @@ pub(crate) fn fetch_hacks(
                                     hack.working,
                                 )
                             })
-                            .collect());
-                    }
+                            .collect())
+                    };
                 }
             }
             Err(e) => log::warn!("Failed to connect to {}: {}", endpoint, e),

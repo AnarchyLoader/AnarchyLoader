@@ -44,9 +44,9 @@ impl Updater {
                         );
                         self.new_version = Some(remote_version);
                         self.need_update = true;
-                        return true;
+                        true
                     } else {
-                        return false;
+                        false
                     }
                 }
                 _ => {

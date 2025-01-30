@@ -42,10 +42,10 @@ impl MyApp {
                         if ui.cbutton("Copy debug info").clicked() {
                             let debug_info = "```\n".to_string()
                                 + &debug_info
-                                    .iter()
-                                    .filter(|(label, _)| !label.starts_with("Hacks"))
-                                    .map(|(label, value)| format!("{} {}\n", label, value))
-                                    .collect::<String>()
+                                .iter()
+                                .filter(|(label, _)| !label.starts_with("Hacks"))
+                                .map(|(label, value)| format!("{} {}\n", label, value))
+                                .collect::<String>()
                                 + "```";
                             ui.output_mut(|o| o.copied_text = debug_info);
                             self.toasts.success("Debug info copied to clipboard.");

@@ -9,10 +9,7 @@ use std::{
 use eframe::egui::{self};
 
 use crate::{
-    utils::{
-        downloader::{self, download_file},
-        messages::MessageSender,
-    },
+    utils::{downloader::download_file, messages::MessageSender},
     Hack, MyApp,
 };
 
@@ -55,8 +52,8 @@ impl MyApp {
                 let response = ureq::get(
                     "https://api.github.com/repos/AnarchyLoader/AnarchyInjector/releases",
                 )
-                .call()
-                .unwrap();
+                    .call()
+                    .unwrap();
 
                 let data: serde_json::Value = response.into_json().unwrap();
 
@@ -84,7 +81,7 @@ impl MyApp {
                             .error(&format!("Failed to get download URL for {}", injector_name));
                     }
 
-                    if let Err(e) = downloader::download_file(&download_url) {
+                    if let Err(e) = download_file(&download_url) {
                         log::error!("Failed to download {}: {}", injector_name, e);
                         let _ = message_sender
                             .error(&format!("Failed to download {}: {}", injector_name, e));
@@ -115,7 +112,7 @@ impl MyApp {
     }
 
     pub fn manual_map_inject(
-        dll_path: Option<std::path::PathBuf>,
+        dll_path: Option<PathBuf>,
         target_process: &str,
         message_sender: Sender<String>,
         status_message: Arc<Mutex<String>>,

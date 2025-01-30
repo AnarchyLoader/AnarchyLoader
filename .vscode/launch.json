@@ -1,42 +1,42 @@
 {
-    "version": "0.2.0",
-    "configurations": [
-        {
-            "type": "lldb",
-            "request": "launch",
-            "name": "Debug executable 'anarchyloader'",
-            "cargo": {
-                "args": [
-                    "build",
-                    "--bin=anarchyloader",
-                    "--package=anarchyloader"
-                ],
-                "filter": {
-                    "name": "anarchyloader",
-                    "kind": "bin"
-                }
-            },
-            "args": [],
-            "cwd": "${workspaceFolder}"
-        },
-        {
-            "type": "lldb",
-            "request": "launch",
-            "name": "Debug unit tests in executable 'anarchyloader'",
-            "cargo": {
-                "args": [
-                    "test",
-                    "--no-run",
-                    "--bin=anarchyloader",
-                    "--package=anarchyloader"
-                ],
-                "filter": {
-                    "name": "anarchyloader",
-                    "kind": "bin"
-                }
-            },
-            "args": [],
-            "cwd": "${workspaceFolder}"
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug executable 'anarchyloader'",
+      "cargo": {
+        "args": [
+          "build",
+          "--bin=anarchyloader",
+          "--package=anarchyloader"
+        ],
+        "filter": {
+          "name": "anarchyloader",
+          "kind": "bin"
         }
-    ]
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug unit tests in executable 'anarchyloader'",
+      "cargo": {
+        "args": [
+          "test",
+          "--no-run",
+          "--bin=anarchyloader",
+          "--package=anarchyloader"
+        ],
+        "filter": {
+          "name": "anarchyloader",
+          "kind": "bin"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    }
+  ]
 }

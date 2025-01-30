@@ -176,7 +176,7 @@ impl MyApp {
                                     &mut self.ui.popups.transition.duration,
                                     0.10..=1.0,
                                 )
-                                .text("secs"),
+                                    .text("secs"),
                             );
 
                             ui.label("Transition amount:");
@@ -185,7 +185,7 @@ impl MyApp {
                                     &mut self.ui.popups.transition.amount,
                                     0.0..=64.0,
                                 )
-                                .text("amount"),
+                                    .text("amount"),
                             );
 
                             ui.horizontal(|ui| {
@@ -359,13 +359,13 @@ impl MyApp {
                                         "x64".to_string(),
                                         "x64",
                                     )
-                                    .on_hover_cursor(Clickable);
+                                        .on_hover_cursor(Clickable);
                                     ui.selectable_value(
                                         &mut self.ui.popups.local_hack.new_local_arch,
                                         "x86".to_string(),
                                         "x86",
                                     )
-                                    .on_hover_cursor(Clickable);
+                                        .on_hover_cursor(Clickable);
                                 })
                                 .response
                                 .on_hover_cursor(Clickable);
@@ -402,10 +402,10 @@ impl MyApp {
                                     self.add_local_hack(hack);
                                     if !self.app.config.local_hacks.is_empty()
                                         && !self
-                                            .app
-                                            .config
-                                            .game_order
-                                            .contains(&"Added".to_string())
+                                        .app
+                                        .config
+                                        .game_order
+                                        .contains(&"Added".to_string())
                                     {
                                         self.app.config.game_order.push("Added".to_string());
                                     }

@@ -61,12 +61,10 @@ impl MyApp {
     }
 
     pub fn handle_dnd(&mut self, ctx: &egui::Context) {
-        let modal = Modal::new(ctx, "dnd_modal").with_close_on_outside_click(true);
+        let modal = Modal::new(ctx, "dnd_modal");
 
         modal.show(|ui| {
             ui.heading("Select process:");
-            ui.add_space(5.0);
-            ui.label("you can close this window by clicking outside of it.");
             ui.add_space(5.0);
             let dropped_filename = self
                 .ui
@@ -91,7 +89,7 @@ impl MyApp {
                             process.to_string(),
                             process.clone(),
                         )
-                        .on_hover_cursor(Clickable);
+                            .on_hover_cursor(Clickable);
                     }
                 })
                 .response
@@ -207,7 +205,7 @@ impl MyApp {
                 let width = ui.fonts(|f| f.glyph_width(&TextStyle::Body.resolve(ui.style()), ' '));
                 ui.spacing_mut().item_spacing.x = width;
 
-                ui.label(format!("Currently logged in as (steam):"));
+                ui.label("Currently logged in as (steam):".to_string());
                 if ui
                     .label(RichText::new(&self.app.account.name).color(theme_color))
                     .on_hover_text_at_pointer(&self.app.account.username)
@@ -228,7 +226,7 @@ impl MyApp {
         }
 
         // MARK: Inject button
-        let is_32bit = std::mem::size_of::<usize>() == 4;
+        let is_32bit = size_of::<usize>() == 4;
         let is_cs2_32bit = is_32bit && selected.process == "cs2.exe";
         let in_progress = self
             .communication
@@ -387,7 +385,7 @@ impl MyApp {
                         .button_with_tooltip("Uninstall", "Uninstall the selected hack")
                         .clicked()
                     {
-                        if let Err(e) = std::fs::remove_file(&file_path_owned) {
+                        if let Err(e) = fs::remove_file(&file_path_owned) {
                             let mut status = self.communication.status_message.lock().unwrap();
                             *status = format!("Failed to uninstall: {}", e);
                         } else {
@@ -445,9 +443,9 @@ impl MyApp {
                         let scanner =
                             Scanner::new(std::path::PathBuf::from(hack.file_path.clone()));
 
-                        match scanner.scan(self.app_path.clone()) {
+                        match scanner.scan(self.app.meta.path.clone()) {
                             Ok(()) => {
-                                match opener::open(self.app_path.join("scanner_results.txt")) {
+                                match opener::open(self.app.meta.path.join("scanner_results.txt")) {
                                     Ok(_) => {
                                         self.toasts.success("Results opened.");
                                     }

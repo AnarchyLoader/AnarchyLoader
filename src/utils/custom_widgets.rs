@@ -1,32 +1,32 @@
-use egui::{CursorIcon::PointingHand as Clickable, WidgetText};
+use egui::{CursorIcon::PointingHand as Clickable, Response, Ui, WidgetText};
 use egui_notify::Toasts;
 
 pub trait Button {
-    fn cbutton(&mut self, label: impl Into<egui::WidgetText>) -> egui::Response;
+    fn cbutton(&mut self, label: impl Into<WidgetText>) -> Response;
     fn button_with_tooltip(
         &mut self,
-        label: impl Into<egui::WidgetText>,
-        tooltip: impl Into<egui::WidgetText>,
-    ) -> egui::Response;
+        label: impl Into<WidgetText>,
+        tooltip: impl Into<WidgetText>,
+    ) -> Response;
     fn link_button(
         &mut self,
-        label: impl Into<egui::WidgetText>,
+        label: impl Into<WidgetText>,
         url: &str,
         toasts: &mut Toasts,
-    ) -> egui::Response;
-    fn icon_button(&mut self, icon: &str, label: &str) -> egui::Response;
+    ) -> Response;
+    fn icon_button(&mut self, icon: &str, label: &str) -> Response;
 }
 
-impl Button for egui::Ui {
-    fn cbutton(&mut self, label: impl Into<egui::WidgetText>) -> egui::Response {
+impl Button for Ui {
+    fn cbutton(&mut self, label: impl Into<WidgetText>) -> Response {
         self.button(label).on_hover_cursor(Clickable)
     }
 
     fn button_with_tooltip(
         &mut self,
-        label: impl Into<egui::WidgetText>,
-        tooltip: impl Into<egui::WidgetText>,
-    ) -> egui::Response {
+        label: impl Into<WidgetText>,
+        tooltip: impl Into<WidgetText>,
+    ) -> Response {
         self.button(label)
             .on_hover_cursor(Clickable)
             .on_hover_text(tooltip)
@@ -34,10 +34,10 @@ impl Button for egui::Ui {
 
     fn link_button(
         &mut self,
-        label: impl Into<egui::WidgetText>,
+        label: impl Into<WidgetText>,
         url: &str,
         toasts: &mut Toasts,
-    ) -> egui::Response {
+    ) -> Response {
         let response = self
             .button(label)
             .on_hover_cursor(Clickable)
@@ -52,18 +52,18 @@ impl Button for egui::Ui {
         response
     }
 
-    fn icon_button(&mut self, icon: &str, label: &str) -> egui::Response {
+    fn icon_button(&mut self, icon: &str, label: &str) -> Response {
         self.button(format!("{} {}", icon, label))
             .on_hover_cursor(Clickable)
     }
 }
 
 pub trait TextEdit {
-    fn ctext_edit(&mut self, text: &mut String, default_value: String) -> egui::Response;
+    fn ctext_edit(&mut self, text: &mut String, default_value: String) -> Response;
 }
 
-impl TextEdit for egui::Ui {
-    fn ctext_edit(&mut self, text: &mut String, default_value: String) -> egui::Response {
+impl TextEdit for Ui {
+    fn ctext_edit(&mut self, text: &mut String, default_value: String) -> Response {
         let response = self.text_edit_singleline(text);
 
         response.context_menu(|ui| {
@@ -78,32 +78,32 @@ impl TextEdit for egui::Ui {
 }
 
 pub trait SelectableLabel {
-    fn cselectable_label(&mut self, checked: bool, text: &str) -> egui::Response;
+    fn cselectable_label(&mut self, checked: bool, text: &str) -> Response;
 }
 
-impl SelectableLabel for egui::Ui {
-    fn cselectable_label(&mut self, checked: bool, text: &str) -> egui::Response {
+impl SelectableLabel for Ui {
+    fn cselectable_label(&mut self, checked: bool, text: &str) -> Response {
         self.selectable_label(checked, text)
             .on_hover_cursor(Clickable)
     }
 }
 
 pub trait CheckBox {
-    fn ccheckbox(&mut self, checked: &mut bool, text: impl Into<WidgetText>) -> egui::Response;
+    fn ccheckbox(&mut self, checked: &mut bool, text: impl Into<WidgetText>) -> Response;
 }
 
-impl CheckBox for egui::Ui {
-    fn ccheckbox(&mut self, checked: &mut bool, text: impl Into<WidgetText>) -> egui::Response {
+impl CheckBox for Ui {
+    fn ccheckbox(&mut self, checked: &mut bool, text: impl Into<WidgetText>) -> Response {
         self.checkbox(checked, text).on_hover_cursor(Clickable)
     }
 }
 
 pub trait Hyperlink {
-    fn clink(&mut self, text: impl Into<WidgetText>, url: &str) -> egui::Response;
+    fn clink(&mut self, text: impl Into<WidgetText>, url: &str) -> Response;
 }
 
-impl Hyperlink for egui::Ui {
-    fn clink(&mut self, text: impl Into<WidgetText>, url: &str) -> egui::Response {
+impl Hyperlink for Ui {
+    fn clink(&mut self, text: impl Into<WidgetText>, url: &str) -> Response {
         self.hyperlink_to(text, url)
             .on_hover_cursor(Clickable)
             .on_hover_text(url)
