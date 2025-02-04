@@ -1,12 +1,94 @@
-use egui::{RichText, TextStyle};
+use egui::{Image, InnerResponse, Response, RichText, TextStyle, Ui, Vec2, Widget};
 use egui_material_icons::icons::{
     ICON_BRAND_AWARENESS, ICON_COMPUTER, ICON_MENU_BOOK, ICON_PRECISION_MANUFACTURING, ICON_PUBLIC,
     ICON_SEND, ICON_SYRINGE, ICON_TIMER,
 };
 
-use crate::{calculate_session, utils::custom_widgets::Button, MyApp};
+use crate::{
+    calculate_session,
+    utils::custom_widgets::{Button, Hyperlink},
+    MyApp,
+};
+
+#[derive(Debug, Clone)]
+pub struct User {
+    pub username: String,
+    pub avatar_url: String,
+}
+
+impl User {
+    fn ui(&self, ui: &mut Ui) -> Response {
+        ui.add(
+            Image::new(self.avatar_url.clone())
+                .fit_to_exact_size(Vec2::new(32.0, 32.0))
+                .rounding(8.0),
+        )
+        .on_hover_text(self.username.clone())
+    }
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct AboutTab {
+    pub is_contributors_parsed: bool,
+    pub parsed_contributors: Vec<User>,
+    pub is_stargazers_parsed: bool,
+    pub parsed_stargazers: Vec<User>,
+}
 
 impl MyApp {
+    fn fetch_github_users(&mut self, endpoint: &str, user_type: &str) {
+        log::info!("Parsing {}...", user_type);
+        let api_url = format!(
+            "https://api.github.com/repos/AnarchyLoader/AnarchyLoader/{}?per_page=100",
+            endpoint
+        );
+
+        match ureq::get(&api_url).call().and_then(|response| {
+            response
+                .into_json::<Vec<serde_json::Value>>()
+                .map_err(ureq::Error::from)
+        }) {
+            Ok(users_data) => {
+                let users: Vec<User> = users_data
+                    .into_iter()
+                    .map(|user_json| User {
+                        username: user_json["login"].as_str().unwrap().to_string(),
+                        avatar_url: user_json["avatar_url"].as_str().unwrap().to_string(),
+                    })
+                    .collect();
+
+                match user_type {
+                    "contributors" => {
+                        self.ui.tab_states.about.parsed_contributors = users;
+                        self.ui.tab_states.about.is_contributors_parsed = true;
+                    }
+                    "stargazers" => {
+                        self.ui.tab_states.about.parsed_stargazers = users;
+                        self.ui.tab_states.about.is_stargazers_parsed = true;
+                    }
+                    _ => log::error!("Unknown user type: {}", user_type),
+                }
+            }
+            Err(e) => log::error!("Failed to parse {}: {}", user_type, e),
+        }
+    }
+
+    fn render_user_grid(&mut self, ui: &mut Ui, users: &[User]) {
+        let mut count = 0;
+        ui.horizontal(|ui| {
+            for user in users {
+                user.ui(ui);
+                count += 1;
+                if count % 3 == 0 {
+                    ui.end_row();
+                }
+            }
+            if count % 3 != 0 {
+                ui.end_row();
+            }
+        });
+    }
+
     pub fn render_about_tab(&mut self, ctx: &egui::Context) {
         egui::CentralPanel::default().show(ctx, |ui| {
             egui::ScrollArea::vertical()
@@ -16,7 +98,7 @@ impl MyApp {
 
                     // Logo section
                     ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
-                        let image = egui::Image::new(egui::include_image!("../../resources/img/icon.ico"))
+                        let image = Image::new(egui::include_image!("../../resources/img/icon.ico"))
                             .max_width(100.0);
 
                         ui.add(image);
@@ -27,7 +109,7 @@ impl MyApp {
                         ui.add_space(10.0);
                         ui.label(
                             RichText::new(format!("v{}", self.app.meta.version))
-                                .text_style(egui::TextStyle::Heading)
+                                .text_style(TextStyle::Heading)
                         );
 
                         ui.hyperlink_to(
@@ -53,7 +135,7 @@ impl MyApp {
                     ui.vertical_centered(|ui| {
                         ui.label(
                             RichText::new("AnarchyLoader is a free and open-source cheat loader for various games.")
-                                .text_style(egui::TextStyle::Body)
+                                .text_style(TextStyle::Body)
                                 .strong()
                         );
 
@@ -99,6 +181,37 @@ impl MyApp {
                     ui.link_button(format!("{} Discord", ICON_BRAND_AWARENESS), "https://discord.com/invite/VPGRgXUCsv", &mut self.toasts);
                     ui.add_space(5.0);
                     ui.link_button(format!("{} Telegram", ICON_SEND), "https://t.me/anarchyloader", &mut self.toasts);
+                    ui.add_space(15.0);
+
+                    // Contributors
+                    let contributors_collapsing = ui.collapsing("Contributors", |ui| {
+                        ui.label("Special thanks to all the contributors who helped make this project possible.");
+                        ui.add_space(5.0);
+                        if self.ui.tab_states.about.is_contributors_parsed {
+                            self.render_user_grid(ui, &self.ui.tab_states.about.parsed_contributors.clone());
+                        }
+                    });
+                    if contributors_collapsing.fully_open() && !self.ui.tab_states.about.is_contributors_parsed {
+                        self.fetch_github_users("contributors", "contributors");
+                    };
+
+                    ui.add_space(5.0);
+
+                    // Stargazers
+                    let stargazers_collapsing = ui.collapsing("Stargazers", |ui| {
+                        ui.label("Show your support by starring the project on GitHub!");
+                        ui.clink("Star AnarchyLoader!", "https://github.com/AnarchyLoader/AnarchyLoader");
+                        ui.add_space(5.0);
+
+                        if self.ui.tab_states.about.is_stargazers_parsed {
+                            self.render_user_grid(ui, &self.ui.tab_states.about.parsed_stargazers.clone());
+                        }
+                    });
+
+                    if stargazers_collapsing.fully_open() && !self.ui.tab_states.about.is_stargazers_parsed {
+                        self.fetch_github_users("stargazers", "stargazers");
+                    };
+
                     ui.add_space(15.0);
 
                     // Keybinds

@@ -38,8 +38,7 @@ egui-theme-switch = "0.2.3"
 egui_material_icons = "0.2.0"
 regex = { version = "1.11.1", optional = true }
 url = "2.5.4"
-egui_transition_animation = { git = "https://github.com/dest4590/egui_transition_animation.git" }
-rand = "0.8.5"
+egui_transition_animation = "0.1.2"
 
 [build-dependencies]
 winres = "0.1.12"

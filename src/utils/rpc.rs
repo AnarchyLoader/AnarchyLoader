@@ -46,10 +46,10 @@ impl Rpc {
                 loop {
                     match rx.recv() {
                         Ok(RpcUpdate::Update {
-                               state,
-                               details,
-                               small_image,
-                           }) => {
+                            state,
+                            details,
+                            small_image,
+                        }) => {
                             if let Some(s) = state {
                                 current_state = s;
                             }

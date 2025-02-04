@@ -134,7 +134,7 @@ impl Config {
             &self.api_extra_endpoints,
             self.lowercase_hacks,
         )
-            .unwrap_or_else(|_| Vec::new());
+        .unwrap_or_else(|_| Vec::new());
         let grouped = MyApp::group_hacks_by_game_internal(&hacks, self);
         self.game_order = grouped.keys().cloned().collect();
     }
@@ -146,7 +146,7 @@ impl Config {
             &self.api_extra_endpoints,
             self.lowercase_hacks,
         )
-            .unwrap_or_else(|_| Vec::new());
+        .unwrap_or_else(|_| Vec::new());
         let grouped = MyApp::group_hacks_by_game_internal(&hacks, self);
         self.game_order = grouped.keys().cloned().collect();
         self.save();

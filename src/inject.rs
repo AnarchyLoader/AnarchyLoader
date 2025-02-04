@@ -52,8 +52,8 @@ impl MyApp {
                 let response = ureq::get(
                     "https://api.github.com/repos/AnarchyLoader/AnarchyInjector/releases",
                 )
-                    .call()
-                    .unwrap();
+                .call()
+                .unwrap();
 
                 let data: serde_json::Value = response.into_json().unwrap();
 

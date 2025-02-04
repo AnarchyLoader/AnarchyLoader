@@ -46,7 +46,10 @@ use utils::{
 };
 use winreg::{enums::HKEY_LOCAL_MACHINE, RegKey};
 
-use crate::utils::intro::{AnimationPhase, AnimationState};
+use crate::{
+    tabs::about::AboutTab,
+    utils::intro::{AnimationPhase, AnimationState},
+};
 
 pub(crate) fn load_icon() -> egui::IconData {
     let (icon_rgba, icon_width, icon_height) = {
@@ -102,6 +105,7 @@ struct AppState {
 #[derive(Debug)]
 struct UIState {
     tab: AppTab,
+    tab_states: TabStates,
     search_query: String,
     main_menu_message: String,
     dropped_file: DroppedFile,
@@ -136,6 +140,11 @@ struct AppMeta {
     commit: String,
     os_version: String,
     session: String,
+}
+
+#[derive(Debug)]
+struct TabStates {
+    about: AboutTab,
 }
 
 struct MyApp {
@@ -316,6 +325,9 @@ impl MyApp {
             },
             ui: UIState {
                 tab: AppTab::default(),
+                tab_states: TabStates {
+                    about: AboutTab::default(),
+                },
                 search_query: String::new(),
                 main_menu_message: default_main_menu_message(),
                 dropped_file: DroppedFile::default(),
@@ -738,7 +750,7 @@ impl App for MyApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             if self.app.config.enable_tab_animations {
                 let transition_style = TransitionStyle {
-                    easing: easing::cubic_in_out,
+                    easing: easing::cubic_out,
                     t_type: TransitionType::HorizontalMove,
                     duration: self.app.config.transition_duration,
                     amount: self.app.config.transition_amount,
@@ -755,6 +767,7 @@ impl App for MyApp {
                 self.ui.transitioning = state.animation_running;
             } else {
                 self.render_tabs(ctx, self.ui.tab.clone(), theme_color);
+                ctx.inspection_ui(ui);
             }
         });
     }

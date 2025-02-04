@@ -89,7 +89,7 @@ impl MyApp {
                             process.to_string(),
                             process.clone(),
                         )
-                            .on_hover_cursor(Clickable);
+                        .on_hover_cursor(Clickable);
                     }
                 })
                 .response
