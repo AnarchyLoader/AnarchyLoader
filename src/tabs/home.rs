@@ -174,7 +174,7 @@ impl MyApp {
     pub(crate) fn render_home_tab(&mut self, ctx: &egui::Context, highlight_color: egui::Color32) {
         self.handle_key_events(ctx);
 
-        let hacks_by_game = self.group_hacks_by_game();
+        let hacks_by_game = &self.app.grouped_hacks.clone();
 
         self.render_left_panel(ctx, hacks_by_game);
         self.render_central_panel(ctx, highlight_color);
@@ -183,7 +183,7 @@ impl MyApp {
     pub(crate) fn render_left_panel(
         &mut self,
         ctx: &egui::Context,
-        hacks_by_game: BTreeMap<String, BTreeMap<String, Vec<Hack>>>,
+        hacks_by_game: &BTreeMap<String, BTreeMap<String, Vec<Hack>>>,
     ) {
         egui::SidePanel::left("left_panel")
             .resizable(true)
