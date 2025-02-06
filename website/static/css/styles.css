@@ -92,6 +92,7 @@ body {
     text-decoration: underline;
 }
 
+/*noinspection CssUnusedSymbol*/
 .disabled {
     color: gray;
     pointer-events: none;

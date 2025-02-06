@@ -128,6 +128,18 @@ impl Scanner {
 }
 
 impl MyApp {
+    pub fn open_scanner_log(&mut self) {
+        match opener::open(self.app.meta.path.join("scanner_results.txt")) {
+            Ok(_) => {
+                self.toasts.success("Results opened.");
+            }
+            Err(err) => {
+                self.toasts
+                    .error(format!("Failed to open results: {}", err));
+            }
+        }
+    }
+
     #[cfg(feature = "scanner")]
     pub fn render_scanner(&mut self, ctx: &egui::Context, ui: &mut egui::Ui) {
         let modal_scanner = Modal::new(ctx, "scanner_dialog").with_close_on_outside_click(true);
@@ -160,17 +172,7 @@ impl MyApp {
             ui.add_space(5.0);
 
             if self.ui.popups.scanner.show_results {
-                if ui.cbutton("Open results").clicked() {
-                    match opener::open(self.app.meta.path.join("scanner_results.txt")) {
-                        Ok(_) => {
-                            self.toasts.success("Results opened.");
-                        }
-                        Err(err) => {
-                            self.toasts
-                                .error(format!("Failed to open results: {}", err));
-                        }
-                    }
-                }
+                if ui.cbutton("Open results").clicked() {}
 
                 ui.add_space(5.0);
             }

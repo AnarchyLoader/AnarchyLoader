@@ -1,5 +1,6 @@
+<!--suppress HtmlDeprecatedAttribute -->
 <div align="center">
-   <img src="https://github.com/user-attachments/assets/da62d58f-d664-4ce5-8932-db1e04d572c3" width="150"></img>
+   <img src="https://github.com/user-attachments/assets/da62d58f-d664-4ce5-8932-db1e04d572c3" width="150" alt="Logo">
    <h1>AnarchyLoader</h1>
    AnarchyLoader is a simple loader for games using the egui library, written entirely in Rust.
 </div>
@@ -7,7 +8,7 @@
 ## Showcase
 
 <div align="center">
-    <img src="https://github.com/user-attachments/assets/df220eb2-3740-4f41-8a25-0f68b5b87195" width=500>
+    <img src="https://github.com/user-attachments/assets/df220eb2-3740-4f41-8a25-0f68b5b87195" width=500 alt="Showcase">
 </div>
 
 <h3 align="center"><a href="https://www.youtube.com/watch?v=Q-vz4y1qIZs">(Youtube video)</a></h3>

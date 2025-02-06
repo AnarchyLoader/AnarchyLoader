@@ -445,15 +445,7 @@ impl MyApp {
 
                         match scanner.scan(self.app.meta.path.clone()) {
                             Ok(()) => {
-                                match opener::open(self.app.meta.path.join("scanner_results.txt")) {
-                                    Ok(_) => {
-                                        self.toasts.success("Results opened.");
-                                    }
-                                    Err(err) => {
-                                        self.toasts
-                                            .error(format!("Failed to open results: {}", err));
-                                    }
-                                }
+                                self.open_scanner_log();
                             }
                             Err(err) => {
                                 self.toasts.error(err);

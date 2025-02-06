@@ -13,7 +13,7 @@ use crate::{
     Hack, MyApp,
 };
 
-fn change_status_message(status_message: &Arc<Mutex<String>>, message: &str) {
+pub(crate) fn change_status_message(status_message: &Arc<Mutex<String>>, message: &str) {
     let mut status = status_message.lock().unwrap();
     *status = message.to_string();
 }

@@ -726,9 +726,7 @@ impl App for MyApp {
             return;
         }
 
-        if self.app.stats.opened_count == 1
-            && self.ui.animation.phase != AnimationPhase::Complete
-        {
+        if self.app.stats.opened_count == 1 && self.ui.animation.phase != AnimationPhase::Complete {
             // uncomment to show always show intro screen
             // if true {
             let dt = ctx.input(|i| i.unstable_dt);

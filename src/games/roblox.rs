@@ -4,14 +4,9 @@ use std::{
     thread,
 };
 
-use crate::{hacks::Hack, utils::downloader, MyApp};
+use crate::{hacks::Hack, inject::change_status_message, utils::downloader, MyApp};
 
 pub struct Roblox {}
-
-fn change_status_message(status_message: &Arc<Mutex<String>>, message: &str) {
-    let mut status = status_message.lock().unwrap();
-    *status = message.to_string();
-}
 
 impl Roblox {
     /// Download the roblox zip
