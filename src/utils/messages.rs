@@ -70,7 +70,7 @@ impl MyApp {
             .success(format!("Successfully injected {}", name))
             .duration(Some(Duration::from_secs(4)));
 
-        self.app.statistics.increment_inject_count(&name);
+        self.app.stats.increment_inject_count(&name);
     }
 
     fn handle_error_message(&mut self, message: String) {

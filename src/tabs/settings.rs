@@ -640,7 +640,7 @@ impl MyApp {
                                     .cbutton(RichText::new("Reset").color(egui::Color32::LIGHT_RED))
                                     .clicked()
                                 {
-                                    self.app.statistics.reset();
+                                    self.app.stats.reset();
                                     self.toasts.success("Statistics reset.");
                                     modal_statistics.close();
                                 }

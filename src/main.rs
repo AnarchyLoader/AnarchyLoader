@@ -95,7 +95,7 @@ struct AppState {
     hacks_processes: Vec<String>,
     selected_hack: Option<Hack>,
     config: Config,
-    statistics: Statistics,
+    stats: Statistics,
     account: SteamAccount,
     updater: Updater,
     cache: CommonMarkCache,
@@ -311,7 +311,7 @@ impl MyApp {
                 hacks_processes,
                 selected_hack,
                 config,
-                statistics: statistics.clone(),
+                stats: statistics.clone(),
                 account,
                 updater,
                 cache: CommonMarkCache::default(),
@@ -573,7 +573,7 @@ impl MyApp {
             return;
         }
 
-        if let Some(&count) = self.app.statistics.inject_counts.get(&hack.file) {
+        if let Some(&count) = self.app.stats.inject_counts.get(&hack.file) {
             if count == 0 {
                 return;
             }
@@ -726,7 +726,7 @@ impl App for MyApp {
             return;
         }
 
-        if self.app.statistics.opened_count == 1
+        if self.app.stats.opened_count == 1
             && self.ui.animation.phase != AnimationPhase::Complete
         {
             // uncomment to show always show intro screen

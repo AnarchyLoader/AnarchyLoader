@@ -162,6 +162,10 @@ pub(crate) fn get_hack_by_name(hacks: &[Hack], name: &str) -> Option<Hack> {
     hacks.iter().find(|&hack| hack.name == name).cloned()
 }
 
+pub(crate) fn get_hack_by_dll(hacks: &[Hack], dll: &str) -> Option<Hack> {
+    hacks.iter().find(|&hack| hack.file == dll).cloned()
+}
+
 pub(crate) fn get_all_processes(hacks: &[Hack]) -> Vec<String> {
     hacks
         .iter()
