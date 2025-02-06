@@ -1,13 +1,16 @@
 use egui::{Image, Response, RichText, TextStyle, Ui, Vec2};
 use egui_material_icons::icons::{
-    ICON_BRAND_AWARENESS, ICON_COMPUTER, ICON_GROUP, ICON_MENU_BOOK, ICON_PRECISION_MANUFACTURING,
-    ICON_PUBLIC, ICON_SEND, ICON_STAR, ICON_SYRINGE, ICON_TIMER,
+    ICON_BRAND_AWARENESS, ICON_DESKTOP_WINDOWS, ICON_GROUP, ICON_MENU_BOOK,
+    ICON_PRECISION_MANUFACTURING, ICON_PUBLIC, ICON_SEND, ICON_STAR, ICON_SYRINGE, ICON_TIMER,
 };
 
 use crate::{
     calculate_session,
     hacks::get_hack_by_dll,
-    utils::custom_widgets::{Button, Hyperlink},
+    utils::{
+        custom_widgets::{Button, Hyperlink},
+        statistics::get_time_from_seconds,
+    },
     MyApp,
 };
 
@@ -188,11 +191,6 @@ impl MyApp {
                                         self.app.stats.opened_count
                                     ));
                                 }
-                                ui.label(format!(
-                                    "Injected {} times",
-                                    self.app.stats.inject_counts.values().map(|v| *v).sum::<u64>()
-                                ));
-                                ui.label("Top 3 hacks:");
 
                                 let mut sorted_inject_counts: Vec<(&String, &u64)> = self
                                     .app
@@ -201,36 +199,39 @@ impl MyApp {
                                     .iter()
                                     .collect();
 
-                                sorted_inject_counts.sort_by(|a, b| b.1.cmp(a.1));
+                                if sorted_inject_counts.len() == 0 {
+                                    ui.label("No hacks injected yet.");
+                                } else {
+                                    ui.label(format!(
+                                        "Injected {} times",
+                                        self.app.stats.inject_counts.values().map(|v| *v).sum::<u64>()
+                                    ));
 
-                                sorted_inject_counts.iter().take(3).for_each(|(hack_dll, count)| {
-                                    ui.label(format!("{}: {}", get_hack_by_dll(&*self.app.hacks, hack_dll).unwrap().name, count));
-                                });
+                                    ui.label("Top 3 hacks:");
+
+                                    sorted_inject_counts.sort_by(|a, b| b.1.cmp(a.1));
+
+                                    sorted_inject_counts.iter().take(3).for_each(|(hack_dll, count)| {
+                                        ui.label(format!("{}: {}", get_hack_by_dll(&*self.app.hacks, hack_dll).unwrap().name, count));
+                                    });
+                                }
                             });
                             ui.add_space(10.0);
                         }
 
-
                         ui.group(|ui| {
-                            ui.heading("System Information");
-                            ui.horizontal(|ui| {
-                                ui.label(format!("{} OS:", ICON_COMPUTER));
-                                ui.label(&self.app.meta.os_version);
-                            });
-
-                            ui.horizontal(|ui| {
-                                ui.label(format!("{} Session:", ICON_TIMER));
-                                ui.label(
-                                    "Session Duration: ".to_string()
-                                        + &*calculate_session(self.app.meta.session.clone()),
-                                );
-                            });
+                            ui.heading("Session Information");
+                            ui.label(format!("{} OS: {}", ICON_DESKTOP_WINDOWS, &self.app.meta.os_version));
+                            ui.label(format!("{} You have been using AnarchyLoader for: {}", ICON_TIMER, &*get_time_from_seconds(self.app.stats.total_seconds.clone())));
+                            ui.label(format!("{} Current session: {}", ICON_TIMER, &*calculate_session(self.app.meta.session.clone())));
                         });
                     });
 
                     ui.add_space(20.0);
 
                     ui.heading(RichText::new("Quick Links").strong());
+
+                    ui.add_space(5.0);
 
                     ui.link_button(
                         format!("{} Website", ICON_PUBLIC),
@@ -257,6 +258,8 @@ impl MyApp {
                     ui.add_space(20.0);
 
                     ui.heading(RichText::new("Social Media").strong());
+
+                    ui.add_space(5.0);
 
                     ui.link_button(
                         format!("{} Discord", ICON_BRAND_AWARENESS),

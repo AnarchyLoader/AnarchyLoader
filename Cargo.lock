@@ -327,7 +327,7 @@ dependencies = [
  "wayland-backend",
  "wayland-client",
  "wayland-protocols",
-    "zbus 5.4.0",
+ "zbus 5.4.0",
 ]
 
 [[package]]
@@ -4030,7 +4030,7 @@ dependencies = [
  "cfg-expr",
  "heck",
  "pkg-config",
-    "toml 0.8.20",
+ "toml 0.8.20",
  "version-compare",
 ]
 
@@ -4223,7 +4223,7 @@ dependencies = [
  "serde",
  "serde_spanned",
  "toml_datetime",
-    "winnow",
+ "winnow",
 ]
 
 [[package]]
@@ -5417,11 +5417,11 @@ dependencies = [
  "tracing",
  "uds_windows",
  "windows-sys 0.59.0",
-    "winnow",
+ "winnow",
  "xdg-home",
-    "zbus_macros 5.4.0",
-    "zbus_names 4.2.0",
-    "zvariant 5.3.0",
+ "zbus_macros 5.4.0",
+ "zbus_names 4.2.0",
+ "zvariant 5.3.0",
 ]
 
 [[package]]
@@ -5471,9 +5471,9 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
-    "zbus_names 4.2.0",
-    "zvariant 5.3.0",
-    "zvariant_utils 3.2.0",
+ "zbus_names 4.2.0",
+ "zvariant 5.3.0",
+ "zvariant_utils 3.2.0",
 ]
 
 [[package]]
@@ -5495,8 +5495,8 @@ checksum = "7be68e64bf6ce8db94f63e72f0c7eb9a60d733f7e0499e628dfab0f84d6bcb97"
 dependencies = [
  "serde",
  "static_assertions",
-    "winnow",
-    "zvariant 5.3.0",
+ "winnow",
+ "zvariant 5.3.0",
 ]
 
 [[package]]
@@ -5726,9 +5726,9 @@ dependencies = [
  "serde",
  "static_assertions",
  "url",
-    "winnow",
-    "zvariant_derive 5.3.0",
-    "zvariant_utils 3.2.0",
+ "winnow",
+ "zvariant_derive 5.3.0",
+ "zvariant_utils 3.2.0",
 ]
 
 [[package]]
@@ -5754,7 +5754,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
-    "zvariant_utils 3.2.0",
+ "zvariant_utils 3.2.0",
 ]
 
 [[package]]
@@ -5779,5 +5779,5 @@ dependencies = [
  "serde",
  "static_assertions",
  "syn",
-    "winnow",
+ "winnow",
 ]
