@@ -11,7 +11,9 @@ pub struct Roblox {}
 impl Roblox {
     /// Download the roblox zip
     pub fn download_executor() -> Result<(), Box<dyn std::error::Error>> {
+        log::info!("[ROBLOX] Downloading roblox executor...");
         downloader::download_file("roblox.zip")?;
+        log::info!("[ROBLOX] Roblox executor downloaded successfully.");
         Ok(())
     }
 
@@ -20,6 +22,7 @@ impl Roblox {
         status_message: Arc<Mutex<String>>,
     ) -> Result<(), Box<dyn std::error::Error>> {
         change_status_message(&status_message, "Extracting...");
+        log::info!("[ROBLOX] Extracting roblox executor...");
 
         let app_path = dirs::config_dir()
             .unwrap_or_else(|| std::path::PathBuf::from("."))
@@ -32,17 +35,18 @@ impl Roblox {
         if !std::path::Path::new(&dest_path).exists() {
             if let Err(e) = zip_extract::extract(std::fs::File::open(&file_path)?, &dest_path, true)
             {
-                log::error!("Failed to extract file: {}", e);
+                log::error!("[ROBLOX] Failed to extract file: {}", e);
                 std::fs::remove_file(&file_path)?;
                 return Err(Box::new(e));
             }
         }
 
         if let Err(e) = std::fs::remove_file(&file_path) {
-            log::error!("Failed to delete zip file: {}", e);
+            log::error!("[ROBLOX] Failed to delete zip file: {}", e);
             return Err(Box::new(e));
         }
 
+        log::info!("[ROBLOX] Roblox executor extracted successfully.");
         Ok(())
     }
 }
@@ -59,6 +63,10 @@ impl MyApp {
         let app_path_clone = self.app.meta.path.clone();
 
         change_status_message(&status_message, "Running...");
+        log::info!(
+            "[ROBLOX] Running roblox executor for hack: {}",
+            selected.name
+        );
 
         in_progress.store(true, std::sync::atomic::Ordering::SeqCst);
 
@@ -68,19 +76,22 @@ impl MyApp {
             if !folder_path.exists() {
                 change_status_message(&status_message, "Downloading...");
                 ctx_clone.request_repaint();
+                log::info!("[ROBLOX] Roblox executor folder not found, downloading...");
 
                 match Roblox::download_executor() {
                     Ok(_) => {
                         change_status_message(&status_message, "Downloaded.");
-                        log::debug!("Downloaded executor");
+                        log::debug!("[ROBLOX] Downloaded executor");
                         ctx_clone.request_repaint();
                     }
                     Err(e) => {
                         change_status_message(&status_message, &format!("{}", e));
                         in_progress.store(false, std::sync::atomic::Ordering::SeqCst);
-                        log::error!("Failed to download: {}", e);
+                        log::error!("[ROBLOX] Failed to download executor: {}", e);
                         ctx_clone.request_repaint();
                         let _ = message_sender_clone.send(format!("Failed to download: {}", e));
+                        let _ = message_sender_clone.send(format!("ERROR: {}", e));
+                        return;
                     }
                 }
             }
@@ -89,9 +100,11 @@ impl MyApp {
                 if let Err(e) = Roblox::extract_executor(status_message.clone()) {
                     change_status_message(&status_message, &format!("Failed to extract: {}", e));
                     in_progress.store(false, std::sync::atomic::Ordering::SeqCst);
-                    log::error!("Failed to extract: {}", e);
+                    log::error!("[ROBLOX] Failed to extract executor: {}", e);
                     ctx_clone.request_repaint();
                     let _ = message_sender_clone.send(format!("Failed to extract: {}", e));
+                    let _ = message_sender_clone.send(format!("ERROR: {}", e));
+                    return;
                 }
             }
 
@@ -108,15 +121,16 @@ impl MyApp {
 
             match status {
                 Ok(_) => {
-                    log::info!("New console launched");
+                    log::info!("[ROBLOX] New console launched for executor.");
                     std::process::exit(0);
                 }
                 Err(e) => {
                     change_status_message(&status_message, &format!("Failed to run: {}", e));
                     in_progress.store(false, std::sync::atomic::Ordering::SeqCst);
-                    log::error!("Failed to run: {}", e);
+                    log::error!("[ROBLOX] Failed to run executor: {}", e);
                     ctx_clone.request_repaint();
                     let _ = message_sender_clone.send(format!("Failed to run: {}", e));
+                    let _ = message_sender_clone.send(format!("ERROR: {}", e));
                 }
             }
         });

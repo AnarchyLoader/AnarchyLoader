@@ -30,6 +30,7 @@ impl MyApp {
     // MARK: Key events
     pub fn handle_key_events(&mut self, ctx: &egui::Context) {
         if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape)) {
+            log::debug!("[HOME_TAB] Escape key pressed, deselecting hack");
             self.rpc.update(None, Some("Selecting hack"), None);
             self.app.selected_hack = None;
             self.app.config.selected_hack = "".to_string();
@@ -37,6 +38,10 @@ impl MyApp {
 
         if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Enter)) {
             if let Some(selected) = &self.app.selected_hack {
+                log::debug!(
+                    "[HOME_TAB] Enter key pressed, injecting hack: {}",
+                    selected.name
+                );
                 self.injection(
                     selected.clone(),
                     ctx.clone(),
@@ -47,6 +52,7 @@ impl MyApp {
         }
 
         if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::F5)) {
+            log::info!("[HOME_TAB] F5 key pressed, refreshing hacks list");
             self.ui.main_menu_message = "Fetching hacks...".to_string();
             ctx.request_repaint();
             self.app.hacks = match hacks::fetch_hacks(
@@ -389,6 +395,7 @@ impl MyApp {
     }
 
     fn select_hack(&mut self, hack_clone: &Hack) {
+        log::debug!("[HOME_TAB] Selecting hack: {}", hack_clone.name);
         self.app.selected_hack = Some(hack_clone.clone());
         self.app.config.selected_hack = hack_clone.name.clone();
         self.app.config.save();
@@ -531,7 +538,7 @@ impl MyApp {
             );
 
             log::info!(
-                "{}",
+                "[HOME_TAB] {}",
                 if !is_roblox {
                     format!("Injecting {}", selected.name)
                 } else {

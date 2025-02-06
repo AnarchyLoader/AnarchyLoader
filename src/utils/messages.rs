@@ -54,7 +54,7 @@ impl MyApp {
             }
             Err(TryRecvError::Empty) => {}
             Err(e) => {
-                log::error!("Error receiving from channel: {:?}", e);
+                log::error!("[MESSAGES] Error receiving from channel: {:?}", e);
             }
         }
     }

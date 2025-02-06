@@ -9,7 +9,7 @@ use crate::{
     hacks::get_hack_by_dll,
     utils::{
         custom_widgets::{Button, Hyperlink},
-        statistics::get_time_from_seconds,
+        stats::get_time_from_seconds,
     },
     MyApp,
 };
@@ -33,7 +33,7 @@ impl User {
 
         if response.clicked() {
             if let Err(e) = opener::open(format!("https://github.com/{}", self.username)) {
-                log::error!("{}", format!("Failed to open URL: {}", e));
+                log::error!("[ABOUT_TAB] {}", format!("Failed to open URL: {}", e));
             }
         }
 
@@ -53,12 +53,12 @@ pub struct AboutTab {
 
 impl MyApp {
     fn fetch_github_users(&mut self, endpoint: &str, user_type: &str) {
-        log::info!("Parsing {}...", user_type);
+        log::info!("[ABOUT_TAB] Parsing {}...", user_type);
 
         match user_type {
             "contributors" => self.ui.tab_states.about.is_contributors_loading = true,
             "stargazers" => self.ui.tab_states.about.is_stargazers_loading = true,
-            _ => log::error!("Unknown user type: {}", user_type),
+            _ => log::error!("[ABOUT_TAB] Unknown user type: {}", user_type),
         }
 
         let api_url = format!(
@@ -96,11 +96,11 @@ impl MyApp {
                         self.ui.tab_states.about.is_stargazers_parsed = true;
                         self.ui.tab_states.about.is_stargazers_loading = false;
                     }
-                    _ => log::error!("Unknown user type: {}", user_type),
+                    _ => log::error!("[ABOUT_TAB] Unknown user type: {}", user_type),
                 }
             }
             Err(e) => {
-                log::error!("Failed to parse {}: {}", user_type, e);
+                log::error!("[ABOUT_TAB] Failed to parse {}: {}", user_type, e);
                 match &user_type_clone[..] {
                     "contributors" => self.ui.tab_states.about.is_contributors_loading = false,
                     "stargazers" => self.ui.tab_states.about.is_stargazers_loading = false,

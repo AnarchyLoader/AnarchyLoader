@@ -47,8 +47,6 @@ impl SteamAccount {
                 let name = user_info.get("PersonaName")?.as_str()?;
 
                 if user_info.get("MostRecent")?.as_str() == Some("1") {
-                    log::info!("Parsed steam user: {}", name);
-
                     Some(Self {
                         id: user_id.to_owned(),
                         username: username.to_owned(),
@@ -61,11 +59,29 @@ impl SteamAccount {
             .ok_or_else(|| "No recent user found".to_string())
     }
 
+    pub fn get_censoured(&self) -> Self {
+        let mut censoured = self.clone();
+        censoured.username = "*********".to_string();
+        censoured.id = "*********".to_string();
+        censoured
+    }
+
     pub fn new() -> Result<Self, String> {
-        Self::parse_user()
+        log::info!("[STEAM_ACCOUNT] Creating new SteamAccount instance");
+        match Self::parse_user() {
+            Ok(account) => {
+                log::info!("[STEAM_ACCOUNT] Successfully parsed Steam user data");
+                Ok(account)
+            }
+            Err(e) => {
+                log::warn!("[STEAM_ACCOUNT] Failed to parse Steam user data: {}", e);
+                Err(e)
+            }
+        }
     }
 
     pub fn default() -> Self {
+        log::info!("[STEAM_ACCOUNT] Creating default SteamAccount instance");
         Self {
             id: "unknown".to_string(),
             username: "unknown".to_string(),
