@@ -6,6 +6,6 @@ pub mod intro;
 pub mod logger;
 pub mod messages;
 pub mod rpc;
-pub mod statistics;
+pub mod stats;
 pub mod steam;
 pub mod updater;

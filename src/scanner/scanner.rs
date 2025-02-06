@@ -132,10 +132,12 @@ impl MyApp {
         match opener::open(self.app.meta.path.join("scanner_results.txt")) {
             Ok(_) => {
                 self.toasts.success("Results opened.");
+                log::info!("[SCANNER_POPUP] Scanner results opened.");
             }
             Err(err) => {
                 self.toasts
                     .error(format!("Failed to open results: {}", err));
+                log::error!("[SCANNER_POPUP] Failed to open scanner results: {}", err);
             }
         }
     }
@@ -145,7 +147,7 @@ impl MyApp {
         let modal_scanner = Modal::new(ctx, "scanner_dialog").with_close_on_outside_click(true);
 
         modal_scanner.show(|ui| {
-            let path_buf = &mut self.ui.popups.scanner.dll;
+            let path_buf = &mut self.ui.popups.scanner.dll.clone();
 
             ui.label(if path_buf.is_empty() {
                 "DLL:".to_string()
@@ -163,8 +165,16 @@ impl MyApp {
                     *path_buf = path.to_string_lossy().into_owned();
                     if path_buf.ends_with(".dll") {
                         self.toasts.success("DLL selected.");
+                        log::info!(
+                            "[SCANNER_POPUP] DLL file selected for scanner: {}",
+                            path_buf
+                        );
                     } else {
                         self.toasts.error("Please select a DLL file.");
+                        log::warn!(
+                            "[SCANNER_POPUP] User selected a non-DLL file for scanner: {}",
+                            path_buf
+                        );
                     }
                 }
             }
@@ -172,7 +182,9 @@ impl MyApp {
             ui.add_space(5.0);
 
             if self.ui.popups.scanner.show_results {
-                if ui.cbutton("Open results").clicked() {}
+                if ui.cbutton("Open results").clicked() {
+                    self.open_scanner_log();
+                }
 
                 ui.add_space(5.0);
             }
@@ -181,6 +193,7 @@ impl MyApp {
                 if ui.cbutton("Scan").clicked() {
                     if path_buf.is_empty() {
                         self.toasts.error("Please select a DLL file.");
+                        log::warn!("[SCANNER_POPUP] Scan requested without DLL file selected.");
                         return;
                     }
 
@@ -189,13 +202,23 @@ impl MyApp {
                     self.toasts
                         .info("Scanning PE-File using pelite...")
                         .duration(Some(std::time::Duration::from_secs(5)));
+                    log::info!("[SCANNER_POPUP] Scanner started for DLL: {}", path_buf);
 
                     match scanner.scan(self.app.meta.path.clone()) {
                         Ok(()) => {
                             self.ui.popups.scanner.show_results = true;
+                            log::info!(
+                                "[SCANNER_POPUP] Scanner finished successfully for DLL: {}",
+                                path_buf
+                            );
                         }
                         Err(err) => {
-                            self.toasts.error(err);
+                            self.toasts.error(err.clone());
+                            log::error!(
+                                "[SCANNER_POPUP] Scanner failed for DLL {}: {}",
+                                path_buf,
+                                err
+                            );
                         }
                     }
                 }

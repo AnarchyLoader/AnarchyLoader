@@ -33,7 +33,7 @@ use utils::{
     logger::MyLogger,
     messages::ToastsMessages,
     rpc::{Rpc, RpcUpdate},
-    statistics::Statistics,
+    stats::Statistics,
     steam::SteamAccount,
     updater::Updater,
 };
@@ -43,7 +43,7 @@ use crate::{
     tabs::about::AboutTab,
     utils::{
         intro::{AnimationPhase, AnimationState},
-        statistics::{calculate_session, get_time_difference_in_seconds},
+        stats::{calculate_session, get_time_difference_in_seconds},
     },
 };
 
@@ -75,8 +75,10 @@ fn main() {
     };
     eframe::run_native(
         if !is_elevated() {
+            log::info!("[MAIN] Application started as normal user");
             "AnarchyLoader"
         } else {
+            log::info!("[MAIN] Application started as administrator");
             "AnarchyLoader (Administrator)"
         },
         native_options,
@@ -96,6 +98,8 @@ struct AppState {
     updater: Updater,
     cache: CommonMarkCache,
     meta: AppMeta,
+    grouped_hacks:
+        std::collections::BTreeMap<String, std::collections::BTreeMap<String, Vec<Hack>>>,
 }
 
 #[derive(Debug)]
@@ -186,20 +190,33 @@ impl MyApp {
         let logger = MyLogger::init();
         let log_buffer = logger.buffer.clone();
         log::set_max_level(config.log_level.to_level_filter());
-        log::info!("Running AnarchyLoader v{}", env!("CARGO_PKG_VERSION"));
+        log::info!(
+            "[MAIN] Running AnarchyLoader v{}",
+            env!("CARGO_PKG_VERSION")
+        );
 
         let messages = ToastsMessages::new();
         let mut statistics = Statistics::load();
+        log::debug!("[MAIN] Statistics loaded: {:?}", statistics);
 
         statistics.increment_opened_count();
+        log::debug!(
+            "[MAIN] Application opened count incremented to: {}",
+            statistics.opened_count
+        );
 
         egui_material_icons::initialize(&cc.egui_ctx);
         cc.egui_ctx.set_theme(config.theme);
+        log::debug!("[MAIN] Theme set to: {:?}", config.theme);
 
         let status_message = Arc::new(Mutex::new(String::new()));
         let in_progress = Arc::new(std::sync::atomic::AtomicBool::new(false));
         let mut parse_error = None;
 
+        log::info!(
+            "[MAIN] Fetching hacks from API endpoint: {}",
+            config.api_endpoint
+        );
         let hacks = match hacks::fetch_hacks(
             &config.api_endpoint,
             &config.api_extra_endpoints,
@@ -210,54 +227,66 @@ impl MyApp {
                     config.game_order.clone().into_iter().collect();
 
                 for hack in &hacks {
-                    if !existing_games.contains(&"CSS".to_string()) && hack.game.starts_with("CSS")
-                    {
-                        config.game_order.push("CSS".to_string());
-                        existing_games.insert("CSS".to_string());
-                    } else if !existing_games.contains(&"Rust (NonSteam)".to_string())
-                        && hack.game.starts_with("Rust")
-                    {
-                        config.game_order.push("Rust (NonSteam)".to_string());
-                        existing_games.insert("Rust (NonSteam)".to_string());
-                    } else if !existing_games.contains(&hack.game)
-                        && !hack.game.starts_with("CSS")
-                        && !hack.game.starts_with("Rust")
-                    {
-                        config.game_order.push(hack.game.clone());
-                        existing_games.insert(hack.game.clone());
-                    }
-                    if !config.local_hacks.is_empty()
-                        && !config.game_order.contains(&"Added".to_string())
-                    {
-                        config.game_order.push("Added".to_string());
-                    } else if config.local_hacks.is_empty()
-                        && config.game_order.contains(&"Added".to_string())
-                    {
-                        config.game_order.retain(|game| game != "Added");
+                    let game_name = if hack.game.starts_with("CSS") {
+                        "CSS".to_string()
+                    } else if hack.game.starts_with("Rust") {
+                        "Rust (NonSteam)".to_string()
+                    } else {
+                        hack.game.clone()
+                    };
+
+                    if !existing_games.contains(&game_name) {
+                        config.game_order.push(game_name.clone());
+                        existing_games.insert(game_name.clone());
+                        log::info!("[MAIN] Added new game to game_order: {}", game_name);
                     }
                 }
+                if !config.local_hacks.is_empty() && !existing_games.contains(&"Added".to_string())
+                {
+                    config.game_order.push("Added".to_string());
+                    log::info!(
+                        "[MAIN] Added 'Added' category to game_order because local hacks are present"
+                    );
+                } else if config.local_hacks.is_empty()
+                    && existing_games.contains(&"Added".to_string())
+                {
+                    config.game_order.retain(|game| game != "Added");
+                    log::info!("[MAIN] Removed 'Added' category from game_order because no local hacks are present");
+                }
                 config.save();
+                log::info!("[MAIN] Configuration saved after updating game_order");
                 hacks
             }
             Err(err) => {
-                log::error!("Failed to fetch hacks: {:?}", err);
+                log::error!("[MAIN] Failed to fetch hacks: {:?}", err);
                 parse_error = Some(err);
                 Vec::new()
             }
         };
 
         if let Err(e) = hacks::save_hacks_to_cache(&hacks) {
-            log::error!("Failed to save hacks to cache: {}", e);
+            log::error!("[MAIN] Failed to save hacks to cache: {}", e);
+        } else {
+            log::info!("[MAIN] Hacks saved to cache successfully.");
         }
 
         let hacks_processes = get_all_processes(&hacks);
 
         let account = SteamAccount::new().unwrap_or_else(|_| {
-            log::warn!("Failed to get Steam account details");
+            log::warn!("[MAIN] Failed to get Steam account details");
             SteamAccount::default()
         });
+        log::info!(
+            "[MAIN] Steam Account details: {:?}",
+            account.get_censoured()
+        );
 
         let rpc = Rpc::new(!config.disable_rpc);
+        if !config.disable_rpc {
+            log::info!("[MAIN] Discord RPC initialized");
+        } else {
+            log::info!("[MAIN] Discord RPC disabled in config");
+        }
         rpc.update(
             Some(&format!("v{}", env!("CARGO_PKG_VERSION"))),
             Some("Selecting a hack"),
@@ -268,21 +297,43 @@ impl MyApp {
 
         if config.selected_hack != "" && config.automatically_select_hack {
             selected_hack = get_hack_by_name(&hacks, &config.selected_hack);
-            rpc.update(
-                None,
-                Some(&format!("Selected {}", config.selected_hack)),
-                None,
-            );
+            if selected_hack.is_some() {
+                log::info!(
+                    "[MAIN] Automatically selected hack from config: {}",
+                    config.selected_hack
+                );
+                rpc.update(
+                    None,
+                    Some(&format!("Selected {}", config.selected_hack)),
+                    None,
+                );
+            } else {
+                log::warn!(
+                    "[MAIN] Failed to automatically select hack '{}', hack not found.",
+                    config.selected_hack
+                );
+            }
         }
 
         let mut updater = Updater::default();
 
-        if updater.check_version() {
-            log::info!(
-                "New version available: {}",
-                updater.get_remote_version().unwrap()
-            );
+        log::info!("[MAIN] Checking for updates...");
+        match updater.check_version() {
+            Ok(true) => {
+                log::info!(
+                    "[MAIN] Update needed, new version: {}",
+                    updater.new_version.as_ref().unwrap()
+                );
+            }
+            Ok(false) => {
+                log::info!("[MAIN] No update needed");
+            }
+            Err(e) => {
+                log::error!("[MAIN] Failed to check for updates: {}", e);
+            }
         }
+
+        let grouped_hacks = MyApp::group_hacks_by_game_internal(&hacks, &config);
 
         Self {
             app: AppState {
@@ -301,6 +352,7 @@ impl MyApp {
                     os_version: get_windows_version().unwrap_or_else(|| "Unknown".to_string()),
                     session: chrono::Local::now().to_rfc3339(),
                 },
+                grouped_hacks,
             },
             ui: UIState {
                 tab: AppTab::default(),
@@ -352,6 +404,11 @@ impl MyApp {
         } else {
             "Selecting hack".to_string()
         };
+        log::debug!(
+            "[MAIN] Updating RPC status to: version={}, status={}",
+            version,
+            status
+        );
         self.rpc.update(Some(&version), Some(&status), Some("home"));
     }
 
@@ -395,6 +452,10 @@ impl App for MyApp {
         };
 
         if self.ui.parse_error.is_some() {
+            log::error!(
+                "[MAIN] API Parse Error detected, showing error screen to user: {:?}",
+                self.ui.parse_error
+            );
             egui::CentralPanel::default().show(ctx, |ui| {
                 ui.vertical_centered(|ui| {
                     ui.add_space(130.0);
@@ -410,19 +471,27 @@ impl App for MyApp {
                         .text_edit_singleline(&mut self.app.config.api_endpoint)
                         .changed()
                     {
+                        log::info!(
+                            "[MAIN] API Endpoint changed by user to: {}",
+                            self.app.config.api_endpoint
+                        );
                         self.app.config.save();
+                        log::info!("[MAIN] Configuration saved after API endpoint change.");
                     }
 
                     ui.add_space(5.0);
 
                     if ui.cbutton("Reset config (possible fix)").clicked() {
+                        log::info!("[MAIN] User clicked 'Reset config'");
                         self.app.config = Config::default();
                         self.app.config.save();
+                        log::info!("[MAIN] Default configuration saved after reset.");
                     }
 
                     ui.add_space(5.0);
 
                     if ui.cbutton("Exit").clicked() {
+                        log::info!("[MAIN] User clicked 'Exit' due to API parse error.");
                         std::process::exit(0);
                     }
                 });
@@ -431,6 +500,9 @@ impl App for MyApp {
         }
 
         if self.app.updater.need_update && !self.app.config.skip_update_check {
+            log::info!(
+                "[MAIN] Update available and update check is not skipped, showing update screen."
+            );
             egui::CentralPanel::default().show(ctx, |ui| {
                 ui.vertical_centered(|ui| {
                     ui.add_space(130.0);
@@ -460,12 +532,18 @@ impl App for MyApp {
                         )
                         .changed()
                     {
+                        log::info!(
+                            "[MAIN] 'Skip update check' option changed to: {}",
+                            self.app.config.skip_update_check
+                        );
                         self.app.config.save();
+                        log::info!("[MAIN] Configuration saved after 'skip update check' change.");
                     };
 
                     ui.add_space(5.0);
 
                     if ui.cbutton("Exit").clicked() {
+                        log::info!("[MAIN] User clicked 'Exit' due to update available screen.");
                         std::process::exit(0);
                     }
                 });
@@ -519,9 +597,10 @@ impl App for MyApp {
 
     fn on_exit(&mut self, _gl: Option<&eframe::glow::Context>) {
         self.rpc.sender.send(RpcUpdate::Shutdown).ok();
+        log::info!("[MAIN] Sent shutdown signal to Discord RPC");
 
         log::info!(
-            "Your session was running for: {}",
+            "[MAIN] Your session was running for: {}",
             calculate_session(self.app.meta.session.clone())
         );
 
@@ -530,7 +609,10 @@ impl App for MyApp {
             .increment_total_time(get_time_difference_in_seconds(
                 self.app.meta.session.parse().unwrap(),
             ));
+        log::info!("[MAIN] Total time incremented and session statistics updated.");
 
         self.app.stats.save();
+        log::info!("[MAIN] Statistics saved on application exit.");
+        log::info!("[MAIN] Application exited gracefully.");
     }
 }

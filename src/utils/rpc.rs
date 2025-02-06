@@ -29,12 +29,12 @@ impl Rpc {
                     Ok(mut c) => match c.connect() {
                         Ok(_) => Some(c),
                         Err(e) => {
-                            log::error!("Failed to connect to Discord RPC: {}", e);
+                            log::error!("[RPC] Failed to connect to Discord RPC: {}", e);
                             None
                         }
                     },
                     Err(e) => {
-                        log::error!("Failed to create Discord RPC client: {}", e);
+                        log::error!("[RPC] Failed to create Discord RPC client: {}", e);
                         None
                     }
                 };
@@ -73,13 +73,13 @@ impl Rpc {
                                 }
 
                                 if let Err(e) = c.set_activity(activity) {
-                                    log::error!("Failed to set Discord RPC activity: {}", e);
+                                    log::error!("[RPC] Failed to set Discord RPC activity: {}", e);
                                 }
                             }
                         }
                         Ok(RpcUpdate::Shutdown) => break,
                         Err(e) => {
-                            log::error!("RPC channel error: {}", e);
+                            log::error!("[RPC] RPC channel error: {}", e);
                             break;
                         }
                     }
@@ -87,7 +87,7 @@ impl Rpc {
 
                 if let Some(mut c) = client {
                     if let Err(e) = c.close() {
-                        log::error!("Failed to close Discord RPC connection: {}", e);
+                        log::error!("[RPC] Failed to close Discord RPC connection: {}", e);
                     }
                 }
             });
@@ -102,7 +102,7 @@ impl Rpc {
     pub fn update(&self, state: Option<&str>, details: Option<&str>, small_image: Option<&str>) {
         if self.enabled {
             log::debug!(
-                "Updating RPC: state: {:?}, details: {:?}, small_image: {:?}",
+                "[RPC] Updating RPC: state: {:?}, details: {:?}, small_image: {:?}",
                 state,
                 details,
                 small_image
@@ -114,7 +114,7 @@ impl Rpc {
             };
 
             if let Err(e) = self.sender.send(update) {
-                log::error!("Failed to send RPC update: {}", e);
+                log::error!("[RPC] Failed to send RPC update: {}", e);
             }
         }
     }

@@ -111,7 +111,10 @@ pub(crate) fn fetch_hacks(
                     return if parsed_hacks.is_empty() {
                         Err("No hacks available.".to_string())
                     } else {
-                        log::info!("Fetched {} hacks from API", parsed_hacks.len());
+                        log::info!(
+                            "[HACKS] Successfully fetched {} hacks from API",
+                            parsed_hacks.len()
+                        );
                         Ok(parsed_hacks
                             .into_iter()
                             .map(|hack| {
