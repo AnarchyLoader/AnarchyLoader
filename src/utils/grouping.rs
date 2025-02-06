@@ -4,10 +4,13 @@ use super::config::Config;
 use crate::{Hack, MyApp};
 
 impl MyApp {
-    pub fn group_hacks_by_game(&self) -> BTreeMap<String, BTreeMap<String, Vec<Hack>>> {
-        log::debug!("[GROUPING] Starting group_hacks_by_game");
-        let mut all_hacks = self.app.hacks.clone();
-        all_hacks.extend(self.app.config.local_hacks.iter().map(|lh| {
+    pub fn group_hacks_by_game_internal(
+        hacks: &[Hack],
+        config: &Config,
+    ) -> BTreeMap<String, BTreeMap<String, Vec<Hack>>> {
+        log::debug!("[GROUPING] Starting group_hacks_by_game_internal");
+        let mut all_hacks = hacks.to_vec();
+        all_hacks.extend(config.local_hacks.iter().map(|lh| {
             Hack {
                 name: std::path::Path::new(&lh.dll)
                     .file_name()
@@ -26,19 +29,19 @@ impl MyApp {
                 ..Default::default()
             }
         }));
-        let grouped_hacks = Self::group_hacks_by_game_internal(&all_hacks, &self.app.config);
+        let grouped_hacks = Self::group_hacks_by_game_internal_logic(&all_hacks, config);
         log::debug!(
-            "[GROUPING] Finished group_hacks_by_game, found {} games",
+            "[GROUPING] Finished group_hacks_by_game_internal, found {} games",
             grouped_hacks.len()
         );
         grouped_hacks
     }
 
-    pub fn group_hacks_by_game_internal(
+    fn group_hacks_by_game_internal_logic(
         hacks: &[Hack],
         config: &Config,
     ) -> BTreeMap<String, BTreeMap<String, Vec<Hack>>> {
-        log::debug!("[GROUPING] Starting group_hacks_by_game_internal");
+        log::debug!("[GROUPING] Starting group_hacks_by_game_internal_logic");
         let mut hacks_by_game: BTreeMap<String, BTreeMap<String, Vec<Hack>>> = BTreeMap::new();
 
         for hack in hacks {
@@ -66,7 +69,7 @@ impl MyApp {
             }
         }
         log::debug!(
-            "[GROUPING] Finished group_hacks_by_game_internal, grouped into {} games",
+            "[GROUPING] Finished group_hacks_by_game_internal_logic, grouped into {} games",
             hacks_by_game.len()
         );
         hacks_by_game

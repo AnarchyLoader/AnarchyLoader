@@ -98,6 +98,8 @@ struct AppState {
     updater: Updater,
     cache: CommonMarkCache,
     meta: AppMeta,
+    grouped_hacks:
+        std::collections::BTreeMap<String, std::collections::BTreeMap<String, Vec<Hack>>>, // Pe38d
 }
 
 #[derive(Debug)]
@@ -331,6 +333,8 @@ impl MyApp {
             }
         }
 
+        let grouped_hacks = MyApp::group_hacks_by_game_internal(&hacks, &config); // P9c25
+
         Self {
             app: AppState {
                 hacks,
@@ -348,6 +352,7 @@ impl MyApp {
                     os_version: get_windows_version().unwrap_or_else(|| "Unknown".to_string()),
                     session: chrono::Local::now().to_rfc3339(),
                 },
+                grouped_hacks, // P9c25
             },
             ui: UIState {
                 tab: AppTab::default(),
