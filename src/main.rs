@@ -8,7 +8,6 @@ mod tabs;
 mod utils;
 
 use std::{
-    collections::BTreeMap,
     env,
     sync::{Arc, Mutex, OnceLock},
 };
@@ -17,15 +16,9 @@ use eframe::{
     egui::{self, RichText},
     App,
 };
-use egui::{
-    emath::easing, scroll_area::ScrollBarVisibility::AlwaysHidden,
-    CursorIcon::PointingHand as Clickable, DroppedFile, Id, Sense,
-};
+use egui::{emath::easing, include_image, DroppedFile, Id, Image, Vec2};
 use egui_alignments::center_vertical;
 use egui_commonmark::CommonMarkCache;
-use egui_material_icons::icons::{
-    ICON_AWARD_STAR, ICON_EDITOR_CHOICE, ICON_MILITARY_TECH, ICON_VISIBILITY, ICON_INFO, ICON_WARNING, ICON_ERROR,
-};
 use egui_notify::Toasts;
 use egui_transition_animation::{animated_pager, TransitionStyle, TransitionType};
 use games::local::LocalUI;
@@ -48,7 +41,10 @@ use winreg::{enums::HKEY_LOCAL_MACHINE, RegKey};
 
 use crate::{
     tabs::about::AboutTab,
-    utils::intro::{AnimationPhase, AnimationState},
+    utils::{
+        intro::{AnimationPhase, AnimationState},
+        statistics::{calculate_session, get_time_difference_in_seconds},
+    },
 };
 
 pub(crate) fn load_icon() -> egui::IconData {
@@ -174,23 +170,6 @@ fn get_windows_version() -> Option<String> {
         "{} (Release ID: {}, Build: {})",
         product_name, release_id, build
     ))
-}
-
-fn calculate_session(time: String) -> String {
-    let session_start = chrono::DateTime::parse_from_rfc3339(&time)
-        .unwrap()
-        .with_timezone(&chrono::Local);
-    let session_duration = chrono::Local::now() - session_start;
-    let hours = session_duration.num_hours();
-    let minutes = session_duration.num_minutes() % 60;
-    let seconds = session_duration.num_seconds() % 60;
-    if hours > 0 {
-        format!("{} hours and {} minutes", hours, minutes)
-    } else if minutes > 0 {
-        format!("{} minutes", minutes)
-    } else {
-        format!("{} seconds", seconds)
-    }
 }
 
 static LOGGER: OnceLock<MyLogger> = OnceLock::new();
@@ -376,257 +355,25 @@ impl MyApp {
         self.rpc.update(Some(&version), Some(&status), Some("home"));
     }
 
-    fn render_left_panel(
-        &mut self,
-        ctx: &egui::Context,
-        hacks_by_game: BTreeMap<String, BTreeMap<String, Vec<Hack>>>,
-    ) {
-        egui::SidePanel::left("left_panel")
-            .resizable(true)
-            .default_width(200.0)
-            .max_width(300.0)
-            .show(ctx, |ui| {
-                egui::ScrollArea::vertical()
-                    .scroll_bar_visibility(AlwaysHidden)
-                    .show(ui, |ui| {
-                        ui.style_mut().interaction.selectable_labels = false;
-
-                        ui.add_space(5.0);
-
-                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Min), |ui| {
-                            ui.add(
-                                egui::TextEdit::singleline(&mut self.ui.search_query)
-                                    .hint_text("Search..."),
-                            );
-                        });
-
-                        ui.add_space(5.0);
-                        let mut all_games_hidden = true;
-                        for game_name in self.app.config.game_order.clone() {
-                            if let Some(versions) = hacks_by_game.get(&game_name) {
-                                if !self.app.config.hidden_games.contains(&game_name) {
-                                    self.render_game_hacks(ui, game_name, versions.clone(), ctx);
-                                    ui.add_space(5.0);
-                                    all_games_hidden = false;
-                                }
-                            }
-                        }
-                        if all_games_hidden {
-                            if self.app.config.show_only_favorites {
-                                ui.label("You enabled 'Show only favorites' and no favorites are available.");
-                            } else {
-                                ui.label("All games are hidden");
-
-                                if ui.icon_button(ICON_VISIBILITY, "Show all").clicked() {
-                                    self.app.config.hidden_games.clear();
-                                    self.app.config.save();
-                                }
-                            }
-                            if ui.cbutton("Go to settings").clicked() {
-                                self.ui.tab = AppTab::Settings;
-                            }
-                        } else if hacks_by_game.is_empty() {
-                            ui.label("No hacks available.");
-                        }
-                    });
-            });
-    }
-
-    fn render_game_hacks(
-        &mut self,
-        ui: &mut egui::Ui,
-        game_name: String,
-        versions: BTreeMap<String, Vec<Hack>>,
-        ctx: &egui::Context,
-    ) {
-        ui.group(|group_ui| {
-            group_ui.with_layout(egui::Layout::top_down(egui::Align::Min), |layout_ui| {
-                layout_ui.with_layout(
-                    egui::Layout::top_down_justified(egui::Align::Center),
-                    |ui| {
-                        ui.heading(game_name);
-                    },
-                );
-                layout_ui.separator();
-
-                for (version, hacks) in versions {
-                    self.render_version_hacks(layout_ui, version, hacks, ctx);
-                }
-            });
-        });
-    }
-
-    fn render_version_hacks(
-        &mut self,
-        ui: &mut egui::Ui,
-        version: String,
-        hacks: Vec<Hack>,
-        ctx: &egui::Context,
-    ) {
-        if !version.is_empty() {
-            ui.with_layout(
-                egui::Layout::top_down_justified(egui::Align::Center),
-                |ui| {
-                    ui.label(RichText::new(version).heading());
-                },
-            );
-        }
-
-        for hack in hacks {
-            self.render_hack_item(ui, &hack, ctx);
-        }
-    }
-
-    fn render_hack_item(&mut self, ui: &mut egui::Ui, hack: &Hack, ctx: &egui::Context) {
-        let hack_clone = hack.clone();
-        ui.horizontal(|ui| {
-            let mut label = self.create_hack_label(hack);
-
-            if !self.ui.search_query.is_empty() {
-                label = self.apply_search_highlighting(label, &hack.name);
-            }
-
-            let in_progress = self
-                .communication
-                .in_progress
-                .load(std::sync::atomic::Ordering::SeqCst);
-
-            let is_selected = self.app.selected_hack.as_ref() == Some(hack);
-
-            let response = ui
-                .add_enabled_ui((!in_progress || is_selected) && hack.working, |ui| {
-                    ui.selectable_label(self.app.selected_hack.as_ref() == Some(hack), label)
-                })
-                .inner;
-
-            self.render_working_state(ui, hack);
-            self.render_favorite_button(ui, hack);
-            self.render_injection_count(ui, hack);
-
-            if response.clicked() && !in_progress {
-                self.select_hack(&hack_clone);
-            }
-
-            self.context_menu(&response, ctx, hack);
-
-            response.on_hover_cursor(Clickable);
-        });
-    }
-
-    fn create_hack_label(&self, hack: &Hack) -> RichText {
-        if self.app.config.favorites.contains(&hack.name) {
-            RichText::new(&hack.name).color(self.app.config.favorites_color)
-        } else {
-            RichText::new(&hack.name)
-        }
-    }
-
-    fn apply_search_highlighting(&self, mut label: RichText, name: &str) -> RichText {
-        let lowercase_name = name.to_lowercase();
-        let lowercase_query = self.ui.search_query.to_lowercase();
-        let mut search_index = 0;
-        while let Some(index) = lowercase_name[search_index..].find(&lowercase_query) {
-            let start = search_index + index;
-            let end = start + lowercase_query.len();
-            label = label.strong().underline();
-            search_index = end;
-        }
-        label
-    }
-
-    fn render_working_state(&mut self, ui: &mut egui::Ui, hack: &Hack) {
-        if !hack.working {
-            ui.label(egui_material_icons::icons::ICON_BLOCK);
-        }
-    }
-
-    fn render_favorite_button(&mut self, ui: &mut egui::Ui, hack: &Hack) {
-        let is_favorite = self.app.config.favorites.contains(&hack.name);
-        if is_favorite {
-            if ui
-                .add(
-                    egui::Button::new(egui_material_icons::icons::ICON_STAR)
-                        .frame(false)
-                        .sense(Sense::click()),
-                )
-                .on_hover_cursor(Clickable)
-                .clicked()
-            {
-                self.toggle_favorite(hack.name.clone());
-                self.toasts
-                    .success(format!("Removed {} from favorites.", hack.name));
-            }
-        }
-    }
-
-    fn toggle_favorite(&mut self, hack_name: String) {
-        if self.app.config.favorites.contains(&hack_name) {
-            self.app.config.favorites.remove(&hack_name);
-        } else {
-            self.app.config.favorites.insert(hack_name);
-        }
-        self.app.config.save();
-    }
-
-    fn render_injection_count(&self, ui: &mut egui::Ui, hack: &Hack) {
-        if self.app.config.hide_statistics {
-            return;
-        }
-
-        if let Some(&count) = self.app.stats.inject_counts.get(&hack.file) {
-            if count == 0 {
-                return;
-            }
-
-            let label = match count {
-                100.. => RichText::new(format!("{}x {}", count, ICON_AWARD_STAR))
-                    .color(egui::Color32::YELLOW),
-                25.. => format!("{}x {}", count, ICON_EDITOR_CHOICE).into(),
-                10.. => format!("{}x {}", count, ICON_MILITARY_TECH).into(),
-                _ => format!("{}x", count).into(),
-            };
-
-            ui.label(label);
-        }
-    }
-
-    fn select_hack(&mut self, hack_clone: &Hack) {
-        self.app.selected_hack = Some(hack_clone.clone());
-        self.app.config.selected_hack = hack_clone.name.clone();
-        self.app.config.save();
-
-        let mut status = self.communication.status_message.lock().unwrap();
-        *status = String::new();
-
-        self.rpc
-            .update(None, Some(&format!("Selected {}", hack_clone.name)), None);
-    }
-
-    fn render_central_panel(&mut self, ctx: &egui::Context, theme_color: egui::Color32) {
+    fn render_central_panel(&mut self, ctx: &egui::Context, highlight_color: egui::Color32) {
         egui::CentralPanel::default().show(ctx, |ui| {
             if let Some(selected) = self.app.selected_hack.clone() {
-                self.display_hack_details(ui, ctx, &selected, theme_color);
+                self.display_hack_details(ui, ctx, &selected, highlight_color);
             } else {
                 center_vertical(ui, |ui| {
                     ui.label(self.ui.main_menu_message.clone());
+                    ui.add(
+                        Image::new(include_image!("../resources/img/icon.png"))
+                            .fit_to_exact_size(Vec2::new(64.0, 64.0)),
+                    );
                 });
             }
         });
     }
 
-    // MARK: Home tab
-    fn render_home_tab(&mut self, ctx: &egui::Context, theme_color: egui::Color32) {
-        self.handle_key_events(ctx);
-
-        let hacks_by_game = self.group_hacks_by_game();
-
-        self.render_left_panel(ctx, hacks_by_game);
-        self.render_central_panel(ctx, theme_color);
-    }
-
-    fn render_tabs(&mut self, ctx: &egui::Context, tab: AppTab, theme_color: egui::Color32) {
+    fn render_tabs(&mut self, ctx: &egui::Context, tab: AppTab, highlight_color: egui::Color32) {
         match tab {
-            AppTab::Home => self.render_home_tab(ctx, theme_color),
+            AppTab::Home => self.render_home_tab(ctx, highlight_color),
             AppTab::Settings => self.render_settings_tab(ctx),
             AppTab::About => self.render_about_tab(ctx),
             AppTab::Logs => self.render_logs_tab(ctx),
@@ -641,7 +388,7 @@ impl App for MyApp {
         egui_extras::install_image_loaders(ctx);
 
         let is_dark_mode = ctx.style().visuals.dark_mode;
-        let theme_color = if is_dark_mode {
+        let highlight_color = if is_dark_mode {
             egui::Color32::LIGHT_GRAY
         } else {
             egui::Color32::DARK_GRAY
@@ -759,12 +506,12 @@ impl App for MyApp {
                     self.ui.tab.clone(),
                     &transition_style,
                     Id::new("tabs"),
-                    |_, tab| self.render_tabs(ctx, tab, theme_color),
+                    |_, tab| self.render_tabs(ctx, tab, highlight_color),
                 );
 
                 self.ui.transitioning = state.animation_running;
             } else {
-                self.render_tabs(ctx, self.ui.tab.clone(), theme_color);
+                self.render_tabs(ctx, self.ui.tab.clone(), highlight_color);
                 ctx.inspection_ui(ui);
             }
         });
@@ -777,5 +524,13 @@ impl App for MyApp {
             "Your session was running for: {}",
             calculate_session(self.app.meta.session.clone())
         );
+
+        self.app
+            .stats
+            .increment_total_time(get_time_difference_in_seconds(
+                self.app.meta.session.parse().unwrap(),
+            ));
+
+        self.app.stats.save();
     }
 }

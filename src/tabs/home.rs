@@ -1,8 +1,16 @@
-use std::{fs, path::Path, process::Command, sync::Arc, thread, time::Duration};
+use std::{
+    collections::BTreeMap, fs, path::Path, process::Command, sync::Arc, thread, time::Duration,
+};
 
-use egui::{CursorIcon::PointingHand as Clickable, RichText, Spinner, TextStyle};
+use egui::{
+    scroll_area::ScrollBarVisibility::AlwaysHidden, CursorIcon::PointingHand as Clickable,
+    RichText, Sense, Spinner, TextStyle,
+};
 use egui_commonmark::CommonMarkViewer;
-use egui_material_icons::icons::{ICON_DESCRIPTION, ICON_PERSON, ICON_SOURCE, ICON_SYRINGE, ICON_INFO, ICON_LINK, ICON_ARROW_DROP_DOWN, ICON_ARROW_DROP_UP};
+use egui_material_icons::icons::{
+    ICON_AWARD_STAR, ICON_CLOUD_OFF, ICON_EDITOR_CHOICE, ICON_LINK, ICON_LOGIN, ICON_MILITARY_TECH,
+    ICON_NO_ACCOUNTS, ICON_PERSON, ICON_PROBLEM, ICON_SYRINGE, ICON_VISIBILITY,
+};
 use egui_modal::Modal;
 use url::Url;
 
@@ -16,6 +24,7 @@ use crate::{
 #[rustfmt::skip]
 #[cfg(feature = "scanner")]
 use crate::scanner::scanner::Scanner;
+use crate::tabs::top_panel::AppTab;
 
 impl MyApp {
     // MARK: Key events
@@ -155,41 +164,283 @@ impl MyApp {
         }
     }
 
+    // MARK: Home tab
+    pub(crate) fn render_home_tab(&mut self, ctx: &egui::Context, highlight_color: egui::Color32) {
+        self.handle_key_events(ctx);
+
+        let hacks_by_game = self.group_hacks_by_game();
+
+        self.render_left_panel(ctx, hacks_by_game);
+        self.render_central_panel(ctx, highlight_color);
+    }
+
+    pub(crate) fn render_left_panel(
+        &mut self,
+        ctx: &egui::Context,
+        hacks_by_game: BTreeMap<String, BTreeMap<String, Vec<Hack>>>,
+    ) {
+        egui::SidePanel::left("left_panel")
+            .resizable(true)
+            .default_width(200.0)
+            .max_width(300.0)
+            .show(ctx, |ui| {
+                egui::ScrollArea::vertical()
+                    .scroll_bar_visibility(AlwaysHidden)
+                    .show(ui, |ui| {
+                        ui.style_mut().interaction.selectable_labels = false;
+
+                        ui.add_space(5.0);
+
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Min), |ui| {
+                            ui.add(
+                                egui::TextEdit::singleline(&mut self.ui.search_query)
+                                    .hint_text("Search..."),
+                            );
+                        });
+
+                        ui.add_space(5.0);
+                        let mut all_games_hidden = true;
+                        for game_name in self.app.config.game_order.clone() {
+                            if let Some(versions) = hacks_by_game.get(&game_name) {
+                                if !self.app.config.hidden_games.contains(&game_name) {
+                                    self.render_game_hacks(ui, game_name, versions.clone(), ctx);
+                                    ui.add_space(5.0);
+                                    all_games_hidden = false;
+                                }
+                            }
+                        }
+                        if all_games_hidden {
+                            if self.app.config.show_only_favorites {
+                                ui.label("You enabled 'Show only favorites' and no favorites are available.");
+                            } else {
+                                ui.label("All games are hidden");
+
+                                if ui.cibutton("Show all", ICON_VISIBILITY).clicked() {
+                                    self.app.config.hidden_games.clear();
+                                    self.app.config.save();
+                                }
+                            }
+                            if ui.cbutton("Go to settings").clicked() {
+                                self.ui.tab = AppTab::Settings;
+                            }
+                        } else if hacks_by_game.is_empty() {
+                            ui.label("No hacks available.");
+                        }
+                    });
+            });
+    }
+
+    fn render_game_hacks(
+        &mut self,
+        ui: &mut egui::Ui,
+        game_name: String,
+        versions: BTreeMap<String, Vec<Hack>>,
+        ctx: &egui::Context,
+    ) {
+        ui.group(|group_ui| {
+            group_ui.with_layout(egui::Layout::top_down(egui::Align::Min), |layout_ui| {
+                layout_ui.with_layout(
+                    egui::Layout::top_down_justified(egui::Align::Center),
+                    |ui| {
+                        ui.heading(game_name);
+                    },
+                );
+                layout_ui.separator();
+
+                for (version, hacks) in versions {
+                    self.render_version_hacks(layout_ui, version, hacks, ctx);
+                }
+            });
+        });
+    }
+
+    fn render_version_hacks(
+        &mut self,
+        ui: &mut egui::Ui,
+        version: String,
+        hacks: Vec<Hack>,
+        ctx: &egui::Context,
+    ) {
+        if !version.is_empty() {
+            ui.with_layout(
+                egui::Layout::top_down_justified(egui::Align::Center),
+                |ui| {
+                    ui.label(RichText::new(version).heading());
+                },
+            );
+        }
+
+        for hack in hacks {
+            self.render_hack_item(ui, &hack, ctx);
+        }
+    }
+
+    fn render_hack_item(&mut self, ui: &mut egui::Ui, hack: &Hack, ctx: &egui::Context) {
+        let hack_clone = hack.clone();
+        ui.horizontal(|ui| {
+            let mut label = self.create_hack_label(hack);
+
+            if !self.ui.search_query.is_empty() {
+                label = self.apply_search_highlighting(label, &hack.name);
+            }
+
+            let in_progress = self
+                .communication
+                .in_progress
+                .load(std::sync::atomic::Ordering::SeqCst);
+
+            let is_selected = self.app.selected_hack.as_ref() == Some(hack);
+
+            let response = ui
+                .add_enabled_ui((!in_progress || is_selected) && hack.working, |ui| {
+                    ui.selectable_label(self.app.selected_hack.as_ref() == Some(hack), label)
+                })
+                .inner;
+
+            self.render_working_state(ui, hack);
+            self.render_favorite_button(ui, hack);
+            self.render_injection_count(ui, hack);
+
+            if response.clicked() && !in_progress {
+                self.select_hack(&hack_clone);
+            }
+
+            self.context_menu(&response, ctx, hack);
+
+            response.on_hover_cursor(Clickable);
+        });
+    }
+
+    fn create_hack_label(&self, hack: &Hack) -> RichText {
+        if self.app.config.favorites.contains(&hack.name) {
+            RichText::new(&hack.name).color(self.app.config.favorites_color)
+        } else {
+            RichText::new(&hack.name)
+        }
+    }
+
+    fn apply_search_highlighting(&self, mut label: RichText, name: &str) -> RichText {
+        let lowercase_name = name.to_lowercase();
+        let lowercase_query = self.ui.search_query.to_lowercase();
+        let mut search_index = 0;
+        while let Some(index) = lowercase_name[search_index..].find(&lowercase_query) {
+            let start = search_index + index;
+            let end = start + lowercase_query.len();
+            label = label.strong().underline();
+            search_index = end;
+        }
+        label
+    }
+
+    fn render_working_state(&mut self, ui: &mut egui::Ui, hack: &Hack) {
+        if !hack.working {
+            ui.label(egui_material_icons::icons::ICON_BLOCK);
+        }
+    }
+
+    fn render_favorite_button(&mut self, ui: &mut egui::Ui, hack: &Hack) {
+        let is_favorite = self.app.config.favorites.contains(&hack.name);
+        if is_favorite {
+            if ui
+                .add(
+                    egui::Button::new(egui_material_icons::icons::ICON_STAR)
+                        .frame(false)
+                        .sense(Sense::click()),
+                )
+                .on_hover_cursor(Clickable)
+                .clicked()
+            {
+                self.toggle_favorite(hack.name.clone());
+                self.toasts
+                    .success(format!("Removed {} from favorites.", hack.name));
+            }
+        }
+    }
+
+    fn toggle_favorite(&mut self, hack_name: String) {
+        if self.app.config.favorites.contains(&hack_name) {
+            self.app.config.favorites.remove(&hack_name);
+        } else {
+            self.app.config.favorites.insert(hack_name);
+        }
+        self.app.config.save();
+    }
+
+    fn render_injection_count(&self, ui: &mut egui::Ui, hack: &Hack) {
+        if self.app.config.hide_statistics {
+            return;
+        }
+
+        if let Some(&count) = self.app.stats.inject_counts.get(&hack.file) {
+            if count == 0 {
+                return;
+            }
+
+            let label = match count {
+                100.. => RichText::new(format!("{}x {}", count, ICON_AWARD_STAR))
+                    .color(egui::Color32::YELLOW),
+                25.. => format!("{}x {}", count, ICON_EDITOR_CHOICE).into(),
+                10.. => format!("{}x {}", count, ICON_MILITARY_TECH).into(),
+                _ => format!("{}x", count).into(),
+            };
+
+            ui.label(label);
+        }
+    }
+
+    fn select_hack(&mut self, hack_clone: &Hack) {
+        self.app.selected_hack = Some(hack_clone.clone());
+        self.app.config.selected_hack = hack_clone.name.clone();
+        self.app.config.save();
+
+        let mut status = self.communication.status_message.lock().unwrap();
+        *status = String::new();
+
+        self.rpc
+            .update(None, Some(&format!("Selected {}", hack_clone.name)), None);
+    }
+
     // MARK: Hack details
     pub fn display_hack_details(
         &mut self,
         ui: &mut egui::Ui,
         ctx: &egui::Context,
         selected: &Hack,
-        theme_color: egui::Color32,
+        highlight_color: egui::Color32,
     ) {
         let is_roblox = selected.game == "Roblox";
 
         ui.vertical(|ui| {
-            ui.horizontal(|ui| {
-                ui.heading(&selected.name);
-            });
+            ui.heading(&selected.name);
+
             if !selected.author.is_empty() {
                 ui.horizontal_wrapped(|ui| {
                     let width =
                         ui.fonts(|f| f.glyph_width(&TextStyle::Body.resolve(ui.style()), ' '));
                     ui.spacing_mut().item_spacing.x = width;
 
-                    ui.label(ICON_PERSON);
+                    if selected.author == "???" {
+                        ui.label(ICON_NO_ACCOUNTS);
+                    } else {
+                        ui.label(ICON_PERSON);
+                    }
                     ui.label("by");
-                    ui.label(RichText::new(&selected.author).color(theme_color).on_hover_text("Author of the hack"));
+                    ui.label(RichText::new(&selected.author).color(highlight_color))
+                        .on_hover_text("Author of the hack");
 
-                    if !selected.source.is_empty() && selected.source != "n/a" {
+                    ui.add_space(5.0);
+
+                    if !selected.source.is_empty() && selected.source.to_string() != "n/a" {
                         if let Ok(url) = Url::parse(&selected.source) {
                             ui.clink(
-                                format!("{} {} (source, {})", ICON_LINK, ICON_SOURCE, url.domain().unwrap()),
+                                format!("{} (source, {})", ICON_LINK, url.domain().unwrap()),
                                 &selected.source,
                             );
                         } else {
-                            ui.label("(source not available)");
+                            ui.label(format!("{} (source not available)", ICON_CLOUD_OFF));
                         }
                     } else {
-                        ui.label("(source not available)");
+                        ui.label(format!("{} (source not available)", ICON_CLOUD_OFF));
                     }
                 });
             }
@@ -197,8 +448,13 @@ impl MyApp {
 
         ui.separator();
 
-        if !selected.description.is_empty() {
+        if !selected.description.is_empty() && !selected.description.contains("n/a") {
             CommonMarkViewer::new().show(ui, &mut self.app.cache, &selected.description);
+        } else {
+            ui.label(
+                RichText::new(format!("{} No description available.", ICON_PROBLEM))
+                    .color(highlight_color),
+            );
         }
 
         if !self.app.config.hide_steam_account && !is_roblox {
@@ -206,9 +462,9 @@ impl MyApp {
                 let width = ui.fonts(|f| f.glyph_width(&TextStyle::Body.resolve(ui.style()), ' '));
                 ui.spacing_mut().item_spacing.x = width;
 
-                ui.label("Currently logged in as (steam):".to_string());
+                ui.label(format!("{} Logged in as (Steam):", ICON_LOGIN));
                 if ui
-                    .label(RichText::new(&self.app.account.name).color(theme_color))
+                    .label(RichText::new(&self.app.account.name).color(highlight_color))
                     .on_hover_text_at_pointer(&self.app.account.username)
                     .on_hover_cursor(egui::CursorIcon::Help)
                     .clicked()
@@ -221,8 +477,6 @@ impl MyApp {
                             .error(format!("Failed to open Steam profile: {}", e));
                     }
                 }
-
-                ui.label("(hover to view username, click to open profile)");
             });
         }
 
@@ -315,7 +569,7 @@ impl MyApp {
                     RichText::new(&status).color(if status.starts_with("Failed") {
                         egui::Color32::RED
                     } else {
-                        theme_color
+                        highlight_color
                     }),
                 );
                 ctx.request_repaint();
@@ -327,7 +581,7 @@ impl MyApp {
                 let color = if status.starts_with("Failed") || status.starts_with("Error") {
                     egui::Color32::RED
                 } else {
-                    theme_color
+                    highlight_color
                 };
                 ui.label(RichText::new(&status).color(color));
             }

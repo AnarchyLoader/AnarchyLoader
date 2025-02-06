@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 pub struct Statistics {
     pub opened_count: u64,
     pub inject_counts: HashMap<String, u64>,
+    pub total_seconds: u64,
 }
 
 impl Default for Statistics {
@@ -13,8 +14,49 @@ impl Default for Statistics {
         Statistics {
             opened_count: 0,
             inject_counts: HashMap::new(),
+            total_seconds: 0,
         }
     }
+}
+
+pub fn calculate_session(time: String) -> String {
+    let session_start = chrono::DateTime::parse_from_rfc3339(&time)
+        .unwrap()
+        .with_timezone(&chrono::Local);
+    let session_duration = chrono::Local::now() - session_start;
+    let hours = session_duration.num_hours();
+    let minutes = session_duration.num_minutes() % 60;
+    let seconds = session_duration.num_seconds() % 60;
+    if hours > 0 {
+        format!("{} hours and {} minutes", hours, minutes)
+    } else if minutes > 0 {
+        format!("{} minutes", minutes)
+    } else {
+        format!("{} seconds", seconds)
+    }
+}
+
+pub fn get_time_from_seconds(seconds: u64) -> String {
+    let hours = seconds / 3600;
+    let minutes = (seconds % 3600) / 60;
+    let seconds = seconds % 60;
+    if hours > 0 {
+        format!(
+            "{} hours, {} minutes and {} seconds",
+            hours, minutes, seconds
+        )
+    } else if minutes > 0 {
+        format!("{} minutes and {} seconds", minutes, seconds)
+    } else {
+        format!("{} seconds", seconds)
+    }
+}
+
+pub fn get_time_difference_in_seconds(time: chrono::DateTime<chrono::FixedOffset>) -> u64 {
+    let current_time =
+        chrono::Local::now().with_timezone(&chrono::FixedOffset::east_opt(0).unwrap());
+    let time_difference = current_time - time;
+    time_difference.num_seconds() as u64
 }
 
 impl Statistics {
@@ -26,6 +68,11 @@ impl Statistics {
 
     pub fn increment_opened_count(&mut self) {
         self.opened_count += 1;
+        self.save();
+    }
+
+    pub fn increment_total_time(&mut self, time: u64) {
+        self.total_seconds += time;
         self.save();
     }
 

@@ -3,6 +3,7 @@ use egui_notify::Toasts;
 
 pub trait Button {
     fn cbutton(&mut self, label: impl Into<WidgetText>) -> Response;
+    fn cibutton(&mut self, label: &str, icon: &str) -> Response;
     fn button_with_tooltip(
         &mut self,
         label: impl Into<WidgetText>,
@@ -14,12 +15,16 @@ pub trait Button {
         url: &str,
         toasts: &mut Toasts,
     ) -> Response;
-    fn icon_button(&mut self, icon: &str, label: &str) -> Response;
 }
 
 impl Button for Ui {
     fn cbutton(&mut self, label: impl Into<WidgetText>) -> Response {
         self.button(label).on_hover_cursor(Clickable)
+    }
+
+    fn cibutton(&mut self, label: &str, icon: &str) -> Response {
+        self.button(format!("{} {}", icon, label))
+            .on_hover_cursor(Clickable)
     }
 
     fn button_with_tooltip(
@@ -50,11 +55,6 @@ impl Button for Ui {
         }
 
         response
-    }
-
-    fn icon_button(&mut self, icon: &str, label: &str) -> Response {
-        self.button(format!("{} {}", icon, label))
-            .on_hover_cursor(Clickable)
     }
 }
 

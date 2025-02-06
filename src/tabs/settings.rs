@@ -1,6 +1,9 @@
-use egui::{CursorIcon::PointingHand as Clickable, RichText};
+use egui::{CursorIcon::PointingHand as Clickable, RichText, ThemePreference};
 use egui_dnd::dnd;
-use egui_material_icons::icons::{ICON_VISIBILITY, ICON_VISIBILITY_OFF, ICON_FAVORITE, ICON_DELETE, ICON_DOWNLOAD, ICON_REINSTALL, ICON_SCAN, ICON_ADD};
+use egui_material_icons::icons::{
+    ICON_ADD, ICON_DELETE, ICON_DOWNLOAD, ICON_EYE_TRACKING, ICON_MANUFACTURING, ICON_RESTART_ALT,
+    ICON_VISIBILITY, ICON_VISIBILITY_OFF,
+};
 use egui_modal::Modal;
 use egui_theme_switch::ThemeSwitch;
 
@@ -45,6 +48,7 @@ impl MyApp {
 
                     #[cfg(feature = "scanner")]
                     {
+                        // MARK: - Scanner
                         ui.add_space(3.0);
                         self.render_scanner(ctx, ui);
                     }
@@ -217,7 +221,10 @@ impl MyApp {
                             self.app.config.save();
                         }
 
-                        if ui.cbutton("Configure transitions").clicked() {
+                        if ui
+                            .cbutton(format!("{} Configure transitions", ICON_MANUFACTURING))
+                            .clicked()
+                        {
                             modal_transition.open();
                         }
 
@@ -234,11 +241,18 @@ impl MyApp {
                             }
                         });
 
+                        ui.add_space(5.0);
+
                         let mut preference = ui.ctx().options(|opt| opt.theme_preference);
                         if ui.add(ThemeSwitch::new(&mut preference)).changed() {
                             ui.ctx().set_theme(preference);
                             self.app.config.theme = preference;
                             self.app.config.save();
+
+                            if preference == ThemePreference::Light {
+                                self.toasts
+                                    .info("Better use dark theme for better experience.");
+                            }
                         }
                     });
 
@@ -294,12 +308,12 @@ impl MyApp {
                         ui.add_space(5.0);
 
                         ui.horizontal(|ui| {
-                            if ui.icon_button(ICON_VISIBILITY, "Show all").clicked() {
+                            if ui.cibutton("Show all", ICON_VISIBILITY).clicked() {
                                 self.app.config.hidden_games.clear();
                                 self.app.config.save();
                             }
 
-                            if ui.icon_button(ICON_VISIBILITY_OFF, "Hide all").clicked() {
+                            if ui.cibutton("Hide all", ICON_VISIBILITY_OFF).clicked() {
                                 self.app.config.hidden_games =
                                     self.app.config.game_order.clone().into_iter().collect();
                                 self.app.config.save();
@@ -307,12 +321,21 @@ impl MyApp {
                         });
 
                         ui.horizontal(|ui| {
-                            if ui.cbutton("Reset game order").clicked() {
+                            if ui
+                                .cbutton(format!("{} Reset game order", ICON_RESTART_ALT))
+                                .clicked()
+                            {
                                 self.app.config.reset_game_order();
                                 self.toasts.success("Game order reset.");
                             }
 
-                            if ui.cbutton(RichText::new("Reset hidden games")).clicked() {
+                            if ui
+                                .cbutton(RichText::new(format!(
+                                    "{} Reset hidden games",
+                                    ICON_EYE_TRACKING
+                                )))
+                                .clicked()
+                            {
                                 self.app.config.hidden_games.clear();
                                 self.app.config.save();
                                 self.toasts.success("Hidden games reset.");
@@ -401,12 +424,12 @@ impl MyApp {
                                         arch: self.ui.popups.local_hack.new_local_arch.clone(),
                                     };
                                     self.add_local_hack(hack);
-                                    if (!self.app.config.local_hacks.is_empty()
+                                    if !self.app.config.local_hacks.is_empty()
                                         && !self
                                             .app
                                             .config
                                             .game_order
-                                            .contains(&"Added".to_string()))
+                                        .contains(&"Added".to_string())
                                     {
                                         self.app.config.game_order.push("Added".to_string());
                                     }
@@ -429,10 +452,10 @@ impl MyApp {
                         });
 
                         ui.horizontal(|ui| {
-                            if ui.icon_button(ICON_ADD, "Add local hack").clicked() {
+                            if ui.cibutton("Add local hack", ICON_ADD).clicked() {
                                 local_hack_modal.open();
                             }
-                            if ui.icon_button(ICON_DELETE, "Reset local hacks").clicked() {
+                            if ui.cibutton("Reset local hacks", ICON_DELETE).clicked() {
                                 self.app.config.local_hacks.clear();
                                 self.app.config.reset_game_order();
                                 self.app.config.save();
@@ -496,18 +519,24 @@ impl MyApp {
                             });
                         });
 
-                        if ui.icon_button(ICON_DELETE, "Delete injector").clicked() {
+                        if ui.cibutton("Delete injector", ICON_DELETE).clicked() {
                             modal_injector.open();
                         }
 
-                        if ui.icon_button(ICON_DOWNLOAD, "Download stable injectors").clicked() {
+                        if ui
+                            .cibutton("Download stable injectors", ICON_DOWNLOAD)
+                            .clicked()
+                        {
                             self.download_injectors(
                                 self.communication.messages.sender.clone(),
                                 false,
                             );
                         }
 
-                        if ui.icon_button(ICON_DOWNLOAD, "Download nightly injectors").clicked() {
+                        if ui
+                            .cibutton("Download nightly injectors", ICON_DOWNLOAD)
+                            .clicked()
+                        {
                             self.download_injectors(
                                 self.communication.messages.sender.clone(),
                                 true,
