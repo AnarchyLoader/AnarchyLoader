@@ -167,7 +167,6 @@ impl MyApp {
 
         ui.vertical(|ui| {
             ui.horizontal(|ui| {
-                ui.label(ICON_SYRINGE);
                 ui.heading(&selected.name);
             });
             if !selected.author.is_empty() {
@@ -199,9 +198,7 @@ impl MyApp {
         ui.separator();
 
         if !selected.description.is_empty() {
-            ui.collapsing(format!("{} Description", ICON_DESCRIPTION), |ui| {
-                CommonMarkViewer::new().show(ui, &mut self.app.cache, &selected.description);
-            });
+            CommonMarkViewer::new().show(ui, &mut self.app.cache, &selected.description);
         }
 
         if !self.app.config.hide_steam_account && !is_roblox {
