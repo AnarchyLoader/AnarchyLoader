@@ -2,7 +2,7 @@ use std::{fs, path::Path, process::Command, sync::Arc, thread, time::Duration};
 
 use egui::{CursorIcon::PointingHand as Clickable, RichText, Spinner, TextStyle};
 use egui_commonmark::CommonMarkViewer;
-use egui_material_icons::icons::ICON_SYRINGE;
+use egui_material_icons::icons::{ICON_DESCRIPTION, ICON_PERSON, ICON_SOURCE, ICON_SYRINGE, ICON_INFO, ICON_LINK, ICON_ARROW_DROP_DOWN, ICON_ARROW_DROP_UP};
 use egui_modal::Modal;
 use url::Url;
 
@@ -167,6 +167,7 @@ impl MyApp {
 
         ui.vertical(|ui| {
             ui.horizontal(|ui| {
+                ui.label(ICON_SYRINGE);
                 ui.heading(&selected.name);
             });
             if !selected.author.is_empty() {
@@ -175,13 +176,14 @@ impl MyApp {
                         ui.fonts(|f| f.glyph_width(&TextStyle::Body.resolve(ui.style()), ' '));
                     ui.spacing_mut().item_spacing.x = width;
 
+                    ui.label(ICON_PERSON);
                     ui.label("by");
-                    ui.label(RichText::new(&selected.author).color(theme_color));
+                    ui.label(RichText::new(&selected.author).color(theme_color).on_hover_text("Author of the hack"));
 
                     if !selected.source.is_empty() && selected.source != "n/a" {
                         if let Ok(url) = Url::parse(&selected.source) {
                             ui.clink(
-                                format!("(source, {})", url.domain().unwrap()),
+                                format!("{} {} (source, {})", ICON_LINK, ICON_SOURCE, url.domain().unwrap()),
                                 &selected.source,
                             );
                         } else {
@@ -197,7 +199,9 @@ impl MyApp {
         ui.separator();
 
         if !selected.description.is_empty() {
-            CommonMarkViewer::new().show(ui, &mut self.app.cache, &selected.description);
+            ui.collapsing(format!("{} Description", ICON_DESCRIPTION), |ui| {
+                CommonMarkViewer::new().show(ui, &mut self.app.cache, &selected.description);
+            });
         }
 
         if !self.app.config.hide_steam_account && !is_roblox {

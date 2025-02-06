@@ -24,7 +24,7 @@ use egui::{
 use egui_alignments::center_vertical;
 use egui_commonmark::CommonMarkCache;
 use egui_material_icons::icons::{
-    ICON_AWARD_STAR, ICON_EDITOR_CHOICE, ICON_MILITARY_TECH, ICON_VISIBILITY,
+    ICON_AWARD_STAR, ICON_EDITOR_CHOICE, ICON_MILITARY_TECH, ICON_VISIBILITY, ICON_INFO, ICON_WARNING, ICON_ERROR,
 };
 use egui_notify::Toasts;
 use egui_transition_animation::{animated_pager, TransitionStyle, TransitionType};

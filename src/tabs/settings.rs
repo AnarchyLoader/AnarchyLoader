@@ -1,6 +1,6 @@
 use egui::{CursorIcon::PointingHand as Clickable, RichText};
 use egui_dnd::dnd;
-use egui_material_icons::icons::{ICON_VISIBILITY, ICON_VISIBILITY_OFF};
+use egui_material_icons::icons::{ICON_VISIBILITY, ICON_VISIBILITY_OFF, ICON_FAVORITE, ICON_DELETE, ICON_DOWNLOAD, ICON_REINSTALL, ICON_SCAN, ICON_ADD};
 use egui_modal::Modal;
 use egui_theme_switch::ThemeSwitch;
 
@@ -401,12 +401,12 @@ impl MyApp {
                                         arch: self.ui.popups.local_hack.new_local_arch.clone(),
                                     };
                                     self.add_local_hack(hack);
-                                    if !self.app.config.local_hacks.is_empty()
+                                    if (!self.app.config.local_hacks.is_empty()
                                         && !self
                                             .app
                                             .config
                                             .game_order
-                                            .contains(&"Added".to_string())
+                                            .contains(&"Added".to_string()))
                                     {
                                         self.app.config.game_order.push("Added".to_string());
                                     }
@@ -429,10 +429,10 @@ impl MyApp {
                         });
 
                         ui.horizontal(|ui| {
-                            if ui.cbutton("Add local hack").clicked() {
+                            if ui.icon_button(ICON_ADD, "Add local hack").clicked() {
                                 local_hack_modal.open();
                             }
-                            if ui.cbutton("Reset local hacks").clicked() {
+                            if ui.icon_button(ICON_DELETE, "Reset local hacks").clicked() {
                                 self.app.config.local_hacks.clear();
                                 self.app.config.reset_game_order();
                                 self.app.config.save();
@@ -496,18 +496,18 @@ impl MyApp {
                             });
                         });
 
-                        if ui.cbutton("Delete injector").clicked() {
+                        if ui.icon_button(ICON_DELETE, "Delete injector").clicked() {
                             modal_injector.open();
                         }
 
-                        if ui.cbutton("Download stable injectors").clicked() {
+                        if ui.icon_button(ICON_DOWNLOAD, "Download stable injectors").clicked() {
                             self.download_injectors(
                                 self.communication.messages.sender.clone(),
                                 false,
                             );
                         }
 
-                        if ui.cbutton("Download nightly injectors").clicked() {
+                        if ui.icon_button(ICON_DOWNLOAD, "Download nightly injectors").clicked() {
                             self.download_injectors(
                                 self.communication.messages.sender.clone(),
                                 true,
