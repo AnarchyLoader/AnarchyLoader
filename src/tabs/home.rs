@@ -513,7 +513,7 @@ impl MyApp {
             ui.heading(RichText::new("Disclaimer").color(egui::Color32::RED));
             ui.separator();
 
-            let text = format!("Hey {}", whoami::username()) + "\nUsing cheats or unauthorized modifications in online games violates their terms of service.\nBy using this tool, you understand and agree that you are doing so at your own risk.\nThis may result in a **permanent ban** from the game and related services.\n**We are not responsible for any consequences resulting from the use of this cheat.**";
+            let text = format!("Hey {}", whoami::username()) + ", using cheats or unauthorized modifications in online games violates their terms of service.\nBy using this tool, you understand and agree that you are doing so at your own risk.\nThis may result in a **permanent ban** from the game and related services.\n**We are not responsible for any consequences resulting from the use of this cheat.**";
 
             CommonMarkViewer::new().show(ui, &mut self.app.cache, &*text);
 
