@@ -31,7 +31,7 @@ git clone https://github.com/AnarchyLoader/AnarchyLoader.git
 cd AnarchyLoader
 ```
 
-2. Setup nightly toolchain (for dll-syringe)
+2. Setup nightly toolchain
 
 ```sh
 rustup toolchain install nightly
@@ -52,7 +52,7 @@ cargo build --release
 - [egui-modal](https://github.com/n00kii/egui-modal)
 - [egui-material-icons](https://github.com/lucasmerlin/hello_egui/tree/main/crates/egui_material_icons)
 - [egui-theme-switch](https://github.com/bash/egui-theme-switch)
-- [egui_transition_animation (but using fork)](https://github.com/dest4590/egui_transition_animation)
+- [egui_transition_animation](https://github.com/dest4590/egui_transition_animation)
 - [vdf_reader](https://github.com/icewind1991/vdf-reader)
 - [discord-rich-presence](https://github.com/vionya/discord-rich-presence)
 - [pelite](https://github.com/CasualX/pelite)

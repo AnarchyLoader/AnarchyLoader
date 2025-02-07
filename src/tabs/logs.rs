@@ -29,7 +29,6 @@ impl MyApp {
                             .logger
                             .set_level(self.app.config.log_level.to_level_filter());
                         self.app.config.save();
-                        log::info!("[LOGS_TAB] Configuration saved after log level change.");
                     }
                 }
             });

@@ -1,8 +1,8 @@
 use egui::{CursorIcon::PointingHand as Clickable, RichText, ThemePreference};
 use egui_dnd::dnd;
 use egui_material_icons::icons::{
-    ICON_ADD, ICON_DELETE, ICON_DOWNLOAD, ICON_EYE_TRACKING, ICON_MANUFACTURING, ICON_RESTART_ALT,
-    ICON_VISIBILITY, ICON_VISIBILITY_OFF,
+    ICON_ADD, ICON_DELETE, ICON_DOWNLOAD, ICON_EYE_TRACKING, ICON_FOLDER, ICON_MANUFACTURING,
+    ICON_RESTART_ALT, ICON_VISIBILITY, ICON_VISIBILITY_OFF,
 };
 use egui_modal::Modal;
 use egui_theme_switch::ThemeSwitch;
@@ -97,7 +97,6 @@ impl MyApp {
                                 }
                             ));
                             self.app.config.save();
-                            log::info!("[SETTINGS_TAB] Configuration saved after 'lowercase hacks' change.");
                         };
                         if ui
                             .ccheckbox(&mut self.app.config.disable_rpc, "Disable RPC")
@@ -116,7 +115,6 @@ impl MyApp {
                                 self.rpc.sender.send(RpcUpdate::Shutdown).ok();
                                 log::info!("[SETTINGS_TAB] Discord RPC disabled");
                             }
-                            log::info!("[SETTINGS_TAB] Configuration saved after 'disable rpc' change.");
                         }
                         if ui
                             .ccheckbox(
@@ -637,13 +635,13 @@ impl MyApp {
                     ui.add_space(5.0);
 
                     ui.horizontal(|ui| {
-                        if ui.cbutton("Open loader folder").clicked() {
+                        if ui.cibutton("Open loader folder", ICON_FOLDER).clicked() {
                             let _ = opener::open(self.app.meta.path.clone());
                             log::info!("[SETTINGS_TAB] Opened loader folder: {}", self.app.meta.path.display());
                         }
 
                         #[cfg(debug_assertions)]
-                        if ui.cbutton("Open config file").clicked() {
+                        if ui.cibutton("Open config file", ICON_MANUFACTURING).clicked() {
                             let _ = opener::open(self.app.meta.path.join("config.json").clone());
                             log::info!("[SETTINGS_TAB] Opened config file: {}", self.app.meta.path.join("config.json").display());
                         }
@@ -716,7 +714,7 @@ impl MyApp {
                             });
                         });
 
-                        if ui.cbutton(RichText::new("Reset statistics")).clicked() {
+                        if ui.cibutton("Reset statistics", ICON_RESTART_ALT).clicked() {
                             modal_statistics.open();
                         }
                     });

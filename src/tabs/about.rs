@@ -56,8 +56,8 @@ impl MyApp {
         log::info!("[ABOUT_TAB] Parsing {}...", user_type);
 
         match user_type {
-            "contributors" => self.ui.tab_states.about.is_contributors_loading = true,
-            "stargazers" => self.ui.tab_states.about.is_stargazers_loading = true,
+            "contributors" => self.ui.tabs.about.is_contributors_loading = true,
+            "stargazers" => self.ui.tabs.about.is_stargazers_loading = true,
             _ => log::error!("[ABOUT_TAB] Unknown user type: {}", user_type),
         }
 
@@ -87,14 +87,14 @@ impl MyApp {
 
                 match &user_type_clone[..] {
                     "contributors" => {
-                        self.ui.tab_states.about.parsed_contributors = users;
-                        self.ui.tab_states.about.is_contributors_parsed = true;
-                        self.ui.tab_states.about.is_contributors_loading = false;
+                        self.ui.tabs.about.parsed_contributors = users;
+                        self.ui.tabs.about.is_contributors_parsed = true;
+                        self.ui.tabs.about.is_contributors_loading = false;
                     }
                     "stargazers" => {
-                        self.ui.tab_states.about.parsed_stargazers = users;
-                        self.ui.tab_states.about.is_stargazers_parsed = true;
-                        self.ui.tab_states.about.is_stargazers_loading = false;
+                        self.ui.tabs.about.parsed_stargazers = users;
+                        self.ui.tabs.about.is_stargazers_parsed = true;
+                        self.ui.tabs.about.is_stargazers_loading = false;
                     }
                     _ => log::error!("[ABOUT_TAB] Unknown user type: {}", user_type),
                 }
@@ -102,8 +102,8 @@ impl MyApp {
             Err(e) => {
                 log::error!("[ABOUT_TAB] Failed to parse {}: {}", user_type, e);
                 match &user_type_clone[..] {
-                    "contributors" => self.ui.tab_states.about.is_contributors_loading = false,
-                    "stargazers" => self.ui.tab_states.about.is_stargazers_loading = false,
+                    "contributors" => self.ui.tabs.about.is_contributors_loading = false,
+                    "stargazers" => self.ui.tabs.about.is_stargazers_loading = false,
                     _ => {}
                 }
             }
@@ -199,7 +199,7 @@ impl MyApp {
                                     .iter()
                                     .collect();
 
-                                if sorted_inject_counts.len() == 0 {
+                                if !self.app.stats.has_injections() {
                                     ui.label("No hacks injected yet.");
                                 } else {
                                     ui.label(format!(
@@ -281,19 +281,19 @@ impl MyApp {
                         |ui| {
                             ui.label("Special thanks to the people who have contributed to this project.");
 
-                            if self.ui.tab_states.about.is_contributors_loading {
+                            if self.ui.tabs.about.is_contributors_loading {
                                 ui.vertical_centered(|ui| ui.label("Loading contributors..."));
-                            } else if self.ui.tab_states.about.is_contributors_parsed {
+                            } else if self.ui.tabs.about.is_contributors_parsed {
                                 self.render_user_grid(
                                     ui,
-                                    &self.ui.tab_states.about.parsed_contributors.clone(),
+                                    &self.ui.tabs.about.parsed_contributors.clone(),
                                 );
                             }
                         },
                     );
                     if contributors_collapsing.fully_open()
-                        && !self.ui.tab_states.about.is_contributors_parsed
-                        && !self.ui.tab_states.about.is_contributors_loading
+                        && !self.ui.tabs.about.is_contributors_parsed
+                        && !self.ui.tabs.about.is_contributors_loading
                     {
                         self.fetch_github_users("contributors", "contributors");
                     };
@@ -311,12 +311,12 @@ impl MyApp {
                             );
                             ui.add_space(10.0);
 
-                            if self.ui.tab_states.about.is_stargazers_loading {
+                            if self.ui.tabs.about.is_stargazers_loading {
                                 ui.vertical_centered(|ui| ui.label("Loading stargazers..."));
-                            } else if self.ui.tab_states.about.is_stargazers_parsed {
+                            } else if self.ui.tabs.about.is_stargazers_parsed {
                                 self.render_user_grid(
                                     ui,
-                                    &self.ui.tab_states.about.parsed_stargazers.clone(),
+                                    &self.ui.tabs.about.parsed_stargazers.clone(),
                                 );
                             } else {
                                 ui.vertical_centered(|ui| ui.label("Click to load stargazers."));
@@ -325,8 +325,8 @@ impl MyApp {
                     );
 
                     if stargazers_collapsing.fully_open()
-                        && !self.ui.tab_states.about.is_stargazers_parsed
-                        && !self.ui.tab_states.about.is_stargazers_loading
+                        && !self.ui.tabs.about.is_stargazers_parsed
+                        && !self.ui.tabs.about.is_stargazers_loading
                     {
                         self.fetch_github_users("stargazers", "stargazers");
                     };

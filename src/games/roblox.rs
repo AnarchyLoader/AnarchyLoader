@@ -90,7 +90,6 @@ impl MyApp {
                         log::error!("[ROBLOX] Failed to download executor: {}", e);
                         ctx_clone.request_repaint();
                         let _ = message_sender_clone.send(format!("Failed to download: {}", e));
-                        let _ = message_sender_clone.send(format!("ERROR: {}", e));
                         return;
                     }
                 }
@@ -103,7 +102,6 @@ impl MyApp {
                     log::error!("[ROBLOX] Failed to extract executor: {}", e);
                     ctx_clone.request_repaint();
                     let _ = message_sender_clone.send(format!("Failed to extract: {}", e));
-                    let _ = message_sender_clone.send(format!("ERROR: {}", e));
                     return;
                 }
             }
@@ -130,7 +128,6 @@ impl MyApp {
                     log::error!("[ROBLOX] Failed to run executor: {}", e);
                     ctx_clone.request_repaint();
                     let _ = message_sender_clone.send(format!("Failed to run: {}", e));
-                    let _ = message_sender_clone.send(format!("ERROR: {}", e));
                 }
             }
         });

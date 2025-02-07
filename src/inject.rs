@@ -82,20 +82,12 @@ impl MyApp {
                         );
                         let _ = message_sender
                             .error(&format!("Failed to get download URL for {}", injector_name));
-                        let _ = message_sender.error(&format!(
-                            "ERROR: Failed to get download URL for {}",
-                            injector_name
-                        ));
                     }
 
                     if let Err(e) = download_file(&download_url) {
                         log::error!("[INJECTOR] Failed to download {}: {}", injector_name, e);
                         let _ = message_sender
                             .error(&format!("Failed to download {}: {}", injector_name, e));
-                        let _ = message_sender.error(&format!(
-                            "ERROR: Failed to download {}: {}",
-                            injector_name, e
-                        ));
                     }
 
                     let _ = message_sender.raw(&format!("Downloaded (nightly) {}", injector_name));
@@ -117,8 +109,6 @@ impl MyApp {
                             log::error!("[INJECTOR] Failed to download {}: {}", injector, e);
                             let _ = message_sender
                                 .error(&format!("Failed to download {}: {}", injector, e));
-                            let _ = message_sender
-                                .error(&format!("ERROR: Failed to download {}: {}", injector, e));
                         }
                     }
                 }
@@ -161,7 +151,6 @@ impl MyApp {
                 Err(e) => {
                     let error_message = format!("Failed to download manual map injector: {}", e);
                     let _ = message_sender.error(&error_message.clone());
-                    let _ = message_sender.error(&format!("ERROR: {}", error_message));
                     log::error!("[INJECTOR] {}", error_message);
                     change_status_message(&status_message, &error_message);
                     ctx.request_repaint();
@@ -194,7 +183,6 @@ impl MyApp {
                         error_message += ", try running loader as admin.";
                     }
                     let _ = message_sender.error(&error_message.clone());
-                    let _ = message_sender.error(&format!("ERROR: {}", error_message));
                     log::error!("[INJECTOR] Failed to execute injector: {}", error_message);
                     change_status_message(
                         &status_message,
@@ -206,7 +194,6 @@ impl MyApp {
             Err(e) => {
                 let error_message = format!("Failed to execute injector: {}", e);
                 let _ = message_sender.error(&error_message.clone());
-                let _ = message_sender.error(&format!("ERROR: {}", error_message));
                 log::error!("[INJECTOR] {}", error_message);
                 change_status_message(&status_message, &error_message);
                 ctx.request_repaint();
@@ -265,8 +252,6 @@ impl MyApp {
                         ctx_clone.request_repaint();
                         log::error!("[INJECTION] Failed to download hack file: {}", e);
                         let _ = message_sender_clone.error(&format!("Failed to download: {}", e));
-                        let _ = message_sender_clone
-                            .error(&format!("ERROR: Failed to download: {}", e));
                         return;
                     }
                 }

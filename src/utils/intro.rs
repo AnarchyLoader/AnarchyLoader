@@ -132,13 +132,18 @@ impl MyApp {
     pub(crate) fn render_intro_screen(&mut self, ctx: &egui::Context) {
         egui::CentralPanel::default().show(ctx, |ui| {
             center_vertical(ui, |ui| {
+                let is_dark_mode = ui.visuals().dark_mode;
+                let text_color = if is_dark_mode {
+                    egui::Color32::WHITE
+                } else {
+                    egui::Color32::BLACK
+                };
+
                 let hello_text = format!("Hello, {}!", whoami::username());
                 ui.label(
                     egui::RichText::new(hello_text)
                         .size(40.0 * self.ui.animation.hello_scale)
-                        .color(egui::Color32::from_white_alpha(
-                            (self.ui.animation.hello_opacity * 255.0) as u8,
-                        )),
+                        .color(text_color.gamma_multiply(self.ui.animation.hello_opacity)),
                 );
 
                 let scale_factor = ctx.animate_bool_with_time_and_easing(
@@ -153,9 +158,7 @@ impl MyApp {
                 let image = egui::Image::new(egui::include_image!("../../resources/img/icon.ico"))
                     .max_width(scale);
 
-                let tint_color = egui::Color32::from_white_alpha(
-                    (self.ui.animation.image_opacity * 255.0) as u8,
-                );
+                let tint_color = text_color.gamma_multiply(self.ui.animation.image_opacity);
 
                 ui.add(image.tint(tint_color));
 
@@ -170,18 +173,18 @@ impl MyApp {
 
                 ui.horizontal_wrapped(|_ui| {
                     for (i, ch) in chars.iter().enumerate() {
-                        let char_alpha: u8 = if i < visible_chars {
-                            (self.ui.animation.text_opacity * 255.0) as u8
+                        let char_alpha_f32: f32 = if i < visible_chars {
+                            self.ui.animation.text_opacity
                         } else if i == visible_chars && i < num_chars {
-                            ((remainder * 255.0) * self.ui.animation.text_opacity) as u8
+                            remainder * self.ui.animation.text_opacity
                         } else {
-                            0
+                            0.0
                         };
                         job.append(
                             &ch.to_string(),
                             0.0,
                             TextFormat {
-                                color: egui::Color32::from_white_alpha(char_alpha),
+                                color: text_color.gamma_multiply(char_alpha_f32),
                                 ..Default::default()
                             },
                         );
@@ -194,9 +197,7 @@ impl MyApp {
                 ui.label(
                     egui::RichText::new("Open Source Loader, by dest4590")
                         .size(12.0)
-                        .color(egui::Color32::from_white_alpha(
-                            (self.ui.animation.subtitle_opacity * 255.0) as u8,
-                        )),
+                        .color(text_color.gamma_multiply(self.ui.animation.subtitle_opacity)),
                 );
             });
         });

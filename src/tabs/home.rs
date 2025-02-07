@@ -26,6 +26,25 @@ use crate::{
 use crate::scanner::scanner::Scanner;
 use crate::tabs::top_panel::AppTab;
 
+#[derive(Debug)]
+pub struct HomeTab {
+    disclaimer_accepted: bool,
+}
+
+impl HomeTab {
+    pub fn new() -> Self {
+        Self {
+            disclaimer_accepted: false,
+        }
+    }
+}
+
+impl Default for HomeTab {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MyApp {
     // MARK: Key events
     pub fn handle_key_events(&mut self, ctx: &egui::Context) {
@@ -428,12 +447,13 @@ impl MyApp {
 
                     if selected.author == "???" {
                         ui.label(ICON_NO_ACCOUNTS);
+                        ui.label("Author unknown");
                     } else {
                         ui.label(ICON_PERSON);
+                        ui.label("by");
+                        ui.label(RichText::new(&selected.author).color(highlight_color))
+                            .on_hover_text("Author of the hack");
                     }
-                    ui.label("by");
-                    ui.label(RichText::new(&selected.author).color(highlight_color))
-                        .on_hover_text("Author of the hack");
 
                     ui.add_space(5.0);
 
@@ -487,6 +507,31 @@ impl MyApp {
             });
         }
 
+        let modal = Modal::new(ctx, "disclaimer");
+
+        modal.show(|ui| {
+            ui.heading(RichText::new("Disclaimer").color(egui::Color32::RED));
+            ui.separator();
+
+            let text = format!("Hey {}", whoami::username()) + "\nUsing cheats or unauthorized modifications in online games violates their terms of service.\nBy using this tool, you understand and agree that you are doing so at your own risk.\nThis may result in a **permanent ban** from the game and related services.\n**We are not responsible for any consequences resulting from the use of this cheat.**";
+
+            CommonMarkViewer::new().show(ui, &mut self.app.cache, &*text);
+
+            ui.add_space(5.0);
+
+            ui.horizontal(|ui| {
+                if ui.cbutton("I understand").clicked() {
+                    self.ui.tabs.home.disclaimer_accepted = true;
+                    modal.close();
+                }
+                ui.add_space(5.0);
+                if ui.cbutton("Cancel").clicked() {
+                    modal.close();
+                    return;
+                }
+            });
+        });
+
         // MARK: Inject button
         let is_32bit = size_of::<usize>() == 4;
         let is_cs2_32bit = is_32bit && selected.process == "cs2.exe";
@@ -515,6 +560,11 @@ impl MyApp {
         }
 
         if inject_button.clicked() && !is_cs2_32bit {
+            if !self.ui.tabs.home.disclaimer_accepted && !self.app.stats.has_injections() {
+                modal.open();
+                return;
+            }
+
             self.toasts
                 .custom(
                     if !is_roblox {

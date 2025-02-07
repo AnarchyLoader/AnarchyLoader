@@ -67,7 +67,6 @@ impl SteamAccount {
     }
 
     pub fn new() -> Result<Self, String> {
-        log::info!("[STEAM_ACCOUNT] Creating new SteamAccount instance");
         match Self::parse_user() {
             Ok(account) => {
                 log::info!("[STEAM_ACCOUNT] Successfully parsed Steam user data");

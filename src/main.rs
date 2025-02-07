@@ -40,7 +40,7 @@ use utils::{
 use winreg::{enums::HKEY_LOCAL_MACHINE, RegKey};
 
 use crate::{
-    tabs::about::AboutTab,
+    tabs::{about::AboutTab, home::HomeTab},
     utils::{
         intro::{AnimationPhase, AnimationState},
         stats::{calculate_session, get_time_difference_in_seconds},
@@ -105,7 +105,7 @@ struct AppState {
 #[derive(Debug)]
 struct UIState {
     tab: AppTab,
-    tab_states: TabStates,
+    tabs: TabStates,
     search_query: String,
     main_menu_message: String,
     dropped_file: DroppedFile,
@@ -145,6 +145,7 @@ struct AppMeta {
 #[derive(Debug)]
 struct TabStates {
     about: AboutTab,
+    home: HomeTab,
 }
 
 struct MyApp {
@@ -254,7 +255,6 @@ impl MyApp {
                     log::info!("[MAIN] Removed 'Added' category from game_order because no local hacks are present");
                 }
                 config.save();
-                log::info!("[MAIN] Configuration saved after updating game_order");
                 hacks
             }
             Err(err) => {
@@ -317,19 +317,13 @@ impl MyApp {
 
         let mut updater = Updater::default();
 
-        log::info!("[MAIN] Checking for updates...");
         match updater.check_version() {
-            Ok(true) => {
-                log::info!(
-                    "[MAIN] Update needed, new version: {}",
-                    updater.new_version.as_ref().unwrap()
-                );
-            }
+            Ok(true) => {}
             Ok(false) => {
-                log::info!("[MAIN] No update needed");
+                log::info!("[UPDATER] No update needed");
             }
             Err(e) => {
-                log::error!("[MAIN] Failed to check for updates: {}", e);
+                log::error!("[UPDATER] Failed to check for updates: {}", e);
             }
         }
 
@@ -356,8 +350,9 @@ impl MyApp {
             },
             ui: UIState {
                 tab: AppTab::default(),
-                tab_states: TabStates {
+                tabs: TabStates {
                     about: AboutTab::default(),
+                    home: HomeTab::default(),
                 },
                 search_query: String::new(),
                 main_menu_message: default_main_menu_message(),
@@ -476,7 +471,6 @@ impl App for MyApp {
                             self.app.config.api_endpoint
                         );
                         self.app.config.save();
-                        log::info!("[MAIN] Configuration saved after API endpoint change.");
                     }
 
                     ui.add_space(5.0);
@@ -485,7 +479,6 @@ impl App for MyApp {
                         log::info!("[MAIN] User clicked 'Reset config'");
                         self.app.config = Config::default();
                         self.app.config.save();
-                        log::info!("[MAIN] Default configuration saved after reset.");
                     }
 
                     ui.add_space(5.0);
@@ -500,9 +493,6 @@ impl App for MyApp {
         }
 
         if self.app.updater.need_update && !self.app.config.skip_update_check {
-            log::info!(
-                "[MAIN] Update available and update check is not skipped, showing update screen."
-            );
             egui::CentralPanel::default().show(ctx, |ui| {
                 ui.vertical_centered(|ui| {
                     ui.add_space(130.0);
@@ -526,24 +516,17 @@ impl App for MyApp {
                     );
 
                     if ui
-                        .ccheckbox(
-                            &mut self.app.config.skip_update_check,
-                            "Skip update check (you can disable it in settings)",
-                        )
+                        .ccheckbox(&mut self.app.config.skip_update_check, "Skip update check")
                         .changed()
                     {
-                        log::info!(
-                            "[MAIN] 'Skip update check' option changed to: {}",
-                            self.app.config.skip_update_check
-                        );
+                        self.toasts
+                            .info("You can enable update checks in settings.");
                         self.app.config.save();
-                        log::info!("[MAIN] Configuration saved after 'skip update check' change.");
                     };
 
                     ui.add_space(5.0);
 
                     if ui.cbutton("Exit").clicked() {
-                        log::info!("[MAIN] User clicked 'Exit' due to update available screen.");
                         std::process::exit(0);
                     }
                 });

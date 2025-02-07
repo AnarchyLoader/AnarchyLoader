@@ -76,6 +76,10 @@ impl Statistics {
         self.save();
     }
 
+    pub fn has_injections(&self) -> bool {
+        !self.inject_counts.is_empty()
+    }
+
     pub fn load() -> Self {
         let statistics_dir = dirs::config_dir()
             .unwrap_or_else(|| PathBuf::from("."))
