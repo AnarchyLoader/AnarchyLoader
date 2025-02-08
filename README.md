@@ -57,8 +57,6 @@ cargo build --release
 - [discord-rich-presence](https://github.com/vionya/discord-rich-presence)
 - [pelite](https://github.com/CasualX/pelite)
 
-Contributions are welcome! Please open an issue or submit a pull request on GitHub.
-
 # License
 
 This project is licensed under the GPL 3.0 License. See
