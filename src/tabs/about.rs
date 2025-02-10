@@ -6,10 +6,10 @@ use egui_material_icons::icons::{
 
 use crate::{
     calculate_session,
-    hacks::get_hack_by_dll,
     utils::{
-        custom_widgets::{Button, Hyperlink},
+        hacks::get_hack_by_dll,
         stats::get_time_from_seconds,
+        ui::custom_widgets::{Button, Hyperlink},
     },
     MyApp,
 };
@@ -33,7 +33,7 @@ impl User {
 
         if response.clicked() {
             if let Err(e) = opener::open(format!("https://github.com/{}", self.username)) {
-                log::error!("[ABOUT_TAB] {}", format!("Failed to open URL: {}", e));
+                log::error!("<ABOUT_TAB> {}", format!("Failed to open URL: {}", e));
             }
         }
 
@@ -53,12 +53,12 @@ pub struct AboutTab {
 
 impl MyApp {
     fn fetch_github_users(&mut self, endpoint: &str, user_type: &str) {
-        log::info!("[ABOUT_TAB] Parsing {}...", user_type);
+        log::info!("<ABOUT_TAB> Parsing {}...", user_type);
 
         match user_type {
             "contributors" => self.ui.tabs.about.is_contributors_loading = true,
             "stargazers" => self.ui.tabs.about.is_stargazers_loading = true,
-            _ => log::error!("[ABOUT_TAB] Unknown user type: {}", user_type),
+            _ => log::error!("<ABOUT_TAB> Unknown user type: {}", user_type),
         }
 
         let api_url = format!(
@@ -96,11 +96,11 @@ impl MyApp {
                         self.ui.tabs.about.is_stargazers_parsed = true;
                         self.ui.tabs.about.is_stargazers_loading = false;
                     }
-                    _ => log::error!("[ABOUT_TAB] Unknown user type: {}", user_type),
+                    _ => log::error!("<ABOUT_TAB> Unknown user type: {}", user_type),
                 }
             }
             Err(e) => {
-                log::error!("[ABOUT_TAB] Failed to parse {}: {}", user_type, e);
+                log::error!("<ABOUT_TAB> Failed to parse {}: {}", user_type, e);
                 match &user_type_clone[..] {
                     "contributors" => self.ui.tabs.about.is_contributors_loading = false,
                     "stargazers" => self.ui.tabs.about.is_stargazers_loading = false,
@@ -163,7 +163,7 @@ impl MyApp {
                                 RichText::new("⚠ DEBUG BUILD ⚠").strong(),
                             );
                         }
-                        ui.add_space(15.0);
+                        ui.add_space(10.0);
                     });
 
                     ui.vertical_centered(|ui| {

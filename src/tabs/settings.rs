@@ -11,14 +11,14 @@ use egui_theme_switch::ThemeSwitch;
 use crate::scanner::scanner::ScannerPopup;
 use crate::{
     games::local::{LocalHack, LocalUI},
-    hacks,
     utils::{
         config::{
             default_api_endpoint, default_api_extra_endpoints, default_cdn_endpoint,
             default_cdn_extra_endpoint,
         },
-        custom_widgets::{Button, CheckBox, TextEdit},
+        hacks,
         rpc::{Rpc, RpcUpdate},
+        ui::custom_widgets::{Button, CheckBox, TextEdit},
     },
     MyApp,
 };
@@ -110,10 +110,10 @@ impl MyApp {
                                     Some("Configuring settings"),
                                     None,
                                 );
-                                log::info!("[SETTINGS_TAB] Discord RPC enabled");
+                                log::info!("<SETTINGS_TAB> Discord RPC enabled");
                             } else {
                                 self.rpc.sender.send(RpcUpdate::Shutdown).ok();
-                                log::info!("[SETTINGS_TAB] Discord RPC disabled");
+                                log::info!("<SETTINGS_TAB> Discord RPC disabled");
                             }
                         }
                         if ui
@@ -206,7 +206,7 @@ impl MyApp {
                                     self.app.config.save();
                                     self.toasts.success("Transition updated.");
                                     modal_transition.close();
-                                    log::info!("[SETTINGS_TAB] Transition settings updated and saved.");
+                                    log::info!("<SETTINGS_TAB> Transition settings updated and saved.");
                                 }
                                 if ui.cbutton("Cancel").clicked() {
                                     modal_transition.close();
@@ -251,7 +251,7 @@ impl MyApp {
                             ui.ctx().set_theme(preference);
                             self.app.config.theme = preference;
                             self.app.config.save();
-                            log::info!("[SETTINGS_TAB] Theme preference changed to: {:?}, saving config", preference);
+                            log::info!("<SETTINGS_TAB> Theme preference changed to: {:?}, saving config", preference);
 
                             if preference == ThemePreference::Light {
                                 self.toasts
@@ -285,7 +285,7 @@ impl MyApp {
                                                 hidden_games.remove(game_name);
                                                 self.app.config.hidden_games = hidden_games.clone();
                                                 self.app.config.save();
-                                                log::info!("[SETTINGS_TAB] Game '{}' visibility toggled on, saving config", game_name);
+                                                log::info!("<SETTINGS_TAB> Game '{}' visibility toggled on, saving config", game_name);
                                             }
                                         } else {
                                             if ui
@@ -296,7 +296,7 @@ impl MyApp {
                                                 hidden_games.insert(game_name.clone());
                                                 self.app.config.hidden_games = hidden_games.clone();
                                                 self.app.config.save();
-                                                log::info!("[SETTINGS_TAB] Game '{}' visibility toggled off, saving config", game_name);
+                                                log::info!("<SETTINGS_TAB> Game '{}' visibility toggled off, saving config", game_name);
                                             }
                                         }
                                         ui.label(game_name.clone());
@@ -309,7 +309,7 @@ impl MyApp {
                             response.update_vec(&mut game_order);
                             self.app.config.game_order = game_order;
                             self.app.config.save();
-                            log::info!("[SETTINGS_TAB] Game order updated and saved: {:?}", self.app.config.game_order);
+                            log::info!("<SETTINGS_TAB> Game order updated and saved: {:?}", self.app.config.game_order);
                         }
 
                         ui.add_space(5.0);
@@ -318,14 +318,14 @@ impl MyApp {
                             if ui.cibutton("Show all", ICON_VISIBILITY).clicked() {
                                 self.app.config.hidden_games.clear();
                                 self.app.config.save();
-                                log::info!("[SETTINGS_TAB] All games set to visible, saving config");
+                                log::info!("<SETTINGS_TAB> All games set to visible, saving config");
                             }
 
                             if ui.cibutton("Hide all", ICON_VISIBILITY_OFF).clicked() {
                                 self.app.config.hidden_games =
                                     self.app.config.game_order.clone().into_iter().collect();
                                 self.app.config.save();
-                                log::info!("[SETTINGS_TAB] All games set to hidden, saving config");
+                                log::info!("<SETTINGS_TAB> All games set to hidden, saving config");
                             }
                         });
 
@@ -336,7 +336,7 @@ impl MyApp {
                             {
                                 self.app.config.reset_game_order();
                                 self.toasts.success("Game order reset.");
-                                log::info!("[SETTINGS_TAB] Game order reset to default.");
+                                log::info!("<SETTINGS_TAB> Game order reset to default.");
                             }
 
                             if ui
@@ -349,7 +349,7 @@ impl MyApp {
                                 self.app.config.hidden_games.clear();
                                 self.app.config.save();
                                 self.toasts.success("Hidden games reset.");
-                                log::info!("[SETTINGS_TAB] Hidden games reset to default, saving config");
+                                log::info!("<SETTINGS_TAB> Hidden games reset to default, saving config");
                             }
                         });
 
@@ -375,10 +375,10 @@ impl MyApp {
                                     *path_buf = path.to_string_lossy().into_owned();
                                     if path_buf.ends_with(".dll") {
                                         self.toasts.success("DLL selected.");
-                                        log::info!("[SETTINGS_TAB] DLL file selected for local hack: {}", path_buf);
+                                        log::info!("<SETTINGS_TAB> DLL file selected for local hack: {}", path_buf);
                                     } else {
                                         self.toasts.error("Please select a DLL file.");
-                                        log::warn!("[SETTINGS_TAB] User selected a non-DLL file for local hack: {}", path_buf);
+                                        log::warn!("<SETTINGS_TAB> User selected a non-DLL file for local hack: {}", path_buf);
                                     }
                                 }
                             }
@@ -413,19 +413,19 @@ impl MyApp {
                                 if ui.cbutton("Confirm").clicked() {
                                     if self.ui.popups.local_hack.new_local_dll.is_empty() {
                                         self.toasts.error("Please select a DLL file.");
-                                        log::warn!("[SETTINGS_TAB] Attempted to add local hack without DLL file selected.");
+                                        log::warn!("<SETTINGS_TAB> Attempted to add local hack without DLL file selected.");
                                         return;
                                     }
 
                                     if self.ui.popups.local_hack.new_local_process.is_empty() {
                                         self.toasts.error("Please enter a process name.");
-                                        log::warn!("[SETTINGS_TAB] Attempted to add local hack without process name.");
+                                        log::warn!("<SETTINGS_TAB> Attempted to add local hack without process name.");
                                         return;
                                     }
 
                                     if self.ui.popups.local_hack.new_local_arch.is_empty() {
                                         self.toasts.error("Please select an architecture.");
-                                        log::warn!("[SETTINGS_TAB] Attempted to add local hack without architecture selected.");
+                                        log::warn!("<SETTINGS_TAB> Attempted to add local hack without architecture selected.");
                                         return;
                                     }
 
@@ -460,7 +460,7 @@ impl MyApp {
 
                                     self.toasts.success("Local hack added.");
                                     local_hack_modal.close();
-                                    log::info!("[SETTINGS_TAB] Local hack added successfully.");
+                                    log::info!("<SETTINGS_TAB> Local hack added successfully.");
                                 }
                                 if ui.cbutton("Cancel").clicked() {
                                     local_hack_modal.close();
@@ -477,7 +477,7 @@ impl MyApp {
                                 self.app.config.reset_game_order();
                                 self.app.config.save();
                                 self.toasts.success("Local hacks reset.");
-                                log::info!("[SETTINGS_TAB] Local hacks reset to default.");
+                                log::info!("<SETTINGS_TAB> Local hacks reset to default.");
                             }
                         });
                     });
@@ -500,11 +500,11 @@ impl MyApp {
                                 {
                                     if let Err(err) = self.delete_injectors("x64") {
                                         self.toasts.error(err.clone());
-                                        log::error!("[SETTINGS_TAB] Failed to delete x64 injector: {}", err);
+                                        log::error!("<SETTINGS_TAB> Failed to delete x64 injector: {}", err);
                                     } else {
                                         self.toasts.success("x64 injector deleted.");
                                         modal_injector.close();
-                                        log::info!("[SETTINGS_TAB] x64 injector deleted successfully.");
+                                        log::info!("<SETTINGS_TAB> x64 injector deleted successfully.");
                                     }
                                 }
 
@@ -514,11 +514,11 @@ impl MyApp {
                                 {
                                     if let Err(err) = self.delete_injectors("x86") {
                                         self.toasts.error(err.clone());
-                                        log::error!("[SETTINGS_TAB] Failed to delete x86 injector: {}", err);
+                                        log::error!("<SETTINGS_TAB> Failed to delete x86 injector: {}", err);
                                     } else {
                                         self.toasts.success("x86 injector deleted.");
                                         modal_injector.close();
-                                        log::info!("[SETTINGS_TAB] x86 injector deleted successfully.");
+                                        log::info!("<SETTINGS_TAB> x86 injector deleted successfully.");
                                     }
                                     modal_injector.close();
                                 }
@@ -529,11 +529,11 @@ impl MyApp {
                                 {
                                     if let Err(err) = self.delete_injectors("both") {
                                         self.toasts.error(err.clone());
-                                        log::error!("[SETTINGS_TAB] Failed to delete both injectors: {}", err);
+                                        log::error!("<SETTINGS_TAB> Failed to delete both injectors: {}", err);
                                     } else {
                                         self.toasts.success("Both injectors deleted.");
                                         modal_injector.close();
-                                        log::info!("[SETTINGS_TAB] Both injectors deleted successfully.");
+                                        log::info!("<SETTINGS_TAB> Both injectors deleted successfully.");
                                     }
                                 }
 
@@ -555,7 +555,7 @@ impl MyApp {
                                 self.communication.messages.sender.clone(),
                                 false,
                             );
-                            log::info!("[SETTINGS_TAB] Downloading stable injectors requested.");
+                            log::info!("<SETTINGS_TAB> Downloading stable injectors requested.");
                         }
 
                         if ui
@@ -566,7 +566,7 @@ impl MyApp {
                                 self.communication.messages.sender.clone(),
                                 true,
                             );
-                            log::info!("[SETTINGS_TAB] Downloading nightly injectors requested.");
+                            log::info!("<SETTINGS_TAB> Downloading nightly injectors requested.");
                         }
                     });
 
@@ -583,7 +583,7 @@ impl MyApp {
                             .changed()
                         {
                             self.app.config.save();
-                            log::info!("[SETTINGS_TAB] API Endpoint changed and saved: {}", self.app.config.api_endpoint);
+                            log::info!("<SETTINGS_TAB> API Endpoint changed and saved: {}", self.app.config.api_endpoint);
                         }
                     });
 
@@ -599,7 +599,7 @@ impl MyApp {
                             .changed()
                         {
                             self.app.config.save();
-                            log::info!("[SETTINGS_TAB] API Extra Endpoints changed and saved: {:?}", self.app.config.api_extra_endpoints);
+                            log::info!("<SETTINGS_TAB> API Extra Endpoints changed and saved: {:?}", self.app.config.api_extra_endpoints);
                         }
                     });
 
@@ -612,7 +612,7 @@ impl MyApp {
                             .changed()
                         {
                             self.app.config.save();
-                            log::info!("[SETTINGS_TAB] CDN Endpoint changed and saved: {}", self.app.config.cdn_endpoint);
+                            log::info!("<SETTINGS_TAB> CDN Endpoint changed and saved: {}", self.app.config.cdn_endpoint);
                         }
                     });
 
@@ -628,7 +628,7 @@ impl MyApp {
                             .changed()
                         {
                             self.app.config.save();
-                            log::info!("[SETTINGS_TAB] CDN Extra Endpoints changed and saved: {:?}", self.app.config.cdn_extra_endpoints);
+                            log::info!("<SETTINGS_TAB> CDN Extra Endpoints changed and saved: {:?}", self.app.config.cdn_extra_endpoints);
                         }
                     });
 
@@ -637,13 +637,13 @@ impl MyApp {
                     ui.horizontal(|ui| {
                         if ui.cibutton("Open loader folder", ICON_FOLDER).clicked() {
                             let _ = opener::open(self.app.meta.path.clone());
-                            log::info!("[SETTINGS_TAB] Opened loader folder: {}", self.app.meta.path.display());
+                            log::info!("<SETTINGS_TAB> Opened loader folder: {}", self.app.meta.path.display());
                         }
 
                         #[cfg(debug_assertions)]
                         if ui.cibutton("Open config file", ICON_MANUFACTURING).clicked() {
                             let _ = opener::open(self.app.meta.path.join("config.json").clone());
-                            log::info!("[SETTINGS_TAB] Opened config file: {}", self.app.meta.path.join("config.json").display());
+                            log::info!("<SETTINGS_TAB> Opened config file: {}", self.app.meta.path.join("config.json").display());
                         }
                     });
 
@@ -674,7 +674,7 @@ impl MyApp {
 
                                     self.toasts.success("Settings reset.");
                                     modal_settings.close();
-                                    log::info!("[SETTINGS_TAB] Settings reset to default.");
+                                    log::info!("<SETTINGS_TAB> Settings reset to default.");
                                 }
 
                                 if ui.cbutton("Cancel").clicked() {
@@ -705,7 +705,7 @@ impl MyApp {
                                     self.app.stats.reset();
                                     self.toasts.success("Statistics reset.");
                                     modal_statistics.close();
-                                    log::info!("[SETTINGS_TAB] Statistics reset to default.");
+                                    log::info!("<SETTINGS_TAB> Statistics reset to default.");
                                 }
 
                                 if ui.cbutton("Cancel").clicked() {

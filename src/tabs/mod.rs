@@ -1,4 +1,5 @@
 pub mod about;
+mod cfgs;
 pub mod debug;
 pub mod home;
 pub mod logs;

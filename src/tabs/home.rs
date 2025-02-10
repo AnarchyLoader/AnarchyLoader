@@ -3,28 +3,30 @@ use std::{
 };
 
 use egui::{
-    scroll_area::ScrollBarVisibility::AlwaysHidden, CursorIcon::PointingHand as Clickable,
-    RichText, Sense, Spinner, TextStyle,
+    scroll_area::ScrollBarVisibility::AlwaysHidden, Align, CursorIcon::PointingHand as Clickable,
+    Layout, RichText, Sense, Spinner, TextStyle,
 };
 use egui_commonmark::CommonMarkViewer;
 use egui_material_icons::icons::{
-    ICON_AWARD_STAR, ICON_CLOUD_OFF, ICON_EDITOR_CHOICE, ICON_LINK, ICON_LOGIN, ICON_MILITARY_TECH,
-    ICON_NO_ACCOUNTS, ICON_PERSON, ICON_PROBLEM, ICON_SYRINGE, ICON_VISIBILITY,
+    ICON_AWARD_STAR, ICON_BLOCK, ICON_CLOUD_OFF, ICON_EDITOR_CHOICE, ICON_LINK, ICON_LOGIN,
+    ICON_MILITARY_TECH, ICON_NO_ACCOUNTS, ICON_PERSON, ICON_PROBLEM, ICON_SEARCH_OFF, ICON_STAR,
+    ICON_SYRINGE, ICON_VISIBILITY,
 };
 use egui_modal::Modal;
 use url::Url;
 
-use crate::{
-    default_main_menu_message,
-    hacks::{self, Hack},
-    utils::custom_widgets::{Button, CheckBox, Hyperlink},
-    MyApp,
-};
+use crate::{default_main_menu_message, MyApp};
 
 #[rustfmt::skip]
 #[cfg(feature = "scanner")]
 use crate::scanner::scanner::Scanner;
-use crate::tabs::top_panel::AppTab;
+use crate::{
+    tabs::top_panel::AppTab,
+    utils::{
+        hacks::{self, Hack},
+        ui::custom_widgets::{Button, CheckBox, Hyperlink},
+    },
+};
 
 #[derive(Debug)]
 pub struct HomeTab {
@@ -49,7 +51,7 @@ impl MyApp {
     // MARK: Key events
     pub fn handle_key_events(&mut self, ctx: &egui::Context) {
         if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape)) {
-            log::debug!("[HOME_TAB] Escape key pressed, deselecting hack");
+            log::debug!("<HOME_TAB> Escape key pressed, deselecting hack");
             self.rpc.update(None, Some("Selecting hack"), None);
             self.app.selected_hack = None;
             self.app.config.selected_hack = "".to_string();
@@ -58,7 +60,7 @@ impl MyApp {
         if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Enter)) {
             if let Some(selected) = &self.app.selected_hack {
                 log::debug!(
-                    "[HOME_TAB] Enter key pressed, injecting hack: {}",
+                    "<HOME_TAB> Enter key pressed, injecting hack: {}",
                     selected.name
                 );
                 self.injection(
@@ -71,7 +73,7 @@ impl MyApp {
         }
 
         if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::F5)) {
-            log::info!("[HOME_TAB] F5 key pressed, refreshing hacks list");
+            log::info!("<HOME_TAB> F5 key pressed, refreshing hacks list");
             self.ui.main_menu_message = "Fetching hacks...".to_string();
             ctx.request_repaint();
             self.app.hacks = match hacks::fetch_hacks(
@@ -216,7 +218,7 @@ impl MyApp {
 
                         ui.add_space(5.0);
 
-                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Min), |ui| {
+                        ui.with_layout(Layout::right_to_left(Align::Min), |ui| {
                             ui.add(
                                 egui::TextEdit::singleline(&mut self.ui.search_query)
                                     .hint_text("Search..."),
@@ -263,13 +265,11 @@ impl MyApp {
         ctx: &egui::Context,
     ) {
         ui.group(|group_ui| {
-            group_ui.with_layout(egui::Layout::top_down(egui::Align::Min), |layout_ui| {
-                layout_ui.with_layout(
-                    egui::Layout::top_down_justified(egui::Align::Center),
-                    |ui| {
-                        ui.heading(game_name);
-                    },
-                );
+            group_ui.with_layout(Layout::top_down(Align::Min), |layout_ui| {
+                layout_ui.with_layout(Layout::top_down_justified(Align::Center), |ui| {
+                    ui.heading(game_name);
+                });
+
                 layout_ui.separator();
 
                 for (version, hacks) in versions {
@@ -287,12 +287,9 @@ impl MyApp {
         ctx: &egui::Context,
     ) {
         if !version.is_empty() {
-            ui.with_layout(
-                egui::Layout::top_down_justified(egui::Align::Center),
-                |ui| {
-                    ui.label(RichText::new(version).heading());
-                },
-            );
+            ui.with_layout(Layout::top_down_justified(Align::Center), |ui| {
+                ui.label(RichText::new(version).heading());
+            });
         }
 
         for hack in hacks {
@@ -359,7 +356,7 @@ impl MyApp {
 
     fn render_working_state(&mut self, ui: &mut egui::Ui, hack: &Hack) {
         if !hack.working {
-            ui.label(egui_material_icons::icons::ICON_BLOCK);
+            ui.label(ICON_BLOCK);
         }
     }
 
@@ -368,7 +365,7 @@ impl MyApp {
         if is_favorite {
             if ui
                 .add(
-                    egui::Button::new(egui_material_icons::icons::ICON_STAR)
+                    egui::Button::new(ICON_STAR)
                         .frame(false)
                         .sense(Sense::click()),
                 )
@@ -414,7 +411,7 @@ impl MyApp {
     }
 
     fn select_hack(&mut self, hack_clone: &Hack) {
-        log::debug!("[HOME_TAB] Selecting hack: {}", hack_clone.name);
+        log::debug!("<HOME_TAB> Selecting hack: {}", hack_clone.name);
         self.app.selected_hack = Some(hack_clone.clone());
         self.app.config.selected_hack = hack_clone.name.clone();
         self.app.config.save();
@@ -447,7 +444,7 @@ impl MyApp {
 
                     if selected.author == "???" {
                         ui.label(ICON_NO_ACCOUNTS);
-                        ui.label("Author unknown");
+                        ui.label("Unknown author");
                     } else {
                         ui.label(ICON_PERSON);
                         ui.label("by");
@@ -464,7 +461,7 @@ impl MyApp {
                                 &selected.source,
                             );
                         } else {
-                            ui.label(format!("{} (source not available)", ICON_CLOUD_OFF));
+                            ui.label(format!("{} (cannot parse source)", ICON_CLOUD_OFF));
                         }
                     } else {
                         ui.label(format!("{} (source not available)", ICON_CLOUD_OFF));
@@ -522,6 +519,7 @@ impl MyApp {
             ui.horizontal(|ui| {
                 if ui.cbutton("I understand").clicked() {
                     self.ui.tabs.home.disclaimer_accepted = true;
+                    self.toasts.info("Press the inject button again to proceed.");
                     modal.close();
                 }
                 ui.add_space(5.0);
@@ -587,15 +585,6 @@ impl MyApp {
                 Some(if !is_roblox { "injecting" } else { "running" }),
             );
 
-            log::info!(
-                "[HOME_TAB] {}",
-                if !is_roblox {
-                    format!("Injecting {}", selected.name)
-                } else {
-                    "Running...".to_string()
-                }
-            );
-
             if !is_roblox {
                 self.injection(
                     selected.clone(),
@@ -619,28 +608,45 @@ impl MyApp {
         if in_progress {
             ui.add_space(5.0);
             let status = self.communication.status_message.lock().unwrap().clone();
-            ui.horizontal(|ui| {
-                ui.add(Spinner::new());
-                ui.add_space(5.0);
-                ui.label(
-                    RichText::new(&status).color(if status.starts_with("Failed") {
-                        egui::Color32::RED
-                    } else {
-                        highlight_color
-                    }),
-                );
-                ctx.request_repaint();
+            ui.group(|ui| {
+                ui.horizontal(|ui| {
+                    ui.add(Spinner::new());
+                    ui.add_space(5.0);
+                    ui.label(
+                        RichText::new(&status).color(if status.starts_with("Failed") {
+                            egui::Color32::RED
+                        } else {
+                            highlight_color
+                        }),
+                    );
+                    ctx.request_repaint();
+                });
             });
         } else {
             ui.add_space(5.0);
             let status = self.communication.status_message.lock().unwrap().clone();
             if !status.is_empty() {
-                let color = if status.starts_with("Failed") || status.starts_with("Error") {
+                let text_color = if status.starts_with("Failed") || status.starts_with("Error") {
                     egui::Color32::RED
                 } else {
                     highlight_color
                 };
-                ui.label(RichText::new(&status).color(color));
+
+                ui.group(|ui| {
+                    ui.horizontal(|ui| {
+                        let s = if status.contains("Can not find process") {
+                            ICON_SEARCH_OFF.to_owned() + &*status
+                        } else {
+                            status
+                        }
+                            .replace(
+                                "Failed to execute injector: ",
+                                "Failed to execute injector:\n",
+                            );
+
+                        ui.label(RichText::new(&s).color(text_color));
+                    });
+                });
             }
         }
     }

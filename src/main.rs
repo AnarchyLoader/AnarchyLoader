@@ -1,7 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod games;
-mod hacks;
 mod inject;
 mod scanner;
 mod tabs;
@@ -22,19 +21,22 @@ use egui_commonmark::CommonMarkCache;
 use egui_notify::Toasts;
 use egui_transition_animation::{animated_pager, TransitionStyle, TransitionType};
 use games::local::LocalUI;
-use hacks::{get_all_processes, get_hack_by_name, Hack};
 use is_elevated::is_elevated;
 #[cfg(feature = "scanner")]
 use scanner::scanner::ScannerPopup;
 use tabs::{settings::TransitionPopup, top_panel::AppTab};
 use utils::{
     config::Config,
-    custom_widgets::{Button, CheckBox, Hyperlink},
+    hacks,
+    hacks::{get_all_processes, get_hack_by_name, Hack},
     logger::MyLogger,
-    messages::ToastsMessages,
     rpc::{Rpc, RpcUpdate},
     stats::Statistics,
     steam::SteamAccount,
+    ui::{
+        custom_widgets::{Button, CheckBox, Hyperlink},
+        messages::ToastsMessages,
+    },
     updater::Updater,
 };
 use winreg::{enums::HKEY_LOCAL_MACHINE, RegKey};
@@ -42,8 +44,8 @@ use winreg::{enums::HKEY_LOCAL_MACHINE, RegKey};
 use crate::{
     tabs::{about::AboutTab, home::HomeTab},
     utils::{
-        intro::{AnimationPhase, AnimationState},
         stats::{calculate_session, get_time_difference_in_seconds},
+        ui::intro::{AnimationPhase, AnimationState},
     },
 };
 
@@ -71,14 +73,15 @@ fn main() {
             .with_min_inner_size(egui::vec2(600.0, 200.0))
             .with_inner_size(egui::vec2(800.0, 400.0))
             .with_icon(Arc::new(load_icon())),
+        multisampling: 8,
         ..Default::default()
     };
     eframe::run_native(
         if !is_elevated() {
-            log::info!("[MAIN] Application started as normal user");
+            log::info!("<MAIN> Application started as normal user");
             "AnarchyLoader"
         } else {
-            log::info!("[MAIN] Application started as administrator");
+            log::info!("<MAIN> Application started as administrator");
             "AnarchyLoader (Administrator)"
         },
         native_options,
@@ -178,7 +181,6 @@ fn get_windows_version() -> Option<String> {
 }
 
 static LOGGER: OnceLock<MyLogger> = OnceLock::new();
-
 impl MyApp {
     // MARK: Init
     fn new(cc: &eframe::CreationContext) -> Self {
@@ -192,30 +194,30 @@ impl MyApp {
         let log_buffer = logger.buffer.clone();
         log::set_max_level(config.log_level.to_level_filter());
         log::info!(
-            "[MAIN] Running AnarchyLoader v{}",
+            "<MAIN> Running AnarchyLoader v{}",
             env!("CARGO_PKG_VERSION")
         );
 
         let messages = ToastsMessages::new();
         let mut statistics = Statistics::load();
-        log::debug!("[MAIN] Statistics loaded: {:?}", statistics);
+        log::debug!("<MAIN> Statistics loaded: {:?}", statistics);
 
         statistics.increment_opened_count();
         log::debug!(
-            "[MAIN] Application opened count incremented to: {}",
+            "<MAIN> Application opened count incremented to: {}",
             statistics.opened_count
         );
 
         egui_material_icons::initialize(&cc.egui_ctx);
         cc.egui_ctx.set_theme(config.theme);
-        log::debug!("[MAIN] Theme set to: {:?}", config.theme);
+        log::debug!("<MAIN> Theme set to: {:?}", config.theme);
 
         let status_message = Arc::new(Mutex::new(String::new()));
         let in_progress = Arc::new(std::sync::atomic::AtomicBool::new(false));
         let mut parse_error = None;
 
         log::info!(
-            "[MAIN] Fetching hacks from API endpoint: {}",
+            "<MAIN> Fetching hacks from API endpoint: {}",
             config.api_endpoint
         );
         let hacks = match hacks::fetch_hacks(
@@ -239,53 +241,53 @@ impl MyApp {
                     if !existing_games.contains(&game_name) {
                         config.game_order.push(game_name.clone());
                         existing_games.insert(game_name.clone());
-                        log::info!("[MAIN] Added new game to game_order: {}", game_name);
+                        log::info!("<MAIN> Added new game to game_order: {}", game_name);
                     }
                 }
                 if !config.local_hacks.is_empty() && !existing_games.contains(&"Added".to_string())
                 {
                     config.game_order.push("Added".to_string());
                     log::info!(
-                        "[MAIN] Added 'Added' category to game_order because local hacks are present"
+                        "<MAIN> Added 'Added' category to game_order because local hacks are present"
                     );
                 } else if config.local_hacks.is_empty()
                     && existing_games.contains(&"Added".to_string())
                 {
                     config.game_order.retain(|game| game != "Added");
-                    log::info!("[MAIN] Removed 'Added' category from game_order because no local hacks are present");
+                    log::info!("<MAIN> Removed 'Added' category from game_order because no local hacks are present");
                 }
                 config.save();
                 hacks
             }
             Err(err) => {
-                log::error!("[MAIN] Failed to fetch hacks: {:?}", err);
+                log::error!("<MAIN> Failed to fetch hacks: {:?}", err);
                 parse_error = Some(err);
                 Vec::new()
             }
         };
 
         if let Err(e) = hacks::save_hacks_to_cache(&hacks) {
-            log::error!("[MAIN] Failed to save hacks to cache: {}", e);
+            log::error!("<MAIN> Failed to save hacks to cache: {}", e);
         } else {
-            log::info!("[MAIN] Hacks saved to cache successfully.");
+            log::info!("<MAIN> Hacks saved to cache successfully.");
         }
 
         let hacks_processes = get_all_processes(&hacks);
 
         let account = SteamAccount::new().unwrap_or_else(|_| {
-            log::warn!("[MAIN] Failed to get Steam account details");
+            log::warn!("<MAIN> Failed to get Steam account details");
             SteamAccount::default()
         });
         log::info!(
-            "[MAIN] Steam Account details: {:?}",
+            "<MAIN> Steam Account details: {:?}",
             account.get_censoured()
         );
 
         let rpc = Rpc::new(!config.disable_rpc);
         if !config.disable_rpc {
-            log::info!("[MAIN] Discord RPC initialized");
+            log::info!("<MAIN> Discord RPC initialized");
         } else {
-            log::info!("[MAIN] Discord RPC disabled in config");
+            log::info!("<MAIN> Discord RPC disabled in config");
         }
         rpc.update(
             Some(&format!("v{}", env!("CARGO_PKG_VERSION"))),
@@ -299,7 +301,7 @@ impl MyApp {
             selected_hack = get_hack_by_name(&hacks, &config.selected_hack);
             if selected_hack.is_some() {
                 log::info!(
-                    "[MAIN] Automatically selected hack from config: {}",
+                    "<MAIN> Automatically selected hack from config: {}",
                     config.selected_hack
                 );
                 rpc.update(
@@ -309,7 +311,7 @@ impl MyApp {
                 );
             } else {
                 log::warn!(
-                    "[MAIN] Failed to automatically select hack '{}', hack not found.",
+                    "<MAIN> Failed to automatically select hack '{}', hack not found.",
                     config.selected_hack
                 );
             }
@@ -320,10 +322,10 @@ impl MyApp {
         match updater.check_version() {
             Ok(true) => {}
             Ok(false) => {
-                log::info!("[UPDATER] No update needed");
+                log::info!("<UPDATER> No update needed");
             }
             Err(e) => {
-                log::error!("[UPDATER] Failed to check for updates: {}", e);
+                log::error!("<UPDATER> Failed to check for updates: {}", e);
             }
         }
 
@@ -400,7 +402,7 @@ impl MyApp {
             "Selecting hack".to_string()
         };
         log::debug!(
-            "[MAIN] Updating RPC status to: version={}, status={}",
+            "<MAIN> Updating RPC status to: version={}, status={}",
             version,
             status
         );
@@ -426,10 +428,11 @@ impl MyApp {
     fn render_tabs(&mut self, ctx: &egui::Context, tab: AppTab, highlight_color: egui::Color32) {
         match tab {
             AppTab::Home => self.render_home_tab(ctx, highlight_color),
+            AppTab::Cfgs => self.render_cfgs_tab(ctx),
             AppTab::Settings => self.render_settings_tab(ctx),
             AppTab::About => self.render_about_tab(ctx),
             AppTab::Logs => self.render_logs_tab(ctx),
-            AppTab::Debug => self.render_debug_tab(ctx),
+            AppTab::Debug => self.render_cfgs_tab(ctx),
         }
     }
 }
@@ -448,7 +451,7 @@ impl App for MyApp {
 
         if self.ui.parse_error.is_some() {
             log::error!(
-                "[MAIN] API Parse Error detected, showing error screen to user: {:?}",
+                "<MAIN> API Parse Error detected, showing error screen to user: {:?}",
                 self.ui.parse_error
             );
             egui::CentralPanel::default().show(ctx, |ui| {
@@ -467,7 +470,7 @@ impl App for MyApp {
                         .changed()
                     {
                         log::info!(
-                            "[MAIN] API Endpoint changed by user to: {}",
+                            "<MAIN> API Endpoint changed by user to: {}",
                             self.app.config.api_endpoint
                         );
                         self.app.config.save();
@@ -476,7 +479,7 @@ impl App for MyApp {
                     ui.add_space(5.0);
 
                     if ui.cbutton("Reset config (possible fix)").clicked() {
-                        log::info!("[MAIN] User clicked 'Reset config'");
+                        log::info!("<MAIN> User clicked 'Reset config'");
                         self.app.config = Config::default();
                         self.app.config.save();
                     }
@@ -484,7 +487,7 @@ impl App for MyApp {
                     ui.add_space(5.0);
 
                     if ui.cbutton("Exit").clicked() {
-                        log::info!("[MAIN] User clicked 'Exit' due to API parse error.");
+                        log::info!("<MAIN> User clicked 'Exit' due to API parse error.");
                         std::process::exit(0);
                     }
                 });
@@ -580,10 +583,10 @@ impl App for MyApp {
 
     fn on_exit(&mut self, _gl: Option<&eframe::glow::Context>) {
         self.rpc.sender.send(RpcUpdate::Shutdown).ok();
-        log::info!("[MAIN] Sent shutdown signal to Discord RPC");
+        log::info!("<MAIN> Sent shutdown signal to Discord RPC");
 
         log::info!(
-            "[MAIN] Your session was running for: {}",
+            "<MAIN> Your session was running for: {}",
             calculate_session(self.app.meta.session.clone())
         );
 
@@ -592,10 +595,10 @@ impl App for MyApp {
             .increment_total_time(get_time_difference_in_seconds(
                 self.app.meta.session.parse().unwrap(),
             ));
-        log::info!("[MAIN] Total time incremented and session statistics updated.");
+        log::info!("<MAIN> Total time incremented and session statistics updated.");
 
         self.app.stats.save();
-        log::info!("[MAIN] Statistics saved on application exit.");
-        log::info!("[MAIN] Application exited gracefully.");
+        log::info!("<MAIN> Statistics saved on application exit.");
+        log::info!("<MAIN> Application exited gracefully.");
     }
 }

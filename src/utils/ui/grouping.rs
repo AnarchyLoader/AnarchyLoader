@@ -1,14 +1,13 @@
 use std::collections::BTreeMap;
 
-use super::config::Config;
-use crate::{Hack, MyApp};
+use crate::{utils::config::Config, Hack, MyApp};
 
 impl MyApp {
     pub fn group_hacks_by_game_internal(
         hacks: &[Hack],
         config: &Config,
     ) -> BTreeMap<String, BTreeMap<String, Vec<Hack>>> {
-        log::debug!("[GROUPING] Starting group_hacks_by_game_internal");
+        log::debug!("<GROUPING> Starting group_hacks_by_game_internal");
         let mut all_hacks = hacks.to_vec();
         all_hacks.extend(config.local_hacks.iter().map(|lh| {
             Hack {
@@ -31,7 +30,7 @@ impl MyApp {
         }));
         let grouped_hacks = Self::group_hacks_by_game_internal_logic(&all_hacks, config);
         log::debug!(
-            "[GROUPING] Finished group_hacks_by_game_internal, found {} games",
+            "<GROUPING> Finished group_hacks_by_game_internal, found {} games",
             grouped_hacks.len()
         );
         grouped_hacks
@@ -41,13 +40,13 @@ impl MyApp {
         hacks: &[Hack],
         config: &Config,
     ) -> BTreeMap<String, BTreeMap<String, Vec<Hack>>> {
-        log::debug!("[GROUPING] Starting group_hacks_by_game_internal_logic");
+        log::debug!("<GROUPING> Starting group_hacks_by_game_internal_logic");
         let mut hacks_by_game: BTreeMap<String, BTreeMap<String, Vec<Hack>>> = BTreeMap::new();
 
         for hack in hacks {
             if config.show_only_favorites && !config.favorites.contains(&hack.name) {
                 log::debug!(
-                    "[GROUPING] Skipping hack '{}' because it's not a favorite and show_only_favorites is enabled",
+                    "<GROUPING> Skipping hack '{}' because it's not a favorite and show_only_favorites is enabled",
                     hack.name
                 );
                 continue;
@@ -55,7 +54,7 @@ impl MyApp {
 
             let game = hack.game.clone();
             log::debug!(
-                "[GROUPING] Processing hack '{}' for game '{}'",
+                "<GROUPING> Processing hack '{}' for game '{}'",
                 hack.name,
                 game
             );
@@ -69,7 +68,7 @@ impl MyApp {
             }
         }
         log::debug!(
-            "[GROUPING] Finished group_hacks_by_game_internal_logic, grouped into {} games",
+            "<GROUPING> Finished group_hacks_by_game_internal_logic, grouped into {} games",
             hacks_by_game.len()
         );
         hacks_by_game
@@ -79,7 +78,7 @@ impl MyApp {
         hacks_by_game: &mut BTreeMap<String, BTreeMap<String, Vec<Hack>>>,
         hack: Hack,
     ) {
-        log::debug!("[GROUPING] Grouping CSS hack: {}", hack.name);
+        log::debug!("<GROUPING> Grouping CSS hack: {}", hack.name);
         let parts = hack.game.split_whitespace();
         let game_name = "CSS".to_string();
         let version = parts.skip(1).collect::<Vec<&str>>().join(" ");
@@ -89,7 +88,7 @@ impl MyApp {
             version
         };
         log::debug!(
-            "[GROUPING] Adding CSS hack '{}' to game '{}', version '{}'",
+            "<GROUPING> Adding CSS hack '{}' to game '{}', version '{}'",
             hack.name,
             game_name,
             version
@@ -106,7 +105,7 @@ impl MyApp {
         hacks_by_game: &mut BTreeMap<String, BTreeMap<String, Vec<Hack>>>,
         hack: Hack,
     ) {
-        log::debug!("[GROUPING] Grouping Rust hack: {}", hack.name);
+        log::debug!("<GROUPING> Grouping Rust hack: {}", hack.name);
         let parts = hack.game.split(",");
         let game_name = "Rust (NonSteam)".to_string();
         let version = parts.skip(1).collect::<Vec<&str>>().join(",");
@@ -117,7 +116,7 @@ impl MyApp {
         };
 
         log::debug!(
-            "[GROUPING] Adding Rust hack '{}' to game '{}', version '{}'",
+            "<GROUPING> Adding Rust hack '{}' to game '{}', version '{}'",
             hack.name,
             game_name,
             version
@@ -134,9 +133,9 @@ impl MyApp {
         hacks_by_game: &mut BTreeMap<String, BTreeMap<String, Vec<Hack>>>,
         hack: Hack,
     ) {
-        log::debug!("[GROUPING] Grouping other hack: {}", hack.name);
+        log::debug!("<GROUPING> Grouping other hack: {}", hack.name);
         log::debug!(
-            "[GROUPING] Adding hack '{}' to game '{}'",
+            "<GROUPING> Adding hack '{}' to game '{}'",
             hack.name,
             hack.game
         );

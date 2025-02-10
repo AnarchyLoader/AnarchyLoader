@@ -1,11 +1,10 @@
+mod cfgs;
 pub mod config;
-pub mod custom_widgets;
 pub mod downloader;
-pub mod grouping;
-pub mod intro;
+pub mod hacks;
 pub mod logger;
-pub mod messages;
 pub mod rpc;
 pub mod stats;
 pub mod steam;
+pub mod ui;
 pub mod updater;

@@ -9,7 +9,7 @@ use std::{
 use eframe::egui::{self};
 
 use crate::{
-    utils::{downloader::download_file, messages::MessageSender},
+    utils::{downloader::download_file, ui::messages::MessageSender},
     Hack, MyApp,
 };
 
@@ -35,10 +35,10 @@ impl MyApp {
 
             if injector_path.exists() {
                 if let Err(e) = std::fs::remove_file(&injector_path) {
-                    log::error!("[INJECTOR] Failed to delete {} injector: {}", injector, e);
+                    log::error!("<INJECTION> Failed to delete {} injector: {}", injector, e);
                     return Err(format!("Failed to delete {} injector: {}", injector, e));
                 }
-                log::info!("[INJECTOR] Deleted {}", injector);
+                log::info!("<INJECTION> Deleted {}", injector);
             }
         }
         Ok(())
@@ -77,7 +77,7 @@ impl MyApp {
 
                     if download_url.is_empty() {
                         log::error!(
-                            "[INJECTOR] Failed to get download URL for {}",
+                            "<INJECTION> Failed to get download URL for {}",
                             injector_name
                         );
                         let _ = message_sender
@@ -85,13 +85,13 @@ impl MyApp {
                     }
 
                     if let Err(e) = download_file(&download_url) {
-                        log::error!("[INJECTOR] Failed to download {}: {}", injector_name, e);
+                        log::error!("<INJECTION> Failed to download {}: {}", injector_name, e);
                         let _ = message_sender
                             .error(&format!("Failed to download {}: {}", injector_name, e));
                     }
 
                     let _ = message_sender.raw(&format!("Downloaded (nightly) {}", injector_name));
-                    log::info!("[INJECTOR] Downloaded nightly injector: {}", injector_name);
+                    log::info!("<INJECTION> Downloaded nightly injector: {}", injector_name);
                 }
             });
         } else {
@@ -100,13 +100,13 @@ impl MyApp {
                 for injector in injectors {
                     match download_file(injector) {
                         Ok(_) => {
-                            log::info!("[INJECTOR] Downloaded {}", injector);
+                            log::info!("<INJECTION> Downloaded {}", injector);
                             let _ =
                                 message_sender.raw(&format!("Downloaded (from cdn) {}", injector));
-                            log::info!("[INJECTOR] Downloaded stable injector: {}", injector);
+                            log::info!("<INJECTION> Downloaded stable injector: {}", injector);
                         }
                         Err(e) => {
-                            log::error!("[INJECTOR] Failed to download {}: {}", injector, e);
+                            log::error!("<INJECTION> Failed to download {}: {}", injector, e);
                             let _ = message_sender
                                 .error(&format!("Failed to download {}: {}", injector, e));
                         }
@@ -133,9 +133,9 @@ impl MyApp {
             "AnarchyInjector_x86.exe"
         };
 
-        log::debug!("[INJECTOR] Using {} injector", injector_process);
+        log::debug!("<INJECTION> Using {} injector", injector_process);
         if force_x64 {
-            log::debug!("[INJECTOR] Forcing x64 injector");
+            log::debug!("<INJECTION> Forcing x64 injector");
         }
 
         let file_path = dirs::config_dir()
@@ -146,12 +146,12 @@ impl MyApp {
         if !file_path.exists() {
             match download_file(injector_process) {
                 Ok(_) => {
-                    log::debug!("[INJECTOR] Downloaded manual map injector");
+                    log::debug!("<INJECTION> Downloaded manual map injector");
                 }
                 Err(e) => {
                     let error_message = format!("Failed to download manual map injector: {}", e);
                     let _ = message_sender.error(&error_message.clone());
-                    log::error!("[INJECTOR] {}", error_message);
+                    log::error!("<INJECTION> {}", error_message);
                     change_status_message(&status_message, &error_message);
                     ctx.request_repaint();
                     return;
@@ -162,7 +162,7 @@ impl MyApp {
         let mut command = Command::new(file_path);
         command.arg(target_process).arg(dll_path.unwrap());
 
-        log::debug!("[INJECTOR] Executing injector: {:?}", command);
+        log::debug!("<INJECTION> Executing injector: {:?}", command);
 
         let output = command.output();
 
@@ -170,10 +170,10 @@ impl MyApp {
             Ok(output) => {
                 if output.status.success() {
                     let stdout_message = String::from_utf8_lossy(&output.stdout).trim().to_string();
-                    log::info!("[INJECTOR] {}", stdout_message);
+                    log::info!("<INJECTION> {}", stdout_message);
                     let _ = message_sender
                         .success(&dll_path_clone.file_name().unwrap().to_string_lossy());
-                    log::info!("[INJECTOR] Injected into {}", target_process);
+                    log::info!("<INJECTION> Injected into {}", target_process);
                     change_status_message(&status_message, "Injection successful.");
                     ctx.request_repaint();
                 } else {
@@ -183,7 +183,7 @@ impl MyApp {
                         error_message += ", try running loader as admin.";
                     }
                     let _ = message_sender.error(&error_message.clone());
-                    log::error!("[INJECTOR] Failed to execute injector: {}", error_message);
+                    log::error!("<INJECTION> Failed to execute injector: {}", error_message);
                     change_status_message(
                         &status_message,
                         &format!("Failed to execute injector: {}", error_message),
@@ -194,7 +194,7 @@ impl MyApp {
             Err(e) => {
                 let error_message = format!("Failed to execute injector: {}", e);
                 let _ = message_sender.error(&error_message.clone());
-                log::error!("[INJECTOR] {}", error_message);
+                log::error!("<INJECTION> {}", error_message);
                 change_status_message(&status_message, &error_message);
                 ctx.request_repaint();
             }
@@ -217,7 +217,7 @@ impl MyApp {
         let message_sender_clone = message_sender.clone();
 
         change_status_message(&status_message, "Starting injection...");
-        log::info!("[INJECTION] Starting injection for hack: {}", selected.name);
+        log::info!("<INJECTION> Starting injection for hack: {}", selected.name);
 
         in_progress.store(true, std::sync::atomic::Ordering::SeqCst);
 
@@ -234,7 +234,7 @@ impl MyApp {
                 );
                 ctx_clone.request_repaint();
                 log::info!(
-                    "[INJECTION] Hack file not found, downloading: {}",
+                    "<INJECTION> Hack file not found, downloading: {}",
                     selected_clone.name
                 );
 
@@ -244,13 +244,13 @@ impl MyApp {
                     Ok(_) => {
                         change_status_message(&status_message, "Downloaded.");
                         ctx_clone.request_repaint();
-                        log::debug!("[INJECTION] Downloaded {}", selected_clone.name);
+                        log::debug!("<INJECTION> Downloaded {}", selected_clone.name);
                     }
                     Err(e) => {
                         in_progress.store(false, std::sync::atomic::Ordering::SeqCst);
                         change_status_message(&status_message, &format!("{}", e));
                         ctx_clone.request_repaint();
-                        log::error!("[INJECTION] Failed to download hack file: {}", e);
+                        log::error!("<INJECTION> Failed to download hack file: {}", e);
                         let _ = message_sender_clone.error(&format!("Failed to download: {}", e));
                         return;
                     }
@@ -263,7 +263,7 @@ impl MyApp {
 
             change_status_message(&status_message, "Injecting...");
             ctx_clone.request_repaint();
-            log::info!("[INJECTION] Injecting hack: {}", selected_clone.name);
+            log::info!("<INJECTION> Injecting hack: {}", selected_clone.name);
 
             if !skip_inject_delay {
                 thread::sleep(Duration::from_secs(1));
@@ -273,7 +273,7 @@ impl MyApp {
             let target_process = &selected_clone.process;
             let status_message_clone = status_message.clone();
 
-            log::debug!("[INJECTION] Hack details: {:?}", selected_clone);
+            log::debug!("<INJECTION> Hack details: {:?}", selected_clone);
 
             MyApp::manual_map_inject(
                 dll_path,
@@ -291,7 +291,7 @@ impl MyApp {
             in_progress.store(false, std::sync::atomic::Ordering::SeqCst);
             ctx_clone.request_repaint();
             log::info!(
-                "[INJECTION] Injection process completed for hack: {}",
+                "<INJECTION> Injection process completed for hack: {}",
                 selected_clone.name
             );
         });

@@ -13,6 +13,7 @@ pub(crate) struct HackApiResponse {
     pub source: String,
     pub game: String,
     pub working: bool,
+    pub id: i32,
 }
 
 #[derive(Clone, PartialEq, Debug, Deserialize, Serialize)]
@@ -29,6 +30,7 @@ pub(crate) struct Hack {
     pub local: bool,
     pub arch: String,
     pub working: bool,
+    pub id: i32,
 }
 
 impl Hack {
@@ -43,6 +45,7 @@ impl Hack {
         game: &str,
         local: bool,
         working: bool,
+        id: i32,
     ) -> Self {
         Self {
             name: name.to_string(),
@@ -54,12 +57,13 @@ impl Hack {
             source: source.to_string(),
             game: game.to_string(),
             file_path: dirs::config_dir()
-                .unwrap_or_else(|| std::path::PathBuf::from("."))
+                .unwrap_or_else(|| std::path::PathBuf::from("../.."))
                 .join("anarchyloader")
                 .join(&file),
             local,
             arch: String::new(),
             working,
+            id,
         }
     }
 
@@ -90,6 +94,7 @@ impl Default for Hack {
             local: false,
             arch: "".to_string(),
             working: true,
+            id: 0,
         }
     }
 }
@@ -112,7 +117,7 @@ pub(crate) fn fetch_hacks(
                         Err("No hacks available.".to_string())
                     } else {
                         log::info!(
-                            "[HACKS] Successfully fetched {} hacks from API",
+                            "<HACKS> Successfully fetched {} hacks from API",
                             parsed_hacks.len()
                         );
                         Ok(parsed_hacks
@@ -139,6 +144,7 @@ pub(crate) fn fetch_hacks(
                                     &hack.game,
                                     false,
                                     hack.working,
+                                    hack.id,
                                 )
                             })
                             .collect())
@@ -169,6 +175,10 @@ pub(crate) fn get_hack_by_dll(hacks: &[Hack], dll: &str) -> Option<Hack> {
     hacks.iter().find(|&hack| hack.file == dll).cloned()
 }
 
+pub(crate) fn get_hack_by_id(hacks: &[Hack], id: i32) -> Option<Hack> {
+    hacks.iter().find(|&hack| hack.id == id).cloned()
+}
+
 pub(crate) fn get_all_processes(hacks: &[Hack]) -> Vec<String> {
     hacks
         .iter()
@@ -181,7 +191,7 @@ pub(crate) fn get_all_processes(hacks: &[Hack]) -> Vec<String> {
 
 fn load_cached_hacks() -> Result<Vec<Hack>, String> {
     let cache_path = dirs::config_dir()
-        .unwrap_or_else(|| std::path::PathBuf::from("."))
+        .unwrap_or_else(|| std::path::PathBuf::from("../.."))
         .join("anarchyloader")
         .join("hacks_cache.json");
 
@@ -196,7 +206,7 @@ fn load_cached_hacks() -> Result<Vec<Hack>, String> {
 
 pub(crate) fn save_hacks_to_cache(hacks: &[Hack]) -> Result<(), String> {
     let cache_path = dirs::config_dir()
-        .unwrap_or_else(|| std::path::PathBuf::from("."))
+        .unwrap_or_else(|| std::path::PathBuf::from("../.."))
         .join("anarchyloader")
         .join("hacks_cache.json");
 

@@ -69,18 +69,18 @@ impl SteamAccount {
     pub fn new() -> Result<Self, String> {
         match Self::parse_user() {
             Ok(account) => {
-                log::info!("[STEAM_ACCOUNT] Successfully parsed Steam user data");
+                log::info!("<STEAM> Successfully parsed Steam user data");
                 Ok(account)
             }
             Err(e) => {
-                log::warn!("[STEAM_ACCOUNT] Failed to parse Steam user data: {}", e);
+                log::warn!("<STEAM> Failed to parse Steam user data: {}", e);
                 Err(e)
             }
         }
     }
 
     pub fn default() -> Self {
-        log::info!("[STEAM_ACCOUNT] Creating default SteamAccount instance");
+        log::info!("<STEAM> Creating default SteamAccount instance");
         Self {
             id: "unknown".to_string(),
             username: "unknown".to_string(),

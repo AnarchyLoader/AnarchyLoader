@@ -9,7 +9,7 @@ use pelite::{
 };
 use regex::Regex;
 
-use crate::{utils::custom_widgets::Button, MyApp};
+use crate::{utils::ui::custom_widgets::Button, MyApp};
 
 pub struct Scanner {
     pub file: PathBuf,
@@ -132,12 +132,12 @@ impl MyApp {
         match opener::open(self.app.meta.path.join("scanner_results.txt")) {
             Ok(_) => {
                 self.toasts.success("Results opened.");
-                log::info!("[SCANNER_POPUP] Scanner results opened.");
+                log::info!("<SCANNER_POPUP> Scanner results opened.");
             }
             Err(err) => {
                 self.toasts
                     .error(format!("Failed to open results: {}", err));
-                log::error!("[SCANNER_POPUP] Failed to open scanner results: {}", err);
+                log::error!("<SCANNER_POPUP> Failed to open scanner results: {}", err);
             }
         }
     }
@@ -166,13 +166,13 @@ impl MyApp {
                     if path_buf.ends_with(".dll") {
                         self.toasts.success("DLL selected.");
                         log::info!(
-                            "[SCANNER_POPUP] DLL file selected for scanner: {}",
+                            "<SCANNER_POPUP> DLL file selected for scanner: {}",
                             path_buf
                         );
                     } else {
                         self.toasts.error("Please select a DLL file.");
                         log::warn!(
-                            "[SCANNER_POPUP] User selected a non-DLL file for scanner: {}",
+                            "<SCANNER_POPUP> User selected a non-DLL file for scanner: {}",
                             path_buf
                         );
                     }
@@ -193,7 +193,7 @@ impl MyApp {
                 if ui.cbutton("Scan").clicked() {
                     if path_buf.is_empty() {
                         self.toasts.error("Please select a DLL file.");
-                        log::warn!("[SCANNER_POPUP] Scan requested without DLL file selected.");
+                        log::warn!("<SCANNER_POPUP> Scan requested without DLL file selected.");
                         return;
                     }
 
@@ -202,20 +202,20 @@ impl MyApp {
                     self.toasts
                         .info("Scanning PE-File using pelite...")
                         .duration(Some(std::time::Duration::from_secs(5)));
-                    log::info!("[SCANNER_POPUP] Scanner started for DLL: {}", path_buf);
+                    log::info!("<SCANNER_POPUP> Scanner started for DLL: {}", path_buf);
 
                     match scanner.scan(self.app.meta.path.clone()) {
                         Ok(()) => {
                             self.ui.popups.scanner.show_results = true;
                             log::info!(
-                                "[SCANNER_POPUP] Scanner finished successfully for DLL: {}",
+                                "<SCANNER_POPUP> Scanner finished successfully for DLL: {}",
                                 path_buf
                             );
                         }
                         Err(err) => {
                             self.toasts.error(err.clone());
                             log::error!(
-                                "[SCANNER_POPUP] Scanner failed for DLL {}: {}",
+                                "<SCANNER_POPUP> Scanner failed for DLL {}: {}",
                                 path_buf,
                                 err
                             );

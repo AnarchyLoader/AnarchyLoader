@@ -155,8 +155,9 @@ impl MyApp {
 
                 let scale = 50.0 + 50.0 * scale_factor;
 
-                let image = egui::Image::new(egui::include_image!("../../resources/img/icon.ico"))
-                    .max_width(scale);
+                let image =
+                    egui::Image::new(egui::include_image!("../../../resources/img/icon.ico"))
+                        .max_width(scale);
 
                 let tint_color = text_color.gamma_multiply(self.ui.animation.image_opacity);
 
