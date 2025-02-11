@@ -13,7 +13,6 @@ function isMobile() {
         return navigator.userAgent.match(toMatchItem);
     });
 }
-
 window.onload = function () {
     console.log('Is mobile: ' + isMobile());
 
@@ -23,7 +22,9 @@ window.onload = function () {
 
         const video = document.querySelector('.background-video');
         const warn = document.querySelector('.warn');
+        const waitText = document.querySelector('#wait');
         var showen = false;
+        var insertPressed = false;
 
         video.addEventListener('ended', () => {
             video.src = 'static/assets/background_loop.mp4';
@@ -34,10 +35,20 @@ window.onload = function () {
             warn.style.opacity = 1;
             video.style.filter = 'brightness(0.1)';
             showen = true;
+
+            setTimeout(() => {
+                if (!insertPressed) {
+                    waitText.style.opacity = 1;
+                    setTimeout(() => {
+                        handleGui();
+                    }, 4000);
+                }
+            }, 3000);
         }, 2000);
 
         document.addEventListener('keydown', (event) => {
             if (event.key === 'Insert' && showen) {
+                insertPressed = true;
                 handleGui();
             }
         });

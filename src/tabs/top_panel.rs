@@ -5,7 +5,6 @@ use crate::{utils::ui::custom_widgets::SelectableLabel, MyApp};
 #[derive(Debug, Clone, PartialEq, PartialOrd, Eq)]
 pub enum AppTab {
     Home,
-    Cfgs,
     Settings,
     About,
     Logs,
@@ -36,14 +35,6 @@ impl MyApp {
                     "Home",
                     "Go to the home screen",
                     &home_rpc_message,
-                );
-                self.render_tab(
-                    ui,
-                    AppTab::Cfgs,
-                    icons::ICON_ARTICLE,
-                    "Configs",
-                    "Download and manage configs",
-                    "Managing configs",
                 );
                 self.render_tab(
                     ui,

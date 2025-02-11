@@ -69,7 +69,7 @@ impl Hack {
 
     pub(crate) fn download(&self, file_path: String) -> Result<(), String> {
         if !std::path::Path::new(&file_path).exists() {
-            match download_file(&self.file) {
+            match download_file(&self.file, None) {
                 Ok(_) => Ok(()),
                 Err(e) => Err(format!("{}", e)),
             }
@@ -82,17 +82,17 @@ impl Hack {
 impl Default for Hack {
     fn default() -> Self {
         Self {
-            name: "".to_string(),
-            description: "".to_string(),
-            author: "".to_string(),
-            status: "".to_string(),
-            file: "".to_string(),
-            process: "".to_string(),
-            source: "".to_string(),
-            game: "".to_string(),
+            name: "n/a".to_string(),
+            description: "n/a".to_string(),
+            author: "???".to_string(),
+            status: "n/a".to_string(),
+            file: "n/a".to_string(),
+            process: "n/a".to_string(),
+            source: "n/a".to_string(),
+            game: "n/a".to_string(),
             file_path: std::path::PathBuf::new(),
             local: false,
-            arch: "".to_string(),
+            arch: "n/a".to_string(),
             working: true,
             id: 0,
         }
@@ -108,7 +108,7 @@ pub(crate) fn fetch_hacks(
     endpoints.extend(api_extra_endpoints.clone());
 
     for endpoint in endpoints {
-        match ureq::get(&endpoint).call() {
+        match ureq::get(&format!("{}hacks/", &endpoint)).call() {
             Ok(res) => {
                 if res.status() == 200 {
                     let parsed_hacks: Vec<HackApiResponse> =
@@ -174,11 +174,6 @@ pub(crate) fn get_hack_by_name(hacks: &[Hack], name: &str) -> Option<Hack> {
 pub(crate) fn get_hack_by_dll(hacks: &[Hack], dll: &str) -> Option<Hack> {
     hacks.iter().find(|&hack| hack.file == dll).cloned()
 }
-
-pub(crate) fn get_hack_by_id(hacks: &[Hack], id: i32) -> Option<Hack> {
-    hacks.iter().find(|&hack| hack.id == id).cloned()
-}
-
 pub(crate) fn get_all_processes(hacks: &[Hack]) -> Vec<String> {
     hacks
         .iter()

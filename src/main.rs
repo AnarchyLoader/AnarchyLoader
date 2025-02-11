@@ -428,11 +428,10 @@ impl MyApp {
     fn render_tabs(&mut self, ctx: &egui::Context, tab: AppTab, highlight_color: egui::Color32) {
         match tab {
             AppTab::Home => self.render_home_tab(ctx, highlight_color),
-            AppTab::Cfgs => self.render_cfgs_tab(ctx),
             AppTab::Settings => self.render_settings_tab(ctx),
             AppTab::About => self.render_about_tab(ctx),
             AppTab::Logs => self.render_logs_tab(ctx),
-            AppTab::Debug => self.render_cfgs_tab(ctx),
+            AppTab::Debug => self.render_debug_tab(ctx),
         }
     }
 }

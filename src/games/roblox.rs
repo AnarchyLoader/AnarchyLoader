@@ -16,7 +16,7 @@ impl Roblox {
     /// Download the roblox zip
     pub fn download_executor() -> Result<(), Box<dyn std::error::Error>> {
         log::info!("<ROBLOX> Downloading roblox executor...");
-        downloader::download_file("roblox.zip")?;
+        downloader::download_file("roblox.zip", None)?;
         log::info!("<ROBLOX> Roblox executor downloaded successfully.");
         Ok(())
     }

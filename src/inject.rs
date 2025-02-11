@@ -84,7 +84,7 @@ impl MyApp {
                             .error(&format!("Failed to get download URL for {}", injector_name));
                     }
 
-                    if let Err(e) = download_file(&download_url) {
+                    if let Err(e) = download_file(&download_url, None) {
                         log::error!("<INJECTION> Failed to download {}: {}", injector_name, e);
                         let _ = message_sender
                             .error(&format!("Failed to download {}: {}", injector_name, e));
@@ -98,7 +98,7 @@ impl MyApp {
             let injectors = vec!["AnarchyInjector_x86.exe", "AnarchyInjector_x64.exe"];
             thread::spawn(move || {
                 for injector in injectors {
-                    match download_file(injector) {
+                    match download_file(injector, None) {
                         Ok(_) => {
                             log::info!("<INJECTION> Downloaded {}", injector);
                             let _ =
@@ -144,7 +144,7 @@ impl MyApp {
             .join(injector_process);
 
         if !file_path.exists() {
-            match download_file(injector_process) {
+            match download_file(injector_process, None) {
                 Ok(_) => {
                     log::debug!("<INJECTION> Downloaded manual map injector");
                 }
