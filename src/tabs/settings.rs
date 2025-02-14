@@ -1,8 +1,8 @@
 use egui::{CursorIcon::PointingHand as Clickable, RichText, ThemePreference};
 use egui_dnd::dnd;
 use egui_material_icons::icons::{
-    ICON_ADD, ICON_DELETE, ICON_DOWNLOAD, ICON_EYE_TRACKING, ICON_FOLDER, ICON_MANUFACTURING,
-    ICON_RESTART_ALT, ICON_VISIBILITY, ICON_VISIBILITY_OFF,
+    ICON_ADD, ICON_CHECK, ICON_CLOSE, ICON_DELETE, ICON_DOWNLOAD, ICON_EYE_TRACKING, ICON_FOLDER,
+    ICON_MANUFACTURING, ICON_RESTART_ALT, ICON_VISIBILITY, ICON_VISIBILITY_OFF,
 };
 use egui_modal::Modal;
 use egui_theme_switch::ThemeSwitch;
@@ -189,9 +189,9 @@ impl MyApp {
                             ui.add(
                                 egui::Slider::new(
                                     &mut self.ui.popups.transition.amount,
-                                    0.0..=64.0,
+                                    0.0..=128.0,
                                 )
-                                    .suffix("s")
+                                    .suffix("px")
                                     .text("amount"),
                             );
 
@@ -208,7 +208,7 @@ impl MyApp {
                                     modal_transition.close();
                                     log::info!("<SETTINGS_TAB> Transition settings updated and saved.");
                                 }
-                                if ui.cbutton("Cancel").clicked() {
+                                if ui.cibutton("Cancel", ICON_CLOSE).clicked() {
                                     modal_transition.close();
                                 }
                             });
@@ -223,6 +223,8 @@ impl MyApp {
                         {
                             self.app.config.save();
                         }
+
+                        ui.add_space(3.0);
 
                         if ui
                             .cbutton(format!("{} Configure transitions", ICON_MANUFACTURING))
@@ -247,6 +249,7 @@ impl MyApp {
                         ui.add_space(5.0);
 
                         let mut preference = ui.ctx().options(|opt| opt.theme_preference);
+
                         if ui.add(ThemeSwitch::new(&mut preference)).changed() {
                             ui.ctx().set_theme(preference);
                             self.app.config.theme = preference;
@@ -462,7 +465,7 @@ impl MyApp {
                                     local_hack_modal.close();
                                     log::info!("<SETTINGS_TAB> Local hack added successfully.");
                                 }
-                                if ui.cbutton("Cancel").clicked() {
+                                if ui.cibutton("Cancel", ICON_CLOSE).clicked() {
                                     local_hack_modal.close();
                                 }
                             });
@@ -537,7 +540,7 @@ impl MyApp {
                                     }
                                 }
 
-                                if ui.cbutton("Cancel").clicked() {
+                                if ui.cibutton("Cancel", ICON_CLOSE).clicked() {
                                     modal_injector.close();
                                 }
                             });
@@ -657,7 +660,7 @@ impl MyApp {
                             ui.label("Are you sure you want to reset the settings?");
                             ui.horizontal(|ui| {
                                 if ui
-                                    .cbutton(RichText::new("Reset").color(egui::Color32::LIGHT_RED))
+                                    .cbutton(RichText::new(format!("{} Reset", ICON_CHECK)).color(egui::Color32::LIGHT_RED))
                                     .clicked()
                                 {
                                     self.app.config.reset();
@@ -677,7 +680,7 @@ impl MyApp {
                                     log::info!("<SETTINGS_TAB> Settings reset to default.");
                                 }
 
-                                if ui.cbutton("Cancel").clicked() {
+                                if ui.cibutton("Cancel", ICON_CLOSE).clicked() {
                                     modal_settings.close();
                                 }
                             });
@@ -685,7 +688,7 @@ impl MyApp {
 
                         if ui
                             .cbutton(
-                                RichText::new("Reset settings").color(egui::Color32::LIGHT_RED),
+                                RichText::new(format!("{} Reset settings", ICON_RESTART_ALT)).color(egui::Color32::LIGHT_RED),
                             )
                             .clicked()
                         {
@@ -699,7 +702,7 @@ impl MyApp {
                             ui.label("Are you sure you want to reset the statistics?");
                             ui.horizontal(|ui| {
                                 if ui
-                                    .cbutton(RichText::new("Reset").color(egui::Color32::LIGHT_RED))
+                                    .cbutton(RichText::new(format!("{} Reset", ICON_CHECK)).color(egui::Color32::LIGHT_RED))
                                     .clicked()
                                 {
                                     self.app.stats.reset();
@@ -708,7 +711,7 @@ impl MyApp {
                                     log::info!("<SETTINGS_TAB> Statistics reset to default.");
                                 }
 
-                                if ui.cbutton("Cancel").clicked() {
+                                if ui.cibutton("Cancel", ICON_CLOSE).clicked() {
                                     modal_statistics.close();
                                 }
                             });

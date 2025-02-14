@@ -39,11 +39,11 @@ fn default_favorites_color() -> egui::Color32 {
 }
 
 pub(crate) fn default_api_endpoint() -> String {
-    "https://api.anarchy.my/api/hacks/".to_string()
+    "https://api.anarchy.my/api/".to_string()
 }
 
 pub(crate) fn default_api_extra_endpoints() -> Vec<String> {
-    vec!["https://anarchy.ttfdk.lol/api/hacks/".to_string()]
+    vec!["https://anarchy.ttfdk.lol/api/".to_string()]
 }
 
 pub(crate) fn default_cdn_endpoint() -> String {

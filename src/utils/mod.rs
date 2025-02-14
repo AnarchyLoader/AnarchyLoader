@@ -2,6 +2,7 @@ pub mod config;
 pub mod downloader;
 pub mod hacks;
 pub mod logger;
+pub mod native_theme;
 pub mod rpc;
 pub mod stats;
 pub mod steam;

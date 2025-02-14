@@ -2,15 +2,17 @@ use std::{
     collections::BTreeMap, fs, path::Path, process::Command, sync::Arc, thread, time::Duration,
 };
 
+use eframe::epaint::{text::TextFormat, FontFamily};
 use egui::{
-    scroll_area::ScrollBarVisibility::AlwaysHidden, Align, CursorIcon::PointingHand as Clickable,
-    Layout, RichText, Sense, Spinner, TextStyle,
+    scroll_area::ScrollBarVisibility::AlwaysHidden, text::LayoutJob, Align,
+    CursorIcon::PointingHand as Clickable, FontId, Layout, RichText, Sense, Spinner, TextStyle,
 };
 use egui_commonmark::CommonMarkViewer;
 use egui_material_icons::icons::{
-    ICON_AWARD_STAR, ICON_BLOCK, ICON_CLOUD_OFF, ICON_EDITOR_CHOICE, ICON_LINK, ICON_LOGIN,
-    ICON_MILITARY_TECH, ICON_NO_ACCOUNTS, ICON_PERSON, ICON_PROBLEM, ICON_SEARCH_OFF, ICON_STAR,
-    ICON_SYRINGE, ICON_VISIBILITY,
+    ICON_AWARD_STAR, ICON_BLOCK, ICON_CHECK, ICON_CLOSE, ICON_CLOUD_OFF, ICON_EDITOR_CHOICE,
+    ICON_LINK, ICON_LOGIN, ICON_MILITARY_TECH, ICON_NO_ACCOUNTS, ICON_PERSON, ICON_PROBLEM,
+    ICON_QUESTION_MARK, ICON_SEARCH, ICON_SEARCH_OFF, ICON_STAR, ICON_SYRINGE, ICON_VISIBILITY,
+    ICON_WARNING,
 };
 use egui_modal::Modal;
 use url::Url;
@@ -219,10 +221,14 @@ impl MyApp {
                         ui.add_space(5.0);
 
                         ui.with_layout(Layout::right_to_left(Align::Min), |ui| {
-                            ui.add(
+                            let resp = ui.add(
                                 egui::TextEdit::singleline(&mut self.ui.search_query)
-                                    .hint_text("Search..."),
+                                    .hint_text(format!("{} Search...", ICON_SEARCH))
                             );
+
+                            if resp.changed() {
+                                self.ui.search_query = " ".to_string();
+                            };
                         });
 
                         ui.add_space(5.0);
@@ -507,24 +513,44 @@ impl MyApp {
         let modal = Modal::new(ctx, "disclaimer");
 
         modal.show(|ui| {
-            ui.heading(RichText::new("Disclaimer").color(egui::Color32::RED));
+            ui.heading(RichText::new(format!("{} Disclaimer", ICON_WARNING)).color(egui::Color32::RED));
             ui.separator();
 
-            let text = format!("Hey {}", whoami::username()) + ", using cheats or unauthorized modifications in online games violates their terms of service.\nBy using this tool, you understand and agree that you are doing so at your own risk.\nThis may result in a **permanent ban** from the game and related services.\n**We are not responsible for any consequences resulting from the use of this cheat.**";
+            let mut job = LayoutJob::default();
 
-            CommonMarkViewer::new().show(ui, &mut self.app.cache, &*text);
+            let text_format = TextFormat { font_id: FontId::new(14.0, FontFamily::Proportional), ..Default::default() };
+
+            job.append(&format!("Hey {}!", whoami::username()), 0.0, text_format.clone());
+            job.append("\n\n", 0.0, TextFormat::default());
+            job.append("Using cheats or unauthorized modifications in online games violates their terms of service.", 0.0, text_format.clone());
+            job.append("\n\n", 0.0, TextFormat::default());
+            job.append("By using this tool, you understand and agree that you are doing so at your own risk.", 0.0, text_format.clone());
+            job.append("\n\n", 0.0, TextFormat::default());
+            job.append("This may result in a ", 0.0, text_format.clone());
+            job.append("permanent ban", 0.0, TextFormat {
+                color: egui::Color32::RED,
+                ..Default::default()
+            });
+            job.append(" from the game and related services.", 0.0, text_format.clone());
+            job.append("\n\n", 0.0, TextFormat::default());
+            job.append("We are not responsible for any consequences resulting from the use of this program.", 0.0, TextFormat {
+                color: highlight_color,
+                ..Default::default()
+            });
+
+            ui.label(job);
 
             ui.add_space(5.0);
 
             ui.horizontal(|ui| {
-                if ui.cbutton("I understand").clicked() {
+                if ui.cibutton("I understand", ICON_CHECK).clicked() {
                     self.ui.tabs.home.disclaimer_accepted = true;
                     self.toasts.info("Press the inject button again to proceed.");
                     modal.close();
                 }
-                ui.add_space(5.0);
-                if ui.cbutton("Cancel").clicked() {
+                if ui.cibutton("Cancel", ICON_CLOSE).clicked() {
                     modal.close();
+                    self.toasts.custom("But why did you download the loader?", ICON_QUESTION_MARK.to_string(), egui::Color32::from_rgb(150, 200, 210));
                     return;
                 }
             });

@@ -39,6 +39,21 @@ impl MessageSender for mpsc::Sender<String> {
 }
 
 impl MyApp {
+    pub(crate) fn update_rpc_status_selecting(&mut self) {
+        let version = format!("v{}", env!("CARGO_PKG_VERSION"));
+        let status = if let Some(hack) = &self.app.selected_hack {
+            format!("Selected {}", hack.name)
+        } else {
+            "Selecting hack".to_string()
+        };
+        log::debug!(
+            "<MAIN> Updating RPC status to: version={}, status={}",
+            version,
+            status
+        );
+        self.rpc.update(Some(&version), Some(&status), Some("home"));
+    }
+
     pub fn handle_received_messages(&mut self) {
         match self.communication.messages.receiver.try_recv() {
             Ok(message) => {

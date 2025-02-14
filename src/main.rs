@@ -44,6 +44,7 @@ use winreg::{enums::HKEY_LOCAL_MACHINE, RegKey};
 use crate::{
     tabs::{about::AboutTab, home::HomeTab},
     utils::{
+        native_theme,
         stats::{calculate_session, get_time_difference_in_seconds},
         ui::intro::{AnimationPhase, AnimationState},
     },
@@ -331,6 +332,8 @@ impl MyApp {
 
         let grouped_hacks = MyApp::group_hacks_by_game_internal(&hacks, &config);
 
+        native_theme::register(&cc.egui_ctx);
+
         Self {
             app: AppState {
                 hacks,
@@ -392,21 +395,6 @@ impl MyApp {
             rpc,
             toasts: Toasts::default(),
         }
-    }
-
-    fn update_rpc_status_selecting(&mut self) {
-        let version = format!("v{}", env!("CARGO_PKG_VERSION"));
-        let status = if let Some(hack) = &self.app.selected_hack {
-            format!("Selected {}", hack.name)
-        } else {
-            "Selecting hack".to_string()
-        };
-        log::debug!(
-            "<MAIN> Updating RPC status to: version={}, status={}",
-            version,
-            status
-        );
-        self.rpc.update(Some(&version), Some(&status), Some("home"));
     }
 
     fn render_central_panel(&mut self, ctx: &egui::Context, highlight_color: egui::Color32) {
@@ -575,7 +563,6 @@ impl App for MyApp {
                 self.ui.transitioning = state.animation_running;
             } else {
                 self.render_tabs(ctx, self.ui.tab.clone(), highlight_color);
-                ctx.inspection_ui(ui);
             }
         });
     }

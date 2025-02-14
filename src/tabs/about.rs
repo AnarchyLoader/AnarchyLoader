@@ -26,7 +26,7 @@ impl User {
             .add(
                 Image::new(self.avatar_url.clone())
                     .fit_to_exact_size(Vec2::new(32.0, 32.0))
-                    .rounding(8.0)
+                    .corner_radius(8.0)
                     .sense(egui::Sense::click()),
             )
             .on_hover_text(self.username.clone());

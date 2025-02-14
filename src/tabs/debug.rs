@@ -47,7 +47,7 @@ impl MyApp {
                                     .map(|(label, value)| format!("{} {}\n", label, value))
                                     .collect::<String>()
                                 + "```";
-                            ui.output_mut(|o| o.copied_text = debug_info);
+                            ctx.copy_text(debug_info.clone());
                             self.toasts.success("Debug info copied to clipboard.");
                         }
                     });
