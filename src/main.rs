@@ -28,7 +28,7 @@ use tabs::{settings::TransitionPopup, top_panel::AppTab};
 use utils::{
     config::Config,
     hacks,
-    hacks::{get_all_processes, get_hack_by_name, Hack},
+    hacks::{get_hack_by_name, Hack},
     logger::MyLogger,
     rpc::{Rpc, RpcUpdate},
     stats::Statistics,
@@ -71,7 +71,7 @@ pub(crate) fn load_icon() -> egui::IconData {
 fn main() {
     let native_options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_min_inner_size(egui::vec2(600.0, 200.0))
+            .with_min_inner_size(egui::vec2(600.0, 300.0))
             .with_inner_size(egui::vec2(800.0, 400.0))
             .with_icon(Arc::new(load_icon())),
         multisampling: 8,
@@ -94,7 +94,6 @@ fn main() {
 #[derive(Debug)]
 struct AppState {
     hacks: Vec<Hack>,
-    hacks_processes: Vec<String>,
     selected_hack: Option<Hack>,
     config: Config,
     stats: Statistics,
@@ -102,8 +101,6 @@ struct AppState {
     updater: Updater,
     cache: CommonMarkCache,
     meta: AppMeta,
-    grouped_hacks:
-        std::collections::BTreeMap<String, std::collections::BTreeMap<String, Vec<Hack>>>,
 }
 
 #[derive(Debug)]
@@ -273,16 +270,11 @@ impl MyApp {
             log::info!("<MAIN> Hacks saved to cache successfully.");
         }
 
-        let hacks_processes = get_all_processes(&hacks);
-
         let account = SteamAccount::new().unwrap_or_else(|_| {
             log::warn!("<MAIN> Failed to get Steam account details");
             SteamAccount::default()
         });
-        log::info!(
-            "<MAIN> Steam Account details: {:?}",
-            account.get_censoured()
-        );
+        log::info!("<MAIN> {:?}", account.get_censoured());
 
         let rpc = Rpc::new(!config.disable_rpc);
         if !config.disable_rpc {
@@ -299,7 +291,10 @@ impl MyApp {
         let mut selected_hack = None;
 
         if config.selected_hack != "" && config.automatically_select_hack {
-            selected_hack = get_hack_by_name(&hacks, &config.selected_hack);
+            selected_hack = get_hack_by_name(
+                &*Self::get_all_hacks(&hacks, &config),
+                &config.selected_hack,
+            );
             if selected_hack.is_some() {
                 log::info!(
                     "<MAIN> Automatically selected hack from config: {}",
@@ -330,14 +325,11 @@ impl MyApp {
             }
         }
 
-        let grouped_hacks = MyApp::group_hacks_by_game_internal(&hacks, &config);
-
         native_theme::register(&cc.egui_ctx);
 
         Self {
             app: AppState {
                 hacks,
-                hacks_processes,
                 selected_hack,
                 config,
                 stats: statistics.clone(),
@@ -351,7 +343,6 @@ impl MyApp {
                     os_version: get_windows_version().unwrap_or_else(|| "Unknown".to_string()),
                     session: chrono::Local::now().to_rfc3339(),
                 },
-                grouped_hacks,
             },
             ui: UIState {
                 tab: AppTab::default(),

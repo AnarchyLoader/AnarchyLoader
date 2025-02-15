@@ -5,8 +5,25 @@ use crate::MyApp;
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct LocalHack {
     pub dll: String,
+    pub name: String,
     pub process: String,
     pub arch: String,
+}
+
+impl LocalHack {
+    pub fn new(dll: String, process: String, arch: String) -> Self {
+        let name = std::path::Path::new(&dll)
+            .file_stem()
+            .map(|f| f.to_string_lossy().into_owned())
+            .unwrap_or_default();
+
+        Self {
+            dll,
+            name,
+            process,
+            arch,
+        }
+    }
 }
 
 #[derive(Debug)]

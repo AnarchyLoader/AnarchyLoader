@@ -3,6 +3,7 @@ name = "anarchyloader"
 version = "1.1.4"
 edition = "2021"
 build = "build.rs"
+authors = ["dest4590"]
 
 [features]
 scanner = ["dep:pelite", "dep:regex"]

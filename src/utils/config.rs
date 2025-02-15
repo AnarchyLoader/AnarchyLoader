@@ -13,6 +13,7 @@ pub struct Config {
     pub automatically_select_hack: bool,
     pub skip_injects_delay: bool,
     pub lowercase_hacks: bool,
+    pub disable_hack_name_animation: bool,
     pub api_endpoint: String,
     pub api_extra_endpoints: Vec<String>,
     pub cdn_endpoint: String,
@@ -68,6 +69,7 @@ impl Default for Config {
             automatically_select_hack: true,
             skip_injects_delay: false,
             lowercase_hacks: true,
+            disable_hack_name_animation: false,
             api_endpoint: default_api_endpoint(),
             api_extra_endpoints: default_api_extra_endpoints(),
             cdn_endpoint: default_cdn_endpoint(),
@@ -177,7 +179,7 @@ impl Config {
                     "<CONFIG> Successfully fetched {} hacks from API",
                     hacks.len()
                 );
-                let grouped = MyApp::group_hacks_by_game_internal(&hacks, self);
+                let grouped = MyApp::group_hacks_by_game(&hacks, &self);
                 self.game_order = grouped.keys().cloned().collect();
                 log::info!(
                     "<CONFIG> Game order updated successfully, found {} games",

@@ -174,15 +174,6 @@ pub(crate) fn get_hack_by_name(hacks: &[Hack], name: &str) -> Option<Hack> {
 pub(crate) fn get_hack_by_dll(hacks: &[Hack], dll: &str) -> Option<Hack> {
     hacks.iter().find(|&hack| hack.file == dll).cloned()
 }
-pub(crate) fn get_all_processes(hacks: &[Hack]) -> Vec<String> {
-    hacks
-        .iter()
-        .map(|hack| &hack.process)
-        .collect::<std::collections::HashSet<_>>()
-        .into_iter()
-        .cloned()
-        .collect()
-}
 
 fn load_cached_hacks() -> Result<Vec<Hack>, String> {
     let cache_path = dirs::config_dir()

@@ -10,9 +10,9 @@ use egui::{
 use egui_commonmark::CommonMarkViewer;
 use egui_material_icons::icons::{
     ICON_AWARD_STAR, ICON_BLOCK, ICON_CHECK, ICON_CLOSE, ICON_CLOUD_OFF, ICON_EDITOR_CHOICE,
-    ICON_LINK, ICON_LOGIN, ICON_MILITARY_TECH, ICON_NO_ACCOUNTS, ICON_PERSON, ICON_PROBLEM,
-    ICON_QUESTION_MARK, ICON_SEARCH, ICON_SEARCH_OFF, ICON_STAR, ICON_SYRINGE, ICON_VISIBILITY,
-    ICON_WARNING,
+    ICON_INVENTORY_2, ICON_LINK, ICON_LOGIN, ICON_MILITARY_TECH, ICON_NO_ACCOUNTS, ICON_PERSON,
+    ICON_PROBLEM, ICON_QUESTION_MARK, ICON_SEARCH, ICON_SEARCH_OFF, ICON_STAR, ICON_SYRINGE,
+    ICON_VISIBILITY, ICON_WARNING,
 };
 use egui_modal::Modal;
 use url::Url;
@@ -33,12 +33,14 @@ use crate::{
 #[derive(Debug)]
 pub struct HomeTab {
     disclaimer_accepted: bool,
+    hack_title_decode_time: f32,
 }
 
 impl HomeTab {
     pub fn new() -> Self {
         Self {
             disclaimer_accepted: false,
+            hack_title_decode_time: 0.0,
         }
     }
 }
@@ -57,6 +59,7 @@ impl MyApp {
             self.rpc.update(None, Some("Selecting hack"), None);
             self.app.selected_hack = None;
             self.app.config.selected_hack = "".to_string();
+            self.ui.tabs.home.hack_title_decode_time = 0.0;
         }
 
         if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Enter)) {
@@ -114,30 +117,17 @@ impl MyApp {
                 .to_string_lossy()
                 .to_string();
 
-            egui::ComboBox::from_id_salt("Process")
-                .selected_text(if self.ui.selected_process_dnd.is_empty() {
-                    "".to_string()
-                } else {
-                    self.ui.selected_process_dnd.clone()
-                })
-                .show_ui(ui, |ui| {
-                    for process in &self.app.hacks_processes {
-                        ui.selectable_value(
-                            &mut self.ui.selected_process_dnd,
-                            process.to_string(),
-                            process.clone(),
-                        )
-                        .on_hover_cursor(Clickable);
-                    }
-                })
-                .response
-                .on_hover_cursor(Clickable);
+            ui.add(
+                egui::TextEdit::singleline(&mut self.ui.selected_process_dnd)
+                    .hint_text("Enter process name...")
+                    .desired_width(200.0),
+            );
 
             ui.add_space(5.0);
 
-            let mut force_x64 = false;
+            let mut use_x64 = false;
 
-            ui.ccheckbox(&mut force_x64, "Force use x64 injector");
+            ui.ccheckbox(&mut use_x64, "Use x64 injector");
 
             ui.add_space(5.0);
 
@@ -161,7 +151,7 @@ impl MyApp {
                     self.communication.messages.sender.clone(),
                     self.communication.status_message.clone(),
                     ctx.clone(),
-                    force_x64,
+                    use_x64,
                 );
                 modal.close();
             }
@@ -197,7 +187,7 @@ impl MyApp {
     pub(crate) fn render_home_tab(&mut self, ctx: &egui::Context, highlight_color: egui::Color32) {
         self.handle_key_events(ctx);
 
-        let hacks_by_game = &self.app.grouped_hacks.clone();
+        let hacks_by_game = MyApp::group_hacks_by_game(&*self.app.hacks, &self.app.config);
 
         self.render_left_panel(ctx, hacks_by_game);
         self.render_central_panel(ctx, highlight_color);
@@ -206,7 +196,7 @@ impl MyApp {
     pub(crate) fn render_left_panel(
         &mut self,
         ctx: &egui::Context,
-        hacks_by_game: &BTreeMap<String, BTreeMap<String, Vec<Hack>>>,
+        hacks_by_game: BTreeMap<String, BTreeMap<String, Vec<Hack>>>,
     ) {
         egui::SidePanel::left("left_panel")
             .resizable(true)
@@ -221,14 +211,10 @@ impl MyApp {
                         ui.add_space(5.0);
 
                         ui.with_layout(Layout::right_to_left(Align::Min), |ui| {
-                            let resp = ui.add(
+                            ui.add(
                                 egui::TextEdit::singleline(&mut self.ui.search_query)
                                     .hint_text(format!("{} Search...", ICON_SEARCH))
                             );
-
-                            if resp.changed() {
-                                self.ui.search_query = " ".to_string();
-                            };
                         });
 
                         ui.add_space(5.0);
@@ -244,7 +230,13 @@ impl MyApp {
                         }
                         if all_games_hidden {
                             if self.app.config.show_only_favorites {
-                                ui.label("You enabled 'Show only favorites' and no favorites are available.");
+                                ui.label("You enabled\n'Show only favorites' and no favorites are available.");
+                                if ui.cbutton(
+                                    "Disable 'Show only favorites'",
+                                ).clicked() {
+                                    self.app.config.show_only_favorites = false;
+                                    self.app.config.save();
+                                }
                             } else {
                                 ui.label("All games are hidden");
 
@@ -322,10 +314,15 @@ impl MyApp {
             let response = ui
                 .add_enabled_ui((!in_progress || is_selected) && hack.working, |ui| {
                     ui.selectable_label(self.app.selected_hack.as_ref() == Some(hack), label)
+                        .on_hover_cursor(Clickable)
                 })
                 .inner;
 
-            self.render_working_state(ui, hack);
+            // show if hack working
+            if !hack.working {
+                ui.label(ICON_BLOCK);
+            }
+
             self.render_favorite_button(ui, hack);
             self.render_injection_count(ui, hack);
 
@@ -334,8 +331,6 @@ impl MyApp {
             }
 
             self.context_menu(&response, ctx, hack);
-
-            response.on_hover_cursor(Clickable);
         });
     }
 
@@ -360,12 +355,6 @@ impl MyApp {
         label
     }
 
-    fn render_working_state(&mut self, ui: &mut egui::Ui, hack: &Hack) {
-        if !hack.working {
-            ui.label(ICON_BLOCK);
-        }
-    }
-
     fn render_favorite_button(&mut self, ui: &mut egui::Ui, hack: &Hack) {
         let is_favorite = self.app.config.favorites.contains(&hack.name);
         if is_favorite {
@@ -385,13 +374,16 @@ impl MyApp {
         }
     }
 
-    fn toggle_favorite(&mut self, hack_name: String) {
+    fn toggle_favorite(&mut self, hack_name: String) -> bool {
         if self.app.config.favorites.contains(&hack_name) {
             self.app.config.favorites.remove(&hack_name);
+            self.app.config.save();
+            false
         } else {
             self.app.config.favorites.insert(hack_name);
+            self.app.config.save();
+            true
         }
-        self.app.config.save();
     }
 
     fn render_injection_count(&self, ui: &mut egui::Ui, hack: &Hack) {
@@ -416,17 +408,25 @@ impl MyApp {
         }
     }
 
-    fn select_hack(&mut self, hack_clone: &Hack) {
-        log::debug!("<HOME_TAB> Selecting hack: {}", hack_clone.name);
-        self.app.selected_hack = Some(hack_clone.clone());
-        self.app.config.selected_hack = hack_clone.name.clone();
+    fn select_hack(&mut self, new_hack: &Hack) {
+        log::debug!("<HOME_TAB> Selecting hack: {}", new_hack.name);
+
+        // do not play animation if hack is not changed
+        if let Some(selected_hack) = &self.app.selected_hack {
+            if selected_hack.name != new_hack.name {
+                self.ui.tabs.home.hack_title_decode_time = 0.0;
+            }
+        }
+
+        self.app.selected_hack = Some(new_hack.clone());
+        self.app.config.selected_hack = new_hack.name.clone();
         self.app.config.save();
 
         let mut status = self.communication.status_message.lock().unwrap();
         *status = String::new();
 
         self.rpc
-            .update(None, Some(&format!("Selected {}", hack_clone.name)), None);
+            .update(None, Some(&format!("Selected {}", new_hack.name)), None);
     }
 
     // MARK: Hack details
@@ -439,38 +439,84 @@ impl MyApp {
     ) {
         let is_roblox = selected.game == "Roblox";
 
-        ui.vertical(|ui| {
-            ui.heading(&selected.name);
+        if self.app.selected_hack.is_some() && self.ui.tabs.home.hack_title_decode_time < 1.0 {
+            self.ui.tabs.home.hack_title_decode_time = (self.ui.tabs.home.hack_title_decode_time
+                + ctx.input(|i| i.unstable_dt) * 2.5)
+                .min(1.0);
+            ctx.request_repaint();
+        }
 
+        ui.vertical(|ui| {
+            if !self.app.config.disable_hack_name_animation {
+                let decoded_text = &selected.name;
+                let chars: Vec<char> = decoded_text.chars().collect();
+                let num_chars = chars.len();
+                let visible_chars_float =
+                    self.ui.tabs.home.hack_title_decode_time * num_chars as f32;
+                let visible_chars = visible_chars_float.floor() as usize;
+                let remainder = visible_chars_float - visible_chars_float.floor();
+
+                let mut job = LayoutJob::default();
+                for (i, ch) in chars.iter().enumerate() {
+                    let char_alpha_f32: f32 = if i < visible_chars {
+                        1.0
+                    } else if i == visible_chars && i < num_chars {
+                        remainder
+                    } else {
+                        0.0
+                    };
+                    job.append(
+                        &ch.to_string(),
+                        0.0,
+                        TextFormat {
+                            color: highlight_color.gamma_multiply(char_alpha_f32),
+                            font_id: FontId::new(19.0, FontFamily::Proportional),
+                            ..Default::default()
+                        },
+                    );
+                }
+                ui.label(job);
+            } else {
+                ui.label(
+                    RichText::new(&selected.name)
+                        .size(19.0)
+                        .color(highlight_color),
+                );
+            }
             if !selected.author.is_empty() {
                 ui.horizontal_wrapped(|ui| {
                     let width =
                         ui.fonts(|f| f.glyph_width(&TextStyle::Body.resolve(ui.style()), ' '));
                     ui.spacing_mut().item_spacing.x = width;
 
-                    if selected.author == "???" {
-                        ui.label(ICON_NO_ACCOUNTS);
-                        ui.label("Unknown author");
-                    } else {
-                        ui.label(ICON_PERSON);
-                        ui.label("by");
-                        ui.label(RichText::new(&selected.author).color(highlight_color))
-                            .on_hover_text("Author of the hack");
-                    }
-
-                    ui.add_space(5.0);
-
-                    if !selected.source.is_empty() && selected.source.to_string() != "n/a" {
-                        if let Ok(url) = Url::parse(&selected.source) {
-                            ui.clink(
-                                format!("{} (source, {})", ICON_LINK, url.domain().unwrap()),
-                                &selected.source,
-                            );
+                    if !selected.local {
+                        if selected.author == "???" {
+                            ui.label(ICON_NO_ACCOUNTS);
+                            ui.label("Unknown author");
                         } else {
-                            ui.label(format!("{} (cannot parse source)", ICON_CLOUD_OFF));
+                            ui.label(ICON_PERSON);
+                            ui.label("by");
+                            ui.label(RichText::new(&selected.author).color(highlight_color))
+                                .on_hover_text("Author of the hack");
+                        }
+
+                        ui.add_space(5.0);
+
+                        if !selected.source.is_empty() && selected.source.to_string() != "n/a" {
+                            if let Ok(url) = Url::parse(&selected.source) {
+                                ui.clink(
+                                    format!("{} (source, {})", ICON_LINK, url.domain().unwrap()),
+                                    &selected.source,
+                                );
+                            } else {
+                                ui.label(format!("{} (cannot parse source)", ICON_CLOUD_OFF));
+                            }
+                        } else {
+                            ui.label(format!("{} (source not available)", ICON_CLOUD_OFF));
                         }
                     } else {
-                        ui.label(format!("{} (source not available)", ICON_CLOUD_OFF));
+                        ui.label(ICON_INVENTORY_2);
+                        ui.label(format!("Local hack ({}, {})", selected.file, selected.arch));
                     }
                 });
             }

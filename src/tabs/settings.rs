@@ -66,6 +66,7 @@ impl MyApp {
                             .changed()
                         {
                             self.app.config.save();
+                            MyApp::group_hacks_by_game_internal(&self.app.hacks, &self.app.config);
                         }
                         if ui
                             .ccheckbox(
@@ -98,6 +99,12 @@ impl MyApp {
                             ));
                             self.app.config.save();
                         };
+                        if ui
+                            .ccheckbox(&mut self.app.config.disable_hack_name_animation, "Disable hack name animation")
+                            .changed()
+                        {
+                            self.app.config.save();
+                        }
                         if ui
                             .ccheckbox(&mut self.app.config.disable_rpc, "Disable RPC")
                             .changed()
@@ -196,7 +203,7 @@ impl MyApp {
                             );
 
                             ui.horizontal(|ui| {
-                                if ui.cbutton("Confirm").clicked() {
+                                if ui.cibutton("Confirm", ICON_CHECK).clicked() {
                                     self.app.config.transition_duration =
                                         self.ui.popups.transition.duration;
 
@@ -257,8 +264,7 @@ impl MyApp {
                             log::info!("<SETTINGS_TAB> Theme preference changed to: {:?}, saving config", preference);
 
                             if preference == ThemePreference::Light {
-                                self.toasts
-                                    .info("Better use dark theme for better experience.");
+                                self.toasts.info("Dark theme is recommended for a better experience.");
                             }
                         }
                     });
@@ -413,7 +419,7 @@ impl MyApp {
                             ui.add_space(5.0);
 
                             ui.horizontal(|ui| {
-                                if ui.cbutton("Confirm").clicked() {
+                                if ui.cibutton("Confirm", ICON_CHECK).clicked() {
                                     if self.ui.popups.local_hack.new_local_dll.is_empty() {
                                         self.toasts.error("Please select a DLL file.");
                                         log::warn!("<SETTINGS_TAB> Attempted to add local hack without DLL file selected.");
@@ -432,16 +438,8 @@ impl MyApp {
                                         return;
                                     }
 
-                                    let hack = LocalHack {
-                                        dll: self.ui.popups.local_hack.new_local_dll.clone(),
-                                        process: self
-                                            .ui
-                                            .popups
-                                            .local_hack
-                                            .new_local_process
-                                            .clone(),
-                                        arch: self.ui.popups.local_hack.new_local_arch.clone(),
-                                    };
+                                    let hack = LocalHack::new(self.ui.popups.local_hack.new_local_dll.clone(), self.ui.popups.local_hack.new_local_process.clone(), self.ui.popups.local_hack.new_local_arch.clone());
+
                                     self.add_local_hack(hack);
                                     if !self.app.config.local_hacks.is_empty()
                                         && !self

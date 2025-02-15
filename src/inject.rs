@@ -122,19 +122,19 @@ impl MyApp {
         message_sender: Sender<String>,
         status_message: Arc<Mutex<String>>,
         ctx: egui::Context,
-        force_x64: bool,
+        use_x64: bool,
     ) {
         let dll_path_clone = dll_path.clone().unwrap();
         let is_cs2 = target_process.eq_ignore_ascii_case("cs2.exe");
         let is_rust = target_process.eq_ignore_ascii_case("RustClient.exe");
-        let injector_process = if is_cs2 || is_rust || force_x64 {
+        let injector_process = if is_cs2 || is_rust || use_x64 {
             "AnarchyInjector_x64.exe"
         } else {
             "AnarchyInjector_x86.exe"
         };
 
         log::debug!("<INJECTION> Using {} injector", injector_process);
-        if force_x64 {
+        if use_x64 {
             log::debug!("<INJECTION> Forcing x64 injector");
         }
 

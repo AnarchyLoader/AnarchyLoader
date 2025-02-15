@@ -1,46 +1,58 @@
 use std::collections::BTreeMap;
 
 use crate::{utils::config::Config, Hack, MyApp};
-
 impl MyApp {
-    pub fn group_hacks_by_game_internal(
-        hacks: &[Hack],
-        config: &Config,
-    ) -> BTreeMap<String, BTreeMap<String, Vec<Hack>>> {
-        log::debug!("<GROUPING> Starting group_hacks_by_game_internal");
-        let mut all_hacks = hacks.to_vec();
+    pub fn get_all_hacks(hacks: &[Hack], config: &Config) -> Vec<Hack> {
+        let mut all_hacks = Vec::with_capacity(hacks.len() + config.local_hacks.len());
+        all_hacks.extend_from_slice(hacks);
+
         all_hacks.extend(config.local_hacks.iter().map(|lh| {
+            let file_path = std::path::Path::new(&lh.dll);
+
+            let name = std::path::Path::new(&lh.dll)
+                .file_stem()
+                .map(|f| f.to_string_lossy().into_owned())
+                .unwrap_or_default();
+
             Hack {
-                name: std::path::Path::new(&lh.dll)
-                    .file_name()
-                    .map(|os_str| os_str.to_string_lossy().to_string())
-                    .unwrap_or_else(|| "Unknown".to_string()),
+                name,
                 process: lh.process.clone(),
-                file: std::path::Path::new(&lh.dll)
+                file: file_path
                     .file_name()
-                    .unwrap_or_default()
-                    .to_string_lossy()
-                    .to_string(),
-                file_path: std::path::Path::new(&lh.dll).to_path_buf(),
+                    .map(|f| f.to_string_lossy().into_owned())
+                    .unwrap_or_default(),
+                file_path: file_path.to_path_buf(),
                 game: "Added".to_string(),
                 local: true,
                 arch: lh.arch.clone(),
                 ..Default::default()
             }
         }));
-        let grouped_hacks = Self::group_hacks_by_game_internal_logic(&all_hacks, config);
+
+        all_hacks
+    }
+
+    pub fn group_hacks_by_game(
+        hacks: &[Hack],
+        config: &Config,
+    ) -> BTreeMap<String, BTreeMap<String, Vec<Hack>>> {
+        log::debug!("<GROUPING> Starting group_hacks_by_game");
+
+        let grouped_hacks =
+            Self::group_hacks_by_game_internal(&Self::get_all_hacks(hacks, &config), &config);
+
         log::debug!(
-            "<GROUPING> Finished group_hacks_by_game_internal, found {} games",
+            "<GROUPING> Finished group_hacks_by_game, found {} games",
             grouped_hacks.len()
         );
         grouped_hacks
     }
 
-    fn group_hacks_by_game_internal_logic(
+    pub(crate) fn group_hacks_by_game_internal(
         hacks: &[Hack],
         config: &Config,
     ) -> BTreeMap<String, BTreeMap<String, Vec<Hack>>> {
-        log::debug!("<GROUPING> Starting group_hacks_by_game_internal_logic");
+        log::debug!("<GROUPING> Starting group_hacks_by_game_internal");
         let mut hacks_by_game: BTreeMap<String, BTreeMap<String, Vec<Hack>>> = BTreeMap::new();
 
         for hack in hacks {
@@ -68,7 +80,7 @@ impl MyApp {
             }
         }
         log::debug!(
-            "<GROUPING> Finished group_hacks_by_game_internal_logic, grouped into {} games",
+            "<GROUPING> Finished group_hacks_by_game_internal, grouped into {} games",
             hacks_by_game.len()
         );
         hacks_by_game
