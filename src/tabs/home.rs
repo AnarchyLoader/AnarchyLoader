@@ -33,14 +33,12 @@ use crate::{
 #[derive(Debug)]
 pub struct HomeTab {
     disclaimer_accepted: bool,
-    hack_title_decode_time: f32,
 }
 
 impl HomeTab {
     pub fn new() -> Self {
         Self {
             disclaimer_accepted: false,
-            hack_title_decode_time: 0.0,
         }
     }
 }
@@ -59,7 +57,7 @@ impl MyApp {
             self.rpc.update(None, Some("Selecting hack"), None);
             self.app.selected_hack = None;
             self.app.config.selected_hack = "".to_string();
-            self.ui.tabs.home.hack_title_decode_time = 0.0;
+            self.ui.text_animator.reset();
         }
 
         if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Enter)) {
@@ -184,13 +182,13 @@ impl MyApp {
     }
 
     // MARK: Home tab
-    pub(crate) fn render_home_tab(&mut self, ctx: &egui::Context, highlight_color: egui::Color32) {
+    pub(crate) fn render_home_tab(&mut self, ctx: &egui::Context) {
         self.handle_key_events(ctx);
 
         let hacks_by_game = MyApp::group_hacks_by_game(&*self.app.hacks, &self.app.config);
 
         self.render_left_panel(ctx, hacks_by_game);
-        self.render_central_panel(ctx, highlight_color);
+        self.render_central_panel(ctx);
     }
 
     pub(crate) fn render_left_panel(
@@ -411,10 +409,12 @@ impl MyApp {
     fn select_hack(&mut self, new_hack: &Hack) {
         log::debug!("<HOME_TAB> Selecting hack: {}", new_hack.name);
 
+        self.ui.text_animator.text = new_hack.name.clone();
+
         // do not play animation if hack is not changed
         if let Some(selected_hack) = &self.app.selected_hack {
             if selected_hack.name != new_hack.name {
-                self.ui.tabs.home.hack_title_decode_time = 0.0;
+                self.ui.text_animator.reset();
             }
         }
 
@@ -435,52 +435,22 @@ impl MyApp {
         ui: &mut egui::Ui,
         ctx: &egui::Context,
         selected: &Hack,
-        highlight_color: egui::Color32,
     ) {
         let is_roblox = selected.game == "Roblox";
 
-        if self.app.selected_hack.is_some() && self.ui.tabs.home.hack_title_decode_time < 1.0 {
-            self.ui.tabs.home.hack_title_decode_time = (self.ui.tabs.home.hack_title_decode_time
-                + ctx.input(|i| i.unstable_dt) * 2.5)
-                .min(1.0);
+        if self.app.selected_hack.is_some() && self.ui.text_animator.timer < 1.0 {
+            self.ui.text_animator.process_animation(ctx);
             ctx.request_repaint();
         }
 
         ui.vertical(|ui| {
             if !self.app.config.disable_hack_name_animation {
-                let decoded_text = &selected.name;
-                let chars: Vec<char> = decoded_text.chars().collect();
-                let num_chars = chars.len();
-                let visible_chars_float =
-                    self.ui.tabs.home.hack_title_decode_time * num_chars as f32;
-                let visible_chars = visible_chars_float.floor() as usize;
-                let remainder = visible_chars_float - visible_chars_float.floor();
-
-                let mut job = LayoutJob::default();
-                for (i, ch) in chars.iter().enumerate() {
-                    let char_alpha_f32: f32 = if i < visible_chars {
-                        1.0
-                    } else if i == visible_chars && i < num_chars {
-                        remainder
-                    } else {
-                        0.0
-                    };
-                    job.append(
-                        &ch.to_string(),
-                        0.0,
-                        TextFormat {
-                            color: highlight_color.gamma_multiply(char_alpha_f32),
-                            font_id: FontId::new(19.0, FontFamily::Proportional),
-                            ..Default::default()
-                        },
-                    );
-                }
-                ui.label(job);
+                self.ui.text_animator.render(ui);
             } else {
                 ui.label(
                     RichText::new(&selected.name)
                         .size(19.0)
-                        .color(highlight_color),
+                        .color(self.ui.text_animator.color),
                 );
             }
             if !selected.author.is_empty() {
@@ -496,7 +466,9 @@ impl MyApp {
                         } else {
                             ui.label(ICON_PERSON);
                             ui.label("by");
-                            ui.label(RichText::new(&selected.author).color(highlight_color))
+                            ui.label(
+                                RichText::new(&selected.author).color(self.ui.text_animator.color),
+                            )
                                 .on_hover_text("Author of the hack");
                         }
 
@@ -529,7 +501,7 @@ impl MyApp {
         } else {
             ui.label(
                 RichText::new(format!("{} No description available.", ICON_PROBLEM))
-                    .color(highlight_color),
+                    .color(self.ui.text_animator.color),
             );
         }
 
@@ -540,7 +512,7 @@ impl MyApp {
 
                 ui.label(format!("{} Logged in as (Steam):", ICON_LOGIN));
                 if ui
-                    .label(RichText::new(&self.app.account.name).color(highlight_color))
+                    .label(RichText::new(&self.app.account.name).color(self.ui.text_animator.color))
                     .on_hover_text_at_pointer(&self.app.account.username)
                     .on_hover_cursor(egui::CursorIcon::Help)
                     .clicked()
@@ -580,7 +552,7 @@ impl MyApp {
             job.append(" from the game and related services.", 0.0, text_format.clone());
             job.append("\n\n", 0.0, TextFormat::default());
             job.append("We are not responsible for any consequences resulting from the use of this program.", 0.0, TextFormat {
-                color: highlight_color,
+                color: self.ui.text_animator.color,
                 ..Default::default()
             });
 
@@ -688,7 +660,7 @@ impl MyApp {
                         RichText::new(&status).color(if status.starts_with("Failed") {
                             egui::Color32::RED
                         } else {
-                            highlight_color
+                            self.ui.text_animator.color
                         }),
                     );
                     ctx.request_repaint();
@@ -701,7 +673,7 @@ impl MyApp {
                 let text_color = if status.starts_with("Failed") || status.starts_with("Error") {
                     egui::Color32::RED
                 } else {
-                    highlight_color
+                    self.ui.text_animator.color
                 };
 
                 ui.group(|ui| {

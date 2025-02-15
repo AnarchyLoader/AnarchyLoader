@@ -15,16 +15,17 @@ use eframe::{
     egui::{self, RichText},
     App,
 };
-use egui::{emath::easing, include_image, DroppedFile, Id, Image, Vec2};
+use egui::{emath::easing, include_image, DroppedFile, FontFamily, FontId, Id, Image, Vec2};
 use egui_alignments::center_vertical;
 use egui_commonmark::CommonMarkCache;
 use egui_notify::Toasts;
+use egui_text_animation::{AnimationType, TextAnimator};
 use egui_transition_animation::{animated_pager, TransitionStyle, TransitionType};
 use games::local::LocalUI;
 use is_elevated::is_elevated;
 #[cfg(feature = "scanner")]
 use scanner::scanner::ScannerPopup;
-use tabs::{settings::TransitionPopup, top_panel::AppTab};
+use tabs::top_panel::AppTab;
 use utils::{
     config::Config,
     hacks,
@@ -107,6 +108,7 @@ struct AppState {
 struct UIState {
     tab: AppTab,
     tabs: TabStates,
+    text_animator: TextAnimator,
     search_query: String,
     main_menu_message: String,
     dropped_file: DroppedFile,
@@ -120,7 +122,6 @@ struct UIState {
 #[derive(Debug)]
 struct Popups {
     local_hack: LocalUI,
-    transition: TransitionPopup,
     #[cfg(feature = "scanner")]
     scanner: ScannerPopup,
 }
@@ -183,7 +184,6 @@ impl MyApp {
     // MARK: Init
     fn new(cc: &eframe::CreationContext) -> Self {
         let mut config = Config::load();
-        let config_clone = config.clone();
         let app_path = dirs::config_dir()
             .unwrap_or_else(|| std::path::PathBuf::from("."))
             .join("anarchyloader");
@@ -330,8 +330,8 @@ impl MyApp {
         Self {
             app: AppState {
                 hacks,
-                selected_hack,
-                config,
+                selected_hack: selected_hack.clone(),
+                config: config.clone(),
                 stats: statistics.clone(),
                 account,
                 updater,
@@ -350,6 +350,17 @@ impl MyApp {
                     about: AboutTab::default(),
                     home: HomeTab::default(),
                 },
+                text_animator: TextAnimator::new(
+                    &selected_hack.unwrap_or_default().name,
+                    FontId::new(19.0, FontFamily::Proportional),
+                    if cc.egui_ctx.style().visuals.dark_mode {
+                        egui::Color32::LIGHT_GRAY
+                    } else {
+                        egui::Color32::DARK_GRAY
+                    },
+                    config.text_animator_speed,
+                    AnimationType::FadeIn,
+                ),
                 search_query: String::new(),
                 main_menu_message: default_main_menu_message(),
                 dropped_file: DroppedFile::default(),
@@ -359,11 +370,6 @@ impl MyApp {
                         new_local_dll: String::new(),
                         new_local_process: String::new(),
                         new_local_arch: String::new(),
-                    },
-
-                    transition: TransitionPopup {
-                        duration: config_clone.transition_duration.clone(),
-                        amount: config_clone.transition_amount.clone(),
                     },
 
                     #[cfg(feature = "scanner")]
@@ -388,10 +394,10 @@ impl MyApp {
         }
     }
 
-    fn render_central_panel(&mut self, ctx: &egui::Context, highlight_color: egui::Color32) {
+    fn render_central_panel(&mut self, ctx: &egui::Context) {
         egui::CentralPanel::default().show(ctx, |ui| {
             if let Some(selected) = self.app.selected_hack.clone() {
-                self.display_hack_details(ui, ctx, &selected, highlight_color);
+                self.display_hack_details(ui, ctx, &selected);
             } else {
                 center_vertical(ui, |ui| {
                     ui.label(self.ui.main_menu_message.clone());
@@ -404,9 +410,9 @@ impl MyApp {
         });
     }
 
-    fn render_tabs(&mut self, ctx: &egui::Context, tab: AppTab, highlight_color: egui::Color32) {
+    fn render_tabs(&mut self, ctx: &egui::Context, tab: AppTab) {
         match tab {
-            AppTab::Home => self.render_home_tab(ctx, highlight_color),
+            AppTab::Home => self.render_home_tab(ctx),
             AppTab::Settings => self.render_settings_tab(ctx),
             AppTab::About => self.render_about_tab(ctx),
             AppTab::Logs => self.render_logs_tab(ctx),
@@ -419,13 +425,6 @@ impl App for MyApp {
     // MARK: Global render
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui_extras::install_image_loaders(ctx);
-
-        let is_dark_mode = ctx.style().visuals.dark_mode;
-        let highlight_color = if is_dark_mode {
-            egui::Color32::LIGHT_GRAY
-        } else {
-            egui::Color32::DARK_GRAY
-        };
 
         if self.ui.parse_error.is_some() {
             log::error!(
@@ -548,12 +547,12 @@ impl App for MyApp {
                     self.ui.tab.clone(),
                     &transition_style,
                     Id::new("tabs"),
-                    |_, tab| self.render_tabs(ctx, tab, highlight_color),
+                    |_, tab| self.render_tabs(ctx, tab),
                 );
 
                 self.ui.transitioning = state.animation_running;
             } else {
-                self.render_tabs(ctx, self.ui.tab.clone(), highlight_color);
+                self.render_tabs(ctx, self.ui.tab.clone());
             }
         });
     }

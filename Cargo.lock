@@ -177,6 +177,7 @@ dependencies = [
  "egui_dnd",
  "egui_extras",
  "egui_material_icons",
+ "egui_text_animation",
  "egui_transition_animation",
  "image",
  "is_elevated",
@@ -1415,6 +1416,15 @@ version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3a8fbdd1ecd47e2308795f3a79fc3b61456191b9276766b0009d9bcff72330ad"
 dependencies = [
+ "egui",
+]
+
+[[package]]
+name = "egui_text_animation"
+version = "0.1.0"
+source = "git+https://github.com/dest4590/egui_text_animation.git#b9e57bce8d57d2829b9fa7e20259358eb0cce013"
+dependencies = [
+ "eframe",
  "egui",
 ]
 

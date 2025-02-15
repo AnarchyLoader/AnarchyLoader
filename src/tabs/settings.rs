@@ -23,21 +23,6 @@ use crate::{
     MyApp,
 };
 
-#[derive(Debug)]
-pub struct TransitionPopup {
-    pub duration: f32,
-    pub amount: f32,
-}
-
-impl Default for TransitionPopup {
-    fn default() -> Self {
-        TransitionPopup {
-            duration: 0.20,
-            amount: 32.0,
-        }
-    }
-}
-
 impl MyApp {
     pub fn render_settings_tab(&mut self, ctx: &egui::Context) -> () {
         egui::CentralPanel::default().show(ctx, |ui| {
@@ -182,43 +167,47 @@ impl MyApp {
                             .with_close_on_outside_click(true);
 
                         modal_transition.show(|ui| {
-                            ui.label("Transition duration (secs):");
+                            ui.label("Transition duration:");
 
-                            ui.add(
+                            if ui.add(
                                 egui::Slider::new(
-                                    &mut self.ui.popups.transition.duration,
+                                    &mut self.app.config.transition_duration,
                                     0.10..=1.0,
                                 )
                                     .text("secs"),
-                            );
+                            ).changed() {
+                                self.app.config.save()
+                            };
 
                             ui.label("Transition amount:");
-                            ui.add(
+                            if ui.add(
                                 egui::Slider::new(
-                                    &mut self.ui.popups.transition.amount,
+                                    &mut self.app.config.transition_amount,
                                     0.0..=128.0,
                                 )
                                     .suffix("px")
-                                    .text("amount"),
-                            );
+                                    .text("pixels"),
+                            ).changed() {
+                                self.app.config.save()
+                            };
 
-                            ui.horizontal(|ui| {
-                                if ui.cibutton("Confirm", ICON_CHECK).clicked() {
-                                    self.app.config.transition_duration =
-                                        self.ui.popups.transition.duration;
+                            ui.label("Text animation speed:");
+                            if ui.add(
+                                egui::Slider::new(
+                                    &mut self.ui.text_animator.speed,
+                                    0.0..=3.5,
+                                )
+                                    .text("f32"),
+                            ).changed() {
+                                self.app.config.text_animator_speed = self.ui.text_animator.speed;
+                                self.app.config.save()
+                            };
 
-                                    self.app.config.transition_amount =
-                                        self.ui.popups.transition.amount;
+                            ui.add_space(5.0);
 
-                                    self.app.config.save();
-                                    self.toasts.success("Transition updated.");
-                                    modal_transition.close();
-                                    log::info!("<SETTINGS_TAB> Transition settings updated and saved.");
-                                }
-                                if ui.cibutton("Cancel", ICON_CLOSE).clicked() {
-                                    modal_transition.close();
-                                }
-                            });
+                            if ui.cibutton("Close", ICON_CLOSE).clicked() {
+                                modal_transition.close();
+                            }
                         });
 
                         if ui
@@ -665,7 +654,6 @@ impl MyApp {
                                     self.app.config.reset_game_order();
 
                                     // clear popups
-                                    self.ui.popups.transition = TransitionPopup::default();
                                     self.ui.popups.local_hack = LocalUI::default();
 
                                     #[cfg(feature = "scanner")]
