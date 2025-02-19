@@ -1,7 +1,6 @@
-// downloader.rs
 use std::{fs::File, io::copy, path::Path};
 
-use super::config::Config;
+use crate::utils::config::Config;
 
 /// Downloads a file from the CDN or URL, saving it to the loader directory, or the specified directory.
 pub fn download_file(
@@ -53,8 +52,8 @@ pub fn download_file(
     } else {
         let config = Config::load();
 
-        let mut endpoints = vec![config.cdn_endpoint];
-        endpoints.extend(config.cdn_extra_endpoints);
+        let mut endpoints = vec![config.api.cdn_endpoint];
+        endpoints.extend(config.api.cdn_extra_endpoints);
 
         for (i, endpoint) in endpoints.iter().enumerate() {
             let url = format!("{}{}", endpoint, file);
@@ -101,15 +100,4 @@ pub fn download_file(
 
         Err(format!("Failed to download {} from all CDN endpoints.", file).into())
     }
-}
-
-#[allow(dead_code)]
-// TODO: use it in the future
-pub(crate) fn extract_zip(archive_path: &Path, destination: &Path) -> Result<(), String> {
-    zip_extract::extract(
-        File::open(archive_path).map_err(|e| e.to_string())?,
-        destination,
-        true,
-    )
-        .map_err(|e| e.to_string())
 }

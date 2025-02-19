@@ -27,25 +27,27 @@ use is_elevated::is_elevated;
 use scanner::scanner::ScannerPopup;
 use tabs::top_panel::AppTab;
 use utils::{
+    api::{
+        hacks,
+        hacks::{get_hack_by_name, Hack},
+        updater::Updater,
+    },
     config::Config,
-    hacks,
-    hacks::{get_hack_by_name, Hack},
     logger::MyLogger,
     rpc::{Rpc, RpcUpdate},
     stats::Statistics,
     steam::SteamAccount,
     ui::{
-        custom_widgets::{Button, CheckBox, Hyperlink},
         messages::ToastsMessages,
+        native_theme,
+        widgets::{Button, CheckBox, Hyperlink},
     },
-    updater::Updater,
 };
 use winreg::{enums::HKEY_LOCAL_MACHINE, RegKey};
 
 use crate::{
     tabs::{about::AboutTab, home::HomeTab},
     utils::{
-        native_theme,
         stats::{calculate_session, get_time_difference_in_seconds},
         ui::intro::{AnimationPhase, AnimationState},
     },
@@ -100,7 +102,6 @@ struct AppState {
     stats: Statistics,
     account: SteamAccount,
     updater: Updater,
-    cache: CommonMarkCache,
     meta: AppMeta,
 }
 
@@ -109,6 +110,7 @@ struct UIState {
     tab: AppTab,
     tabs: TabStates,
     text_animator: TextAnimator,
+    mark_cache: CommonMarkCache,
     search_query: String,
     main_menu_message: String,
     dropped_file: DroppedFile,
@@ -207,8 +209,8 @@ impl MyApp {
         );
 
         egui_material_icons::initialize(&cc.egui_ctx);
-        cc.egui_ctx.set_theme(config.theme);
-        log::debug!("<MAIN> Theme set to: {:?}", config.theme);
+        cc.egui_ctx.set_theme(config.display.theme);
+        log::debug!("<MAIN> Theme set to: {:?}", config.display.theme);
 
         let status_message = Arc::new(Mutex::new(String::new()));
         let in_progress = Arc::new(std::sync::atomic::AtomicBool::new(false));
@@ -216,11 +218,11 @@ impl MyApp {
 
         log::info!(
             "<MAIN> Fetching hacks from API endpoint: {}",
-            config.api_endpoint
+            config.api.api_endpoint
         );
         let hacks = match hacks::fetch_hacks(
-            &config.api_endpoint,
-            &config.api_extra_endpoints,
+            &config.api.api_endpoint,
+            &config.api.api_extra_endpoints,
             config.lowercase_hacks,
         ) {
             Ok(hacks) => {
@@ -242,15 +244,12 @@ impl MyApp {
                         log::info!("<MAIN> Added new game to game_order: {}", game_name);
                     }
                 }
-                if !config.local_hacks.is_empty() && !existing_games.contains(&"Added".to_string())
-                {
+                if !config.local_hacks.is_empty() && !existing_games.contains("Added") {
                     config.game_order.push("Added".to_string());
                     log::info!(
                         "<MAIN> Added 'Added' category to game_order because local hacks are present"
                     );
-                } else if config.local_hacks.is_empty()
-                    && existing_games.contains(&"Added".to_string())
-                {
+                } else if config.local_hacks.is_empty() && existing_games.contains("Added") {
                     config.game_order.retain(|game| game != "Added");
                     log::info!("<MAIN> Removed 'Added' category from game_order because no local hacks are present");
                 }
@@ -290,25 +289,25 @@ impl MyApp {
 
         let mut selected_hack = None;
 
-        if config.selected_hack != "" && config.automatically_select_hack {
+        if !config.display.selected_hack.is_empty() && config.automatically_select_hack {
             selected_hack = get_hack_by_name(
-                &*Self::get_all_hacks(&hacks, &config),
-                &config.selected_hack,
+                &Self::get_all_hacks(&hacks, &config),
+                &config.display.selected_hack,
             );
             if selected_hack.is_some() {
                 log::info!(
                     "<MAIN> Automatically selected hack from config: {}",
-                    config.selected_hack
+                    config.display.selected_hack
                 );
                 rpc.update(
                     None,
-                    Some(&format!("Selected {}", config.selected_hack)),
+                    Some(&format!("Selected {}", config.display.selected_hack)),
                     None,
                 );
             } else {
                 log::warn!(
                     "<MAIN> Failed to automatically select hack '{}', hack not found.",
-                    config.selected_hack
+                    config.display.selected_hack
                 );
             }
         }
@@ -335,7 +334,6 @@ impl MyApp {
                 stats: statistics.clone(),
                 account,
                 updater,
-                cache: CommonMarkCache::default(),
                 meta: AppMeta {
                     version: env!("CARGO_PKG_VERSION").to_string(),
                     path: app_path,
@@ -358,9 +356,10 @@ impl MyApp {
                     } else {
                         egui::Color32::DARK_GRAY
                     },
-                    config.text_animator_speed,
+                    config.animations.text_speed,
                     AnimationType::FadeIn,
                 ),
+                mark_cache: CommonMarkCache::default(),
                 search_query: String::new(),
                 main_menu_message: default_main_menu_message(),
                 dropped_file: DroppedFile::default(),
@@ -431,6 +430,7 @@ impl App for MyApp {
                 "<MAIN> API Parse Error detected, showing error screen to user: {:?}",
                 self.ui.parse_error
             );
+
             egui::CentralPanel::default().show(ctx, |ui| {
                 ui.vertical_centered(|ui| {
                     ui.add_space(130.0);
@@ -442,21 +442,17 @@ impl App for MyApp {
                     );
 
                     ui.label("API Endpoint (editable):");
+
                     if ui
-                        .text_edit_singleline(&mut self.app.config.api_endpoint)
+                        .text_edit_singleline(&mut self.app.config.api.api_endpoint)
                         .changed()
                     {
-                        log::info!(
-                            "<MAIN> API Endpoint changed by user to: {}",
-                            self.app.config.api_endpoint
-                        );
                         self.app.config.save();
                     }
 
                     ui.add_space(5.0);
 
                     if ui.cbutton("Reset config (possible fix)").clicked() {
-                        log::info!("<MAIN> User clicked 'Reset config'");
                         self.app.config = Config::default();
                         self.app.config.save();
                     }
@@ -464,7 +460,6 @@ impl App for MyApp {
                     ui.add_space(5.0);
 
                     if ui.cbutton("Exit").clicked() {
-                        log::info!("<MAIN> User clicked 'Exit' due to API parse error.");
                         std::process::exit(0);
                     }
                 });
@@ -472,7 +467,7 @@ impl App for MyApp {
             return;
         }
 
-        if self.app.updater.need_update && !self.app.config.skip_update_check {
+        if self.app.updater.need_update && !self.app.config.display.skip_update_check {
             egui::CentralPanel::default().show(ctx, |ui| {
                 ui.vertical_centered(|ui| {
                     ui.add_space(130.0);
@@ -496,7 +491,10 @@ impl App for MyApp {
                     );
 
                     if ui
-                        .ccheckbox(&mut self.app.config.skip_update_check, "Skip update check")
+                        .ccheckbox(
+                            &mut self.app.config.display.skip_update_check,
+                            "Skip update check",
+                        )
                         .changed()
                     {
                         self.toasts
@@ -534,12 +532,12 @@ impl App for MyApp {
         self.handle_received_messages();
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            if self.app.config.enable_tab_animations {
+            if self.app.config.animations.tab_animations {
                 let transition_style = TransitionStyle {
                     easing: easing::cubic_out,
                     t_type: TransitionType::HorizontalMove,
-                    duration: self.app.config.transition_duration,
-                    amount: self.app.config.transition_amount,
+                    duration: self.app.config.animations.duration,
+                    amount: self.app.config.animations.amount,
                 };
 
                 let state = animated_pager(

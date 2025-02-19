@@ -25,8 +25,8 @@ use crate::scanner::scanner::Scanner;
 use crate::{
     tabs::top_panel::AppTab,
     utils::{
-        hacks::{self, Hack},
-        ui::custom_widgets::{Button, CheckBox, Hyperlink},
+        api::hacks::{self, Hack},
+        ui::widgets::{Button, CheckBox, Hyperlink},
     },
 };
 
@@ -56,7 +56,7 @@ impl MyApp {
             log::debug!("<HOME_TAB> Escape key pressed, deselecting hack");
             self.rpc.update(None, Some("Selecting hack"), None);
             self.app.selected_hack = None;
-            self.app.config.selected_hack = "".to_string();
+            self.app.config.display.selected_hack = "".to_string();
             self.ui.text_animator.reset();
         }
 
@@ -80,8 +80,8 @@ impl MyApp {
             self.ui.main_menu_message = "Fetching hacks...".to_string();
             ctx.request_repaint();
             self.app.hacks = match hacks::fetch_hacks(
-                &self.app.config.api_endpoint,
-                &self.app.config.api_extra_endpoints,
+                &self.app.config.api.api_endpoint,
+                &self.app.config.api.api_extra_endpoints,
                 self.app.config.lowercase_hacks,
             ) {
                 Ok(hacks) => {
@@ -171,7 +171,7 @@ impl MyApp {
             modal.open();
         }
 
-        if ctx.input(|i| i.raw.hovered_files.first().is_some()) {
+        if ctx.input(|i| !i.raw.hovered_files.is_empty()) {
             let screen_rect = ctx.screen_rect();
             let painter = ctx.layer_painter(egui::LayerId::new(
                 egui::Order::Foreground,
@@ -185,7 +185,7 @@ impl MyApp {
     pub(crate) fn render_home_tab(&mut self, ctx: &egui::Context) {
         self.handle_key_events(ctx);
 
-        let hacks_by_game = MyApp::group_hacks_by_game(&*self.app.hacks, &self.app.config);
+        let hacks_by_game = MyApp::group_hacks_by_game(&self.app.hacks, &self.app.config);
 
         self.render_left_panel(ctx, hacks_by_game);
         self.render_central_panel(ctx);
@@ -334,7 +334,7 @@ impl MyApp {
 
     fn create_hack_label(&self, hack: &Hack) -> RichText {
         if self.app.config.favorites.contains(&hack.name) {
-            RichText::new(&hack.name).color(self.app.config.favorites_color)
+            RichText::new(&hack.name).color(self.app.config.display.favorites_color)
         } else {
             RichText::new(&hack.name)
         }
@@ -355,8 +355,8 @@ impl MyApp {
 
     fn render_favorite_button(&mut self, ui: &mut egui::Ui, hack: &Hack) {
         let is_favorite = self.app.config.favorites.contains(&hack.name);
-        if is_favorite {
-            if ui
+        if is_favorite
+            && ui
                 .add(
                     egui::Button::new(ICON_STAR)
                         .frame(false)
@@ -364,11 +364,10 @@ impl MyApp {
                 )
                 .on_hover_cursor(Clickable)
                 .clicked()
-            {
-                self.toggle_favorite(hack.name.clone());
-                self.toasts
-                    .success(format!("Removed {} from favorites.", hack.name));
-            }
+        {
+            self.toggle_favorite(hack.name.clone());
+            self.toasts
+                .success(format!("Removed {} from favorites.", hack.name));
         }
     }
 
@@ -385,7 +384,7 @@ impl MyApp {
     }
 
     fn render_injection_count(&self, ui: &mut egui::Ui, hack: &Hack) {
-        if self.app.config.hide_statistics {
+        if self.app.config.display.hide_statistics {
             return;
         }
 
@@ -419,7 +418,7 @@ impl MyApp {
         }
 
         self.app.selected_hack = Some(new_hack.clone());
-        self.app.config.selected_hack = new_hack.name.clone();
+        self.app.config.display.selected_hack = new_hack.name.clone();
         self.app.config.save();
 
         let mut status = self.communication.status_message.lock().unwrap();
@@ -444,7 +443,7 @@ impl MyApp {
         }
 
         ui.vertical(|ui| {
-            if !self.app.config.disable_hack_name_animation {
+            if !self.app.config.display.disable_hack_name_animation {
                 self.ui.text_animator.render(ui);
             } else {
                 ui.label(
@@ -474,7 +473,7 @@ impl MyApp {
 
                         ui.add_space(5.0);
 
-                        if !selected.source.is_empty() && selected.source.to_string() != "n/a" {
+                        if !selected.source.is_empty() && selected.source != "n/a" {
                             if let Ok(url) = Url::parse(&selected.source) {
                                 ui.clink(
                                     format!("{} (source, {})", ICON_LINK, url.domain().unwrap()),
@@ -497,7 +496,7 @@ impl MyApp {
         ui.separator();
 
         if !selected.description.is_empty() && !selected.description.contains("n/a") {
-            CommonMarkViewer::new().show(ui, &mut self.app.cache, &selected.description);
+            CommonMarkViewer::new().show(ui, &mut self.ui.mark_cache, &selected.description);
         } else {
             ui.label(
                 RichText::new(format!("{} No description available.", ICON_PROBLEM))
@@ -505,7 +504,7 @@ impl MyApp {
             );
         }
 
-        if !self.app.config.hide_steam_account && !is_roblox {
+        if !self.app.config.display.hide_steam_account && !is_roblox {
             ui.horizontal_wrapped(|ui| {
                 let width = ui.fonts(|f| f.glyph_width(&TextStyle::Body.resolve(ui.style()), ' '));
                 ui.spacing_mut().item_spacing.x = width;
@@ -569,7 +568,6 @@ impl MyApp {
                 if ui.cibutton("Cancel", ICON_CLOSE).clicked() {
                     modal.close();
                     self.toasts.custom("But why did you download the loader?", ICON_QUESTION_MARK.to_string(), egui::Color32::from_rgb(150, 200, 210));
-                    return;
                 }
             });
         });
@@ -634,11 +632,7 @@ impl MyApp {
                     selected.clone(),
                     ctx.clone(),
                     self.communication.messages.sender.clone(),
-                    if ctx.input(|i| i.modifiers.ctrl) {
-                        true
-                    } else {
-                        false
-                    },
+                    ctx.input(|i| i.modifiers.ctrl),
                 );
             } else {
                 self.run_executor(
@@ -712,14 +706,12 @@ impl MyApp {
                         .success(format!("Removed {} from favorites.", hack.name));
                     ui.close_menu();
                 }
-            } else {
-                if ui.cbutton("Add to favorites").clicked() {
-                    self.app.config.favorites.insert(hack.name.clone());
-                    self.app.config.save();
-                    self.toasts
-                        .success(format!("Added {} to favorites.", hack.name));
-                    ui.close_menu();
-                }
+            } else if ui.cbutton("Add to favorites").clicked() {
+                self.app.config.favorites.insert(hack.name.clone());
+                self.app.config.save();
+                self.toasts
+                    .success(format!("Added {} to favorites.", hack.name));
+                ui.close_menu();
             }
 
             if !is_roblox && !hack.local {
@@ -802,8 +794,7 @@ impl MyApp {
                         .button_with_tooltip("Scan", "Scan the selected hack")
                         .clicked()
                     {
-                        let scanner =
-                            Scanner::new(std::path::PathBuf::from(hack.file_path.clone()));
+                        let scanner = Scanner::new(hack.file_path.clone());
 
                         match scanner.scan(self.app.meta.path.clone()) {
                             Ok(()) => {
@@ -815,41 +806,37 @@ impl MyApp {
                         }
                         ui.close_menu();
                     }
-                } else {
-                    if ui.cbutton("Download").clicked() {
-                        let file_path = hack.file_path.clone();
-                        let hack_clone = hack.clone();
-                        thread::spawn(move || {
-                            match hack_clone.download(file_path.to_string_lossy().to_string()) {
-                                Ok(_) => {
-                                    let mut status = status_message.lock().unwrap();
-                                    *status = "Downloaded.".to_string();
-                                }
-                                Err(e) => {
-                                    let mut status = status_message.lock().unwrap();
-                                    *status = format!("Failed to download: {}", e);
-                                }
+                } else if ui.cbutton("Download").clicked() {
+                    let file_path = hack.file_path.clone();
+                    let hack_clone = hack.clone();
+                    thread::spawn(move || {
+                        match hack_clone.download(file_path.to_string_lossy().to_string()) {
+                            Ok(_) => {
+                                let mut status = status_message.lock().unwrap();
+                                *status = "Downloaded.".to_string();
                             }
-                        });
-                        ui.close_menu();
-                    }
+                            Err(e) => {
+                                let mut status = status_message.lock().unwrap();
+                                *status = format!("Failed to download: {}", e);
+                            }
+                        }
+                    });
+                    ui.close_menu();
                 }
             }
 
-            if hack.local {
-                if ui.cbutton("Remove").clicked() {
-                    self.app.config.local_hacks.retain(|h| {
-                        Path::new(&h.dll)
-                            .file_name()
-                            .map_or(true, |f| f != hack.file_path.file_name().unwrap())
-                    });
-                    self.app.config.save();
-                    let grouped =
-                        MyApp::group_hacks_by_game_internal(&self.app.hacks, &self.app.config);
-                    self.app.config.game_order = grouped.keys().cloned().collect();
-                    self.toasts.success(format!("Removed {}.", hack.name));
-                    ui.close_menu();
-                }
+            if hack.local && ui.cbutton("Remove").clicked() {
+                self.app.config.local_hacks.retain(|h| {
+                    Path::new(&h.dll)
+                        .file_name()
+                        .is_none_or(|f| f != hack.file_path.file_name().unwrap())
+                });
+                self.app.config.save();
+                let grouped =
+                    MyApp::group_hacks_by_game_internal(&self.app.hacks, &self.app.config);
+                self.app.config.game_order = grouped.keys().cloned().collect();
+                self.toasts.success(format!("Removed {}.", hack.name));
+                ui.close_menu();
             }
         });
     }

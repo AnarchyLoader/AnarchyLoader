@@ -9,25 +9,16 @@ use pelite::{
 };
 use regex::Regex;
 
-use crate::{utils::ui::custom_widgets::Button, MyApp};
+use crate::{utils::ui::widgets::Button, MyApp};
 
 pub struct Scanner {
     pub file: PathBuf,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct ScannerPopup {
     pub dll: String,
     pub show_results: bool,
-}
-
-impl Default for ScannerPopup {
-    fn default() -> Self {
-        Self {
-            dll: String::new(),
-            show_results: false,
-        }
-    }
 }
 
 #[cfg(feature = "scanner")]

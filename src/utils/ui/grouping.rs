@@ -39,7 +39,7 @@ impl MyApp {
         log::debug!("<GROUPING> Starting group_hacks_by_game");
 
         let grouped_hacks =
-            Self::group_hacks_by_game_internal(&Self::get_all_hacks(hacks, &config), &config);
+            Self::group_hacks_by_game_internal(&Self::get_all_hacks(hacks, config), config);
 
         log::debug!(
             "<GROUPING> Finished group_hacks_by_game, found {} games",
@@ -107,9 +107,9 @@ impl MyApp {
         );
         hacks_by_game
             .entry(game_name)
-            .or_insert_with(BTreeMap::new)
+            .or_default()
             .entry(version)
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(hack);
     }
 
@@ -135,9 +135,9 @@ impl MyApp {
         );
         hacks_by_game
             .entry(game_name)
-            .or_insert_with(BTreeMap::new)
+            .or_default()
             .entry(version)
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(hack);
     }
 
@@ -153,9 +153,9 @@ impl MyApp {
         );
         hacks_by_game
             .entry(hack.game.clone())
-            .or_insert_with(BTreeMap::new)
+            .or_default()
             .entry("".to_string())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(hack);
     }
 }

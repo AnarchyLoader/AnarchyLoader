@@ -1,7 +1,7 @@
 use egui::{CursorIcon::PointingHand as Clickable, RichText, ThemePreference};
 use egui_dnd::dnd;
 use egui_material_icons::icons::{
-    ICON_ADD, ICON_CHECK, ICON_CLOSE, ICON_DELETE, ICON_DOWNLOAD, ICON_EYE_TRACKING, ICON_FOLDER,
+    ICON_ADD, ICON_CLOSE, ICON_DELETE, ICON_DOWNLOAD, ICON_EYE_TRACKING, ICON_FOLDER,
     ICON_MANUFACTURING, ICON_RESTART_ALT, ICON_VISIBILITY, ICON_VISIBILITY_OFF,
 };
 use egui_modal::Modal;
@@ -12,19 +12,21 @@ use crate::scanner::scanner::ScannerPopup;
 use crate::{
     games::local::{LocalHack, LocalUI},
     utils::{
-        config::{
-            default_api_endpoint, default_api_extra_endpoints, default_cdn_endpoint,
-            default_cdn_extra_endpoint,
+        api::{
+            api_settings::{
+                default_api_endpoint, default_api_extra_endpoints, default_cdn_endpoint,
+                default_cdn_extra_endpoints,
+            },
+            hacks,
         },
-        hacks,
         rpc::{Rpc, RpcUpdate},
-        ui::custom_widgets::{Button, CheckBox, TextEdit},
+        ui::widgets::{Button, CheckBox, TextEdit},
     },
     MyApp,
 };
 
 impl MyApp {
-    pub fn render_settings_tab(&mut self, ctx: &egui::Context) -> () {
+    pub fn render_settings_tab(&mut self, ctx: &egui::Context) {
         egui::CentralPanel::default().show(ctx, |ui| {
             egui::ScrollArea::vertical()
                 .drag_to_scroll(false)
@@ -62,8 +64,8 @@ impl MyApp {
                         {
                             self.app.selected_hack = None; // unselect hack because of name change
                             self.app.hacks = match hacks::fetch_hacks(
-                                &self.app.config.api_endpoint,
-                                &self.app.config.api_extra_endpoints,
+                                &self.app.config.api.api_endpoint,
+                                &self.app.config.api.api_extra_endpoints,
                                 self.app.config.lowercase_hacks,
                             ) {
                                 Ok(hacks) => hacks,
@@ -85,7 +87,7 @@ impl MyApp {
                             self.app.config.save();
                         };
                         if ui
-                            .ccheckbox(&mut self.app.config.disable_hack_name_animation, "Disable hack name animation")
+                            .ccheckbox(&mut self.app.config.display.disable_hack_name_animation, "Disable hack name animation")
                             .changed()
                         {
                             self.app.config.save();
@@ -110,7 +112,7 @@ impl MyApp {
                         }
                         if ui
                             .ccheckbox(
-                                &mut self.app.config.hide_steam_account,
+                                &mut self.app.config.display.hide_steam_account,
                                 "Hide Steam account",
                             )
                             .changed()
@@ -118,21 +120,21 @@ impl MyApp {
                             self.app.config.save();
                         }
                         if ui
-                            .ccheckbox(&mut self.app.config.hide_tabs_icons, "Hide tabs icons")
+                            .ccheckbox(&mut self.app.config.display.hide_tabs_icons, "Hide tabs icons")
                             .changed()
                         {
                             self.app.config.save();
                         }
                         if ui
-                            .ccheckbox(&mut self.app.config.hide_statistics, "Hide statistics")
+                            .ccheckbox(&mut self.app.config.display.hide_statistics, "Hide statistics")
                             .changed()
                         {
                             self.app.config.save();
                         };
                         if ui
                             .ccheckbox(
-                                &mut self.app.config.disable_notifications,
-                                "Disable notifications",
+                                &mut self.app.config.display.disable_toasts,
+                                "Disable toasts",
                             )
                             .changed()
                         {
@@ -148,7 +150,7 @@ impl MyApp {
                             self.app.config.save();
                         }
                         if ui
-                            .ccheckbox(&mut self.app.config.skip_update_check, "Skip update check")
+                            .ccheckbox(&mut self.app.config.display.skip_update_check, "Skip update check")
                             .changed()
                         {
                             self.app.config.save();
@@ -171,7 +173,7 @@ impl MyApp {
 
                             if ui.add(
                                 egui::Slider::new(
-                                    &mut self.app.config.transition_duration,
+                                    &mut self.app.config.animations.duration,
                                     0.10..=1.0,
                                 )
                                     .text("secs"),
@@ -182,7 +184,7 @@ impl MyApp {
                             ui.label("Transition amount:");
                             if ui.add(
                                 egui::Slider::new(
-                                    &mut self.app.config.transition_amount,
+                                    &mut self.app.config.animations.amount,
                                     0.0..=128.0,
                                 )
                                     .suffix("px")
@@ -197,22 +199,34 @@ impl MyApp {
                                     &mut self.ui.text_animator.speed,
                                     0.0..=3.5,
                                 )
-                                    .text("f32"),
+                                    .suffix("x"),
                             ).changed() {
-                                self.app.config.text_animator_speed = self.ui.text_animator.speed;
+                                self.app.config.animations.text_speed = self.ui.text_animator.speed;
                                 self.app.config.save()
                             };
 
                             ui.add_space(5.0);
 
-                            if ui.cibutton("Close", ICON_CLOSE).clicked() {
-                                modal_transition.close();
-                            }
+                            ui.horizontal(|ui| {
+                                if ui
+                                    .reset_button("Reset")
+                                    .clicked()
+                                {
+                                    self.app.config.animations = Default::default();
+                                    self.app.config.save();
+                                    self.ui.text_animator.speed = self.app.config.animations.text_speed;
+                                    log::info!("<SETTINGS_TAB> Transition settings reset to default, saving config");
+                                }
+
+                                if ui.cibutton("Close", ICON_CLOSE).clicked() {
+                                    modal_transition.close();
+                                }
+                            });
                         });
 
                         if ui
                             .ccheckbox(
-                                &mut self.app.config.enable_tab_animations,
+                                &mut self.app.config.animations.tab_animations,
                                 "Enable tab animations",
                             )
                             .changed()
@@ -234,7 +248,7 @@ impl MyApp {
                         ui.horizontal(|ui| {
                             ui.label("Favorites Color:");
                             if ui
-                                .color_edit_button_srgba(&mut self.app.config.favorites_color)
+                                .color_edit_button_srgba(&mut self.app.config.display.favorites_color)
                                 .on_hover_cursor(Clickable)
                                 .changed()
                             {
@@ -248,7 +262,7 @@ impl MyApp {
 
                         if ui.add(ThemeSwitch::new(&mut preference)).changed() {
                             ui.ctx().set_theme(preference);
-                            self.app.config.theme = preference;
+                            self.app.config.display.theme = preference;
                             self.app.config.save();
                             log::info!("<SETTINGS_TAB> Theme preference changed to: {:?}, saving config", preference);
 
@@ -285,17 +299,15 @@ impl MyApp {
                                                 self.app.config.save();
                                                 log::info!("<SETTINGS_TAB> Game '{}' visibility toggled on, saving config", game_name);
                                             }
-                                        } else {
-                                            if ui
-                                                .cbutton(ICON_VISIBILITY)
-                                                .on_hover_text("Toggle off visibility")
-                                                .clicked()
-                                            {
-                                                hidden_games.insert(game_name.clone());
-                                                self.app.config.hidden_games = hidden_games.clone();
-                                                self.app.config.save();
-                                                log::info!("<SETTINGS_TAB> Game '{}' visibility toggled off, saving config", game_name);
-                                            }
+                                        } else if ui
+                                            .cbutton(ICON_VISIBILITY)
+                                            .on_hover_text("Toggle off visibility")
+                                            .clicked()
+                                        {
+                                            hidden_games.insert(game_name.clone());
+                                            self.app.config.hidden_games = hidden_games.clone();
+                                            self.app.config.save();
+                                            log::info!("<SETTINGS_TAB> Game '{}' visibility toggled off, saving config", game_name);
                                         }
                                         ui.label(game_name.clone());
                                     });
@@ -329,7 +341,7 @@ impl MyApp {
 
                         ui.horizontal(|ui| {
                             if ui
-                                .cbutton(format!("{} Reset game order", ICON_RESTART_ALT))
+                                .reset_button("Reset game order")
                                 .clicked()
                             {
                                 self.app.config.reset_game_order();
@@ -408,7 +420,7 @@ impl MyApp {
                             ui.add_space(5.0);
 
                             ui.horizontal(|ui| {
-                                if ui.cibutton("Confirm", ICON_CHECK).clicked() {
+                                if ui.confirm_button().clicked() {
                                     if self.ui.popups.local_hack.new_local_dll.is_empty() {
                                         self.toasts.error("Please select a DLL file.");
                                         log::warn!("<SETTINGS_TAB> Attempted to add local hack without DLL file selected.");
@@ -519,11 +531,9 @@ impl MyApp {
                                 {
                                     if let Err(err) = self.delete_injectors("both") {
                                         self.toasts.error(err.clone());
-                                        log::error!("<SETTINGS_TAB> Failed to delete both injectors: {}", err);
                                     } else {
                                         self.toasts.success("Both injectors deleted.");
                                         modal_injector.close();
-                                        log::info!("<SETTINGS_TAB> Both injectors deleted successfully.");
                                     }
                                 }
 
@@ -545,7 +555,6 @@ impl MyApp {
                                 self.communication.messages.sender.clone(),
                                 false,
                             );
-                            log::info!("<SETTINGS_TAB> Downloading stable injectors requested.");
                         }
 
                         if ui
@@ -556,70 +565,65 @@ impl MyApp {
                                 self.communication.messages.sender.clone(),
                                 true,
                             );
-                            log::info!("<SETTINGS_TAB> Downloading nightly injectors requested.");
                         }
                     });
 
                     ui.add_space(5.0);
+                    ui.group(|ui| {
+                        ui.label("Right-click the input field to reset these text settings.");
 
-                    ui.label("Right-click the input field to reset these text settings.");
+                        ui.add_space(2.0);
 
-                    ui.add_space(2.0);
+                        ui.horizontal(|ui| {
+                            ui.label("API Endpoint:");
+                            if ui
+                                .ctext_edit(&mut self.app.config.api.api_endpoint, default_api_endpoint())
+                                .changed()
+                            {
+                                self.app.config.save();
+                            }
+                        });
 
-                    ui.horizontal(|ui| {
-                        ui.label("API Endpoint:");
-                        if ui
-                            .ctext_edit(&mut self.app.config.api_endpoint, default_api_endpoint())
-                            .changed()
-                        {
-                            self.app.config.save();
-                            log::info!("<SETTINGS_TAB> API Endpoint changed and saved: {}", self.app.config.api_endpoint);
-                        }
-                    });
+                        ui.add_space(2.0);
 
-                    ui.add_space(2.0);
+                        ui.horizontal(|ui| {
+                            ui.label("API Extra Endpoints (comma-separated):");
+                            let mut api_extra_endpoints = self.app.config.api.api_extra_endpoints.join(",");
+                            if ui.ctext_edit(&mut api_extra_endpoints, default_api_extra_endpoints().join(",")).changed() {
+                                self.app.config.api.api_extra_endpoints = api_extra_endpoints
+                                    .split(',')
+                                    .map(|s| s.trim().to_string())
+                                    .collect();
+                                self.app.config.save();
+                            }
+                        });
 
-                    ui.horizontal(|ui| {
-                        ui.label("API Extra Endpoints (comma-separated):");
-                        if ui
-                            .ctext_edit(
-                                &mut self.app.config.api_extra_endpoints.join(","),
-                                default_api_extra_endpoints().join(","),
-                            )
-                            .changed()
-                        {
-                            self.app.config.save();
-                            log::info!("<SETTINGS_TAB> API Extra Endpoints changed and saved: {:?}", self.app.config.api_extra_endpoints);
-                        }
-                    });
+                        ui.add_space(2.0);
 
-                    ui.add_space(2.0);
+                        ui.horizontal(|ui| {
+                            ui.label("CDN Endpoint:");
+                            if ui
+                                .ctext_edit(&mut self.app.config.api.cdn_endpoint, default_cdn_endpoint())
+                                .changed()
+                            {
+                                self.app.config.save();
+                            }
+                        });
 
-                    ui.horizontal(|ui| {
-                        ui.label("CDN Endpoint:");
-                        if ui
-                            .ctext_edit(&mut self.app.config.cdn_endpoint, default_cdn_endpoint())
-                            .changed()
-                        {
-                            self.app.config.save();
-                            log::info!("<SETTINGS_TAB> CDN Endpoint changed and saved: {}", self.app.config.cdn_endpoint);
-                        }
-                    });
+                        ui.add_space(2.0);
 
-                    ui.add_space(2.0);
+                        ui.horizontal(|ui| {
+                            ui.label("CDN Extra Endpoints (comma-separated):");
+                            let mut cdn_extra_endpoints = self.app.config.api.cdn_extra_endpoints.join(",");
+                            if ui.ctext_edit(&mut cdn_extra_endpoints, default_cdn_extra_endpoints().join(",")).changed() {
+                                self.app.config.api.cdn_extra_endpoints = cdn_extra_endpoints
+                                    .split(',')
+                                    .map(|s| s.trim().to_string())
+                                    .collect();
+                                self.app.config.save();
+                            }
+                        });
 
-                    ui.horizontal(|ui| {
-                        ui.label("CDN Extra Endpoints (comma-separated):");
-                        if ui
-                            .ctext_edit(
-                                &mut self.app.config.cdn_extra_endpoints.join(","),
-                                default_cdn_extra_endpoint().join(","),
-                            )
-                            .changed()
-                        {
-                            self.app.config.save();
-                            log::info!("<SETTINGS_TAB> CDN Extra Endpoints changed and saved: {:?}", self.app.config.cdn_extra_endpoints);
-                        }
                     });
 
                     ui.add_space(5.0);
@@ -647,7 +651,7 @@ impl MyApp {
                             ui.label("Are you sure you want to reset the settings?");
                             ui.horizontal(|ui| {
                                 if ui
-                                    .cbutton(RichText::new(format!("{} Reset", ICON_CHECK)).color(egui::Color32::LIGHT_RED))
+                                    .confirm_button()
                                     .clicked()
                                 {
                                     self.app.config.reset();
@@ -688,7 +692,7 @@ impl MyApp {
                             ui.label("Are you sure you want to reset the statistics?");
                             ui.horizontal(|ui| {
                                 if ui
-                                    .cbutton(RichText::new(format!("{} Reset", ICON_CHECK)).color(egui::Color32::LIGHT_RED))
+                                    .confirm_button()
                                     .clicked()
                                 {
                                     self.app.stats.reset();
@@ -703,7 +707,7 @@ impl MyApp {
                             });
                         });
 
-                        if ui.cibutton("Reset statistics", ICON_RESTART_ALT).clicked() {
+                        if ui.reset_button("Reset statistics").clicked() {
                             modal_statistics.open();
                         }
                     });

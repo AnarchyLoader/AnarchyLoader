@@ -26,21 +26,11 @@ impl LocalHack {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct LocalUI {
     pub(crate) new_local_dll: String,
     pub(crate) new_local_process: String,
     pub(crate) new_local_arch: String,
-}
-
-impl Default for LocalUI {
-    fn default() -> Self {
-        Self {
-            new_local_dll: String::new(),
-            new_local_process: String::new(),
-            new_local_arch: String::new(),
-        }
-    }
 }
 
 impl MyApp {

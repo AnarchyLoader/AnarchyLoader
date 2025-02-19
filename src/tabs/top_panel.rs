@@ -1,20 +1,15 @@
 use egui_material_icons::*;
 
-use crate::{utils::ui::custom_widgets::SelectableLabel, MyApp};
+use crate::{utils::ui::widgets::SelectableLabel, MyApp};
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Default)]
 pub enum AppTab {
+    #[default]
     Home,
     Settings,
     About,
     Logs,
     Debug,
-}
-
-impl Default for AppTab {
-    fn default() -> Self {
-        AppTab::Home
-    }
 }
 
 impl MyApp {
@@ -77,7 +72,7 @@ impl MyApp {
             ui.add_space(5.0);
         });
 
-        if !self.app.config.disable_notifications {
+        if !self.app.config.display.disable_toasts {
             self.toasts.show(ctx);
         }
     }
@@ -91,7 +86,7 @@ impl MyApp {
         tooltip: &str,
         rpc_message: &str,
     ) {
-        let tab_label = if self.app.config.hide_tabs_icons {
+        let tab_label = if self.app.config.display.hide_tabs_icons {
             label.to_string()
         } else {
             format!("{} {}", icon, label)

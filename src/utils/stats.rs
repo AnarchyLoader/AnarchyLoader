@@ -2,21 +2,11 @@ use std::{collections::HashMap, fs, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct Statistics {
     pub opened_count: u64,
     pub inject_counts: HashMap<String, u64>,
     pub total_seconds: u64,
-}
-
-impl Default for Statistics {
-    fn default() -> Self {
-        Statistics {
-            opened_count: 0,
-            inject_counts: HashMap::new(),
-            total_seconds: 0,
-        }
-    }
 }
 
 pub fn calculate_session(time: String) -> String {

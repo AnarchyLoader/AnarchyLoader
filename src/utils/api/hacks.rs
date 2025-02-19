@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::utils::downloader::download_file;
+use crate::utils::api::downloader::download_file;
 
 #[derive(Deserialize, Debug, Clone, PartialEq)]
 pub(crate) struct HackApiResponse {
@@ -57,9 +57,9 @@ impl Hack {
             source: source.to_string(),
             game: game.to_string(),
             file_path: dirs::config_dir()
-                .unwrap_or_else(|| std::path::PathBuf::from("../.."))
+                .unwrap_or_else(|| std::path::PathBuf::from("../../../../.."))
                 .join("anarchyloader")
-                .join(&file),
+                .join(file),
             local,
             arch: String::new(),
             working,
@@ -177,7 +177,7 @@ pub(crate) fn get_hack_by_dll(hacks: &[Hack], dll: &str) -> Option<Hack> {
 
 fn load_cached_hacks() -> Result<Vec<Hack>, String> {
     let cache_path = dirs::config_dir()
-        .unwrap_or_else(|| std::path::PathBuf::from("../.."))
+        .unwrap_or_else(|| std::path::PathBuf::from("../../../../.."))
         .join("anarchyloader")
         .join("hacks_cache.json");
 
@@ -192,7 +192,7 @@ fn load_cached_hacks() -> Result<Vec<Hack>, String> {
 
 pub(crate) fn save_hacks_to_cache(hacks: &[Hack]) -> Result<(), String> {
     let cache_path = dirs::config_dir()
-        .unwrap_or_else(|| std::path::PathBuf::from("../.."))
+        .unwrap_or_else(|| std::path::PathBuf::from("../../../../.."))
         .join("anarchyloader")
         .join("hacks_cache.json");
 

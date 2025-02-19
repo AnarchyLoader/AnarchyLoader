@@ -7,9 +7,9 @@ use egui_material_icons::icons::{
 use crate::{
     calculate_session,
     utils::{
-        hacks::get_hack_by_dll,
+        api::hacks::get_hack_by_dll,
         stats::get_time_from_seconds,
-        ui::custom_widgets::{Button, Hyperlink},
+        ui::widgets::{Button, Hyperlink},
     },
     MyApp,
 };
@@ -176,53 +176,52 @@ impl MyApp {
                         ui.add_space(15.0);
 
 
-                        if !self.app.config.hide_statistics {
-                            ui.group(|ui| {
-                                ui.heading("Usage Statistics");
+                        ui.group(|ui| {
+                            ui.heading("Usage Statistics");
 
-                                if self.app.stats.opened_count == 1 {
-                                    ui.colored_label(
-                                        egui::Color32::LIGHT_BLUE,
-                                        "New user! Welcome!",
-                                    );
-                                } else {
-                                    ui.label(format!(
-                                        "Opened {} times",
-                                        self.app.stats.opened_count
-                                    ));
-                                }
+                            if self.app.stats.opened_count == 1 {
+                                ui.colored_label(
+                                    egui::Color32::LIGHT_BLUE,
+                                    "New user! Welcome!",
+                                );
+                            } else {
+                                ui.label(format!(
+                                    "Opened {} times",
+                                    self.app.stats.opened_count
+                                ));
+                            }
 
-                                let mut sorted_inject_counts: Vec<(&String, &u64)> = self
-                                    .app
-                                    .stats
-                                    .inject_counts
-                                    .iter()
-                                    .collect();
+                            let mut sorted_inject_counts: Vec<(&String, &u64)> = self
+                                .app
+                                .stats
+                                .inject_counts
+                                .iter()
+                                .collect();
 
-                                if !self.app.stats.has_injections() {
-                                    ui.label("No hacks injected yet.");
-                                } else {
-                                    ui.label(format!(
-                                        "Injected {} times",
-                                        self.app.stats.inject_counts.values().map(|v| *v).sum::<u64>()
-                                    ));
+                            if !self.app.stats.has_injections() {
+                                ui.label("No hacks injected yet.");
+                            } else {
+                                ui.label(format!(
+                                    "Injected {} times",
+                                    self.app.stats.inject_counts.values().copied().sum::<u64>()
+                                ));
 
-                                    ui.label("Top 3 hacks:");
+                                ui.label("Top 3 hacks:");
 
-                                    sorted_inject_counts.sort_by(|a, b| b.1.cmp(a.1));
+                                sorted_inject_counts.sort_by(|a, b| b.1.cmp(a.1));
 
-                                    sorted_inject_counts.iter().take(3).for_each(|(hack_dll, count)| {
-                                        ui.label(format!("{}: {}", get_hack_by_dll(&*self.app.hacks, hack_dll).unwrap().name, count));
-                                    });
-                                }
-                            });
-                            ui.add_space(10.0);
-                        }
+                                sorted_inject_counts.iter().take(3).for_each(|(hack_dll, count)| {
+                                    ui.label(format!("{}: {}", get_hack_by_dll(&self.app.hacks, hack_dll).unwrap().name, count));
+                                });
+                            }
+                        });
+
+                        ui.add_space(10.0);
 
                         ui.group(|ui| {
                             ui.heading("Session Information");
                             ui.label(format!("{} OS: {}", ICON_DESKTOP_WINDOWS, &self.app.meta.os_version));
-                            ui.label(format!("{} You have been using AnarchyLoader for: {}", ICON_TIMER, &*get_time_from_seconds(self.app.stats.total_seconds.clone())));
+                            ui.label(format!("{} You have been using AnarchyLoader for: {}", ICON_TIMER, &*get_time_from_seconds(self.app.stats.total_seconds)));
                             ui.label(format!("{} Current session: {}", ICON_TIMER, &*calculate_session(self.app.meta.session.clone())));
                         });
                     });

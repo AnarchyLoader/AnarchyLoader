@@ -1,4 +1,5 @@
 use egui::{CursorIcon::PointingHand as Clickable, Response, Ui, WidgetText};
+use egui_material_icons::icons::{ICON_CHECK, ICON_RESTART_ALT};
 use egui_notify::Toasts;
 
 pub trait Button {
@@ -15,6 +16,8 @@ pub trait Button {
         url: &str,
         toasts: &mut Toasts,
     ) -> Response;
+    fn confirm_button(&mut self) -> Response;
+    fn reset_button(&mut self, label: &str) -> Response;
 }
 
 impl Button for Ui {
@@ -55,6 +58,14 @@ impl Button for Ui {
         }
 
         response
+    }
+
+    fn confirm_button(&mut self) -> Response {
+        self.cibutton("Confirm", ICON_CHECK)
+    }
+
+    fn reset_button(&mut self, label: &str) -> Response {
+        self.cibutton(label, ICON_RESTART_ALT)
     }
 }
 

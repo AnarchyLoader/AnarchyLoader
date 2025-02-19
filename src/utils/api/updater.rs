@@ -9,6 +9,7 @@ pub struct Updater {
 }
 
 impl Updater {
+    #[allow(clippy::result_large_err)]
     pub fn get_latest_releases(&self) -> Result<Vec<Release>, ureq::Error> {
         let url = format!("https://api.github.com/repos/{}/releases", self.repository);
         let response: Vec<Release> = ureq::get(&url).call()?.into_json()?;

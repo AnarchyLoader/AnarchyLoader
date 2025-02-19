@@ -61,23 +61,21 @@ impl MyApp {
             AnimationPhase::Initial => {
                 if self.ui.animation.start_delay_timer < START_DELAY {
                     self.ui.animation.start_delay_timer += dt;
-                } else {
-                    if self.ui.animation.hello_animation_progress < 1.0 {
-                        self.ui.animation.hello_animation_progress =
-                            (self.ui.animation.hello_animation_progress
-                                + dt / HELLO_ANIMATION_DURATION)
-                                .min(1.0);
+                } else if self.ui.animation.hello_animation_progress < 1.0 {
+                    self.ui.animation.hello_animation_progress =
+                        (self.ui.animation.hello_animation_progress
+                            + dt / HELLO_ANIMATION_DURATION)
+                            .min(1.0);
 
-                        let hello_easing =
-                            easing::cubic_out(self.ui.animation.hello_animation_progress);
-                        self.ui.animation.hello_opacity = hello_easing;
-                        self.ui.animation.hello_scale = 1.0 + (0.5 - 1.0) * hello_easing;
-                    } else {
-                        self.ui.animation.delay_timer += dt;
-                        if self.ui.animation.delay_timer >= INITIAL_DELAY {
-                            self.ui.animation.phase = AnimationPhase::FadeIn;
-                            self.ui.animation.image_scale_animation_started = true;
-                        }
+                    let hello_easing =
+                        easing::cubic_out(self.ui.animation.hello_animation_progress);
+                    self.ui.animation.hello_opacity = hello_easing;
+                    self.ui.animation.hello_scale = 1.0 + (0.5 - 1.0) * hello_easing;
+                } else {
+                    self.ui.animation.delay_timer += dt;
+                    if self.ui.animation.delay_timer >= INITIAL_DELAY {
+                        self.ui.animation.phase = AnimationPhase::FadeIn;
+                        self.ui.animation.image_scale_animation_started = true;
                     }
                 }
             }
@@ -150,7 +148,7 @@ impl MyApp {
                     Id::new("image_scale_animation"),
                     self.ui.animation.image_scale_animation_started,
                     0.8,
-                    |x| easing::cubic_out(x),
+                    easing::cubic_out,
                 );
 
                 let scale = 50.0 + 50.0 * scale_factor;

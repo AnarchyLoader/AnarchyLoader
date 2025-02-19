@@ -6,7 +6,7 @@ use std::{
 
 use crate::{
     inject::change_status_message,
-    utils::{downloader, hacks::Hack},
+    utils::api::{downloader, hacks::Hack},
     MyApp,
 };
 

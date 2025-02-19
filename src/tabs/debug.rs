@@ -1,6 +1,6 @@
 use egui::RichText;
 
-use crate::{utils::ui::custom_widgets::Button, MyApp};
+use crate::{utils::ui::widgets::Button, MyApp};
 
 impl MyApp {
     pub fn render_debug_tab(&mut self, ctx: &egui::Context) {
@@ -16,7 +16,7 @@ impl MyApp {
                             ("Config:", format!("{:#?}", self.app.config)),
                             ("Statistics:", format!("{:#?}", self.app.stats)),
                             ("Updater:", format!("{:#?}", self.app.updater)),
-                            ("Cache:", format!("{:#?}", self.app.cache)),
+                            ("Cache:", format!("{:#?}", self.ui.mark_cache)),
                             ("Ui states:", format!("{:#?}", self.ui)),
                             ("Communication:", format!("{:#?}", self.communication)),
                         ];
