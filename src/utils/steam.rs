@@ -59,13 +59,6 @@ impl SteamAccount {
             .ok_or_else(|| "No recent user found".to_string())
     }
 
-    pub fn get_censoured(&self) -> Self {
-        let mut censoured = self.clone();
-        censoured.username = "*********".to_string();
-        censoured.id = "*********".to_string();
-        censoured
-    }
-
     pub fn new() -> Result<Self, String> {
         match Self::parse_user() {
             Ok(account) => {

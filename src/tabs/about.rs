@@ -29,6 +29,7 @@ impl User {
                     .corner_radius(8.0)
                     .sense(egui::Sense::click()),
             )
+            .on_hover_cursor(egui::CursorIcon::PointingHand)
             .on_hover_text(self.username.clone());
 
         if response.clicked() {
@@ -176,105 +177,101 @@ impl MyApp {
                         ui.add_space(15.0);
 
 
-                        ui.group(|ui| {
-                            ui.heading("Usage Statistics");
+                        ui.heading("Usage Statistics");
 
-                            if self.app.stats.opened_count == 1 {
-                                ui.colored_label(
-                                    egui::Color32::LIGHT_BLUE,
-                                    "New user! Welcome!",
-                                );
-                            } else {
-                                ui.label(format!(
-                                    "Opened {} times",
-                                    self.app.stats.opened_count
-                                ));
-                            }
+                        if self.app.stats.opened_count == 1 {
+                            ui.colored_label(
+                                egui::Color32::LIGHT_BLUE,
+                                "New user! Welcome!",
+                            );
+                        } else {
+                            ui.label(format!(
+                                "Opened {} times",
+                                self.app.stats.opened_count
+                            ));
+                        }
 
-                            let mut sorted_inject_counts: Vec<(&String, &u64)> = self
-                                .app
-                                .stats
-                                .inject_counts
-                                .iter()
-                                .collect();
+                        let mut sorted_inject_counts: Vec<(&String, &u64)> = self
+                            .app
+                            .stats
+                            .inject_counts
+                            .iter()
+                            .collect();
 
-                            if !self.app.stats.has_injections() {
-                                ui.label("No hacks injected yet.");
-                            } else {
-                                ui.label(format!(
-                                    "Injected {} times",
-                                    self.app.stats.inject_counts.values().copied().sum::<u64>()
-                                ));
+                        if !self.app.stats.has_injections() {
+                            ui.label("No hacks injected yet.");
+                        } else {
+                            ui.label(format!(
+                                "Injected {} times",
+                                self.app.stats.inject_counts.values().copied().sum::<u64>()
+                            ));
 
-                                ui.label("Top 3 hacks:");
+                            ui.label("Top 3 hacks:");
 
-                                sorted_inject_counts.sort_by(|a, b| b.1.cmp(a.1));
+                            sorted_inject_counts.sort_by(|a, b| b.1.cmp(a.1));
 
-                                sorted_inject_counts.iter().take(3).for_each(|(hack_dll, count)| {
-                                    ui.label(format!("{}: {}", get_hack_by_dll(&self.app.hacks, hack_dll).unwrap().name, count));
-                                });
-                            }
-                        });
+                            sorted_inject_counts.iter().take(3).for_each(|(hack_dll, count)| {
+                                ui.label(format!("{}: {}", get_hack_by_dll(&self.app.hacks, hack_dll).unwrap().name, count));
+                            });
+                        }
+
 
                         ui.add_space(10.0);
 
-                        ui.group(|ui| {
-                            ui.heading("Session Information");
-                            ui.label(format!("{} OS: {}", ICON_DESKTOP_WINDOWS, &self.app.meta.os_version));
-                            ui.label(format!("{} You have been using AnarchyLoader for: {}", ICON_TIMER, &*get_time_from_seconds(self.app.stats.total_seconds)));
-                            ui.label(format!("{} Current session: {}", ICON_TIMER, &*calculate_session(self.app.meta.session.clone())));
-                        });
+                        ui.heading("Session Information");
+                        ui.label(format!("{} OS: {}", ICON_DESKTOP_WINDOWS, &self.app.meta.os_version));
+                        ui.label(format!("{} You have been using AnarchyLoader for: {}", ICON_TIMER, &*get_time_from_seconds(self.app.stats.total_seconds)));
+                        ui.label(format!("{} Current session: {}", ICON_TIMER, &*calculate_session(self.app.meta.session.clone())));
+
+                        ui.add_space(5.0);
+
+                        ui.heading("Links");
+
+                        ui.add_space(5.0);
+
+                        ui.link_button(
+                            format!("{} Website", ICON_PUBLIC),
+                            "https://anarchy.my",
+                            &mut self.toasts,
+                        );
+
+                        ui.add_space(5.0);
+
+                        ui.link_button(
+                            format!("{} Source Code", ICON_MENU_BOOK),
+                            "https://github.com/AnarchyLoader/AnarchyLoader",
+                            &mut self.toasts,
+                        );
+
+                        ui.add_space(5.0);
+
+                        ui.link_button(
+                            format!("{} Injector Code", ICON_SYRINGE),
+                            "https://github.com/AnarchyLoader/AnarchyInjector",
+                            &mut self.toasts,
+                        );
+
+                        ui.add_space(5.0);
+
+                        ui.heading("Community");
+
+                        ui.link_button(
+                            format!("{} Discord", ICON_BRAND_AWARENESS),
+                            "https://discord.com/invite/VPGRgXUCsv",
+                            &mut self.toasts,
+                        );
+
+                        ui.add_space(5.0);
+
+                        ui.link_button(
+                            format!("{} Telegram", ICON_SEND),
+                            "https://t.me/anarchyloader",
+                            &mut self.toasts,
+                        );
                     });
 
                     ui.add_space(20.0);
 
-                    ui.heading(RichText::new("Quick Links").strong());
-
-                    ui.add_space(5.0);
-
-                    ui.link_button(
-                        format!("{} Website", ICON_PUBLIC),
-                        "https://anarchy.my",
-                        &mut self.toasts,
-                    );
-
-                    ui.add_space(5.0);
-
-                    ui.link_button(
-                        format!("{} Source Code", ICON_MENU_BOOK),
-                        "https://github.com/AnarchyLoader/AnarchyLoader",
-                        &mut self.toasts,
-                    );
-
-                    ui.add_space(5.0);
-
-                    ui.link_button(
-                        format!("{} Injector Code", ICON_SYRINGE),
-                        "https://github.com/AnarchyLoader/AnarchyInjector",
-                        &mut self.toasts,
-                    );
-
-                    ui.add_space(20.0);
-
-                    ui.heading(RichText::new("Social Media").strong());
-
-                    ui.add_space(5.0);
-
-                    ui.link_button(
-                        format!("{} Discord", ICON_BRAND_AWARENESS),
-                        "https://discord.com/invite/VPGRgXUCsv",
-                        &mut self.toasts,
-                    );
-
-                    ui.add_space(5.0);
-
-                    ui.link_button(
-                        format!("{} Telegram", ICON_SEND),
-                        "https://t.me/anarchyloader",
-                        &mut self.toasts,
-                    );
-
-                    ui.add_space(20.0);
                     let contributors_collapsing = ui.collapsing(
                         RichText::new(format!("{} Contributors", ICON_GROUP)).strong(),
                         |ui| {
@@ -357,7 +354,6 @@ impl MyApp {
                         });
 
                     ui.add_space(20.0);
-
 
                     ui.vertical_centered(|ui| {
                         ui.horizontal_wrapped(|ui| {

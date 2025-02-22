@@ -121,12 +121,6 @@ impl Config {
     }
 
     pub fn update_game_order(&mut self) {
-        log::debug!("<CONFIG> Using API endpoint: {}", self.api.api_endpoint);
-        log::debug!(
-            "<CONFIG> Using extra API endpoints: {:?}",
-            self.api.api_extra_endpoints
-        );
-
         let hacks = hacks::fetch_hacks(
             &self.api.api_endpoint,
             &self.api.api_extra_endpoints,
@@ -157,19 +151,13 @@ impl Config {
     }
 
     pub fn reset_game_order(&mut self) {
-        log::info!("<CONFIG> Resetting game order");
-        log::debug!("<CONFIG> Calling update_game_order to refresh game order from API");
         self.update_game_order();
-        log::info!("<CONFIG> Game order reset and updated from API");
         self.save();
         log::debug!("<CONFIG> Config saved after resetting game order");
     }
 
     pub fn reset(&mut self) {
-        log::info!("<CONFIG> Resetting config to default");
-        log::debug!("<CONFIG> Setting config to default values");
         *self = Config::default();
-        log::debug!("<CONFIG> Config set to default, saving config");
         self.save();
         log::info!("<CONFIG> Config reset to default and saved");
     }

@@ -511,14 +511,17 @@ impl MyApp {
 
                 ui.label(format!("{} Logged in as (Steam):", ICON_LOGIN));
                 if ui
-                    .label(RichText::new(&self.app.account.name).color(self.ui.text_animator.color))
-                    .on_hover_text_at_pointer(&self.app.account.username)
+                    .label(
+                        RichText::new(&self.app.meta.steam_account.name)
+                            .color(self.ui.text_animator.color),
+                    )
+                    .on_hover_text_at_pointer(&self.app.meta.steam_account.username)
                     .on_hover_cursor(egui::CursorIcon::Help)
                     .clicked()
                 {
                     if let Err(e) = opener::open(format!(
                         "https://steamcommunity.com/profiles/{}/",
-                        self.app.account.id
+                        self.app.meta.steam_account.id
                     )) {
                         self.toasts
                             .error(format!("Failed to open Steam profile: {}", e));

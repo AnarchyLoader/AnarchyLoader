@@ -1,4 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+// ^-- disable console window in release mode
 
 mod games;
 mod inject;
@@ -43,11 +44,11 @@ use utils::{
         widgets::{Button, CheckBox, Hyperlink},
     },
 };
-use winreg::{enums::HKEY_LOCAL_MACHINE, RegKey};
 
 use crate::{
     tabs::{about::AboutTab, home::HomeTab},
     utils::{
+        helpers::get_windows_version,
         stats::{calculate_session, get_time_difference_in_seconds},
         ui::intro::{AnimationPhase, AnimationState},
     },
@@ -100,7 +101,6 @@ struct AppState {
     selected_hack: Option<Hack>,
     config: Config,
     stats: Statistics,
-    account: SteamAccount,
     updater: Updater,
     meta: AppMeta,
 }
@@ -144,6 +144,7 @@ struct AppMeta {
     commit: String,
     os_version: String,
     session: String,
+    steam_account: SteamAccount,
 }
 
 #[derive(Debug)]
@@ -165,20 +166,6 @@ fn default_main_menu_message() -> String {
         "Hello {}!\nPlease select a hack from the list.",
         whoami::username()
     )
-}
-
-fn get_windows_version() -> Option<String> {
-    let hkey = RegKey::predef(HKEY_LOCAL_MACHINE);
-    let key = hkey
-        .open_subkey("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion")
-        .ok()?;
-    let product_name: String = key.get_value("ProductName").ok()?;
-    let release_id: String = key.get_value("ReleaseId").ok()?;
-    let build: String = key.get_value("CurrentBuild").ok()?;
-    Some(format!(
-        "{} (Release ID: {}, Build: {})",
-        product_name, release_id, build
-    ))
 }
 
 static LOGGER: OnceLock<MyLogger> = OnceLock::new();
@@ -269,11 +256,12 @@ impl MyApp {
             log::info!("<MAIN> Hacks saved to cache successfully.");
         }
 
-        let account = SteamAccount::new().unwrap_or_else(|_| {
+        let steam_account = SteamAccount::new().unwrap_or_else(|_| {
             log::warn!("<MAIN> Failed to get Steam account details");
             SteamAccount::default()
         });
-        log::info!("<MAIN> {:?}", account.get_censoured());
+
+        log::info!("<MAIN> {}", steam_account.name);
 
         let rpc = Rpc::new(!config.disable_rpc);
         if !config.disable_rpc {
@@ -332,7 +320,7 @@ impl MyApp {
                 selected_hack: selected_hack.clone(),
                 config: config.clone(),
                 stats: statistics.clone(),
-                account,
+
                 updater,
                 meta: AppMeta {
                     version: env!("CARGO_PKG_VERSION").to_string(),
@@ -340,6 +328,7 @@ impl MyApp {
                     commit: env!("GIT_HASH").to_string(),
                     os_version: get_windows_version().unwrap_or_else(|| "Unknown".to_string()),
                     session: chrono::Local::now().to_rfc3339(),
+                    steam_account,
                 },
             },
             ui: UIState {
@@ -424,6 +413,10 @@ impl App for MyApp {
     // MARK: Global render
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui_extras::install_image_loaders(ctx);
+
+        if !self.app.config.display.disable_hack_name_animation {
+            self.setup_text_animator_color(ctx);
+        }
 
         if self.ui.parse_error.is_some() {
             log::error!(

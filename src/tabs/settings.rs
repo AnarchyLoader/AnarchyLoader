@@ -165,10 +165,10 @@ impl MyApp {
                             self.app.config.save();
                         }
 
-                        let modal_transition = Modal::new(ctx, "transition_configure_dialog")
+                        let modal_animations = Modal::new(ctx, "animations_configure_dialog")
                             .with_close_on_outside_click(true);
 
-                        modal_transition.show(|ui| {
+                        modal_animations.show(|ui| {
                             ui.label("Transition duration:");
 
                             if ui.add(
@@ -219,7 +219,7 @@ impl MyApp {
                                 }
 
                                 if ui.cibutton("Close", ICON_CLOSE).clicked() {
-                                    modal_transition.close();
+                                    modal_animations.close();
                                 }
                             });
                         });
@@ -237,10 +237,10 @@ impl MyApp {
                         ui.add_space(3.0);
 
                         if ui
-                            .cbutton(format!("{} Configure transitions", ICON_MANUFACTURING))
+                            .cbutton(format!("{} Configure animations", ICON_MANUFACTURING))
                             .clicked()
                         {
-                            modal_transition.open();
+                            modal_animations.open();
                         }
 
                         ui.add_space(5.0);
@@ -623,7 +623,6 @@ impl MyApp {
                                 self.app.config.save();
                             }
                         });
-
                     });
 
                     ui.add_space(5.0);
