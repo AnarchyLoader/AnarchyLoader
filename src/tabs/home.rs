@@ -498,10 +498,7 @@ impl MyApp {
         if !selected.description.is_empty() && !selected.description.contains("n/a") {
             CommonMarkViewer::new().show(ui, &mut self.ui.mark_cache, &selected.description);
         } else {
-            ui.label(
-                RichText::new(format!("{} No description available.", ICON_PROBLEM))
-                    .color(self.ui.text_animator.color),
-            );
+            ui.label(format!("{} No description available.", ICON_PROBLEM));
         }
 
         if !self.app.config.display.hide_steam_account && !is_roblox {

@@ -77,6 +77,25 @@ impl Hack {
             Ok(())
         }
     }
+
+    pub(crate) fn download_steam_module(&self) -> Result<(), String> {
+        let steam_dll_name = format!("steam_{}", self.file);
+
+        if !self
+            .file_path
+            .parent()
+            .unwrap()
+            .join(&steam_dll_name)
+            .exists()
+        {
+            match download_file(&steam_dll_name, None) {
+                Ok(_) => Ok(()),
+                Err(e) => Err(format!("{}", e)),
+            }
+        } else {
+            Ok(())
+        }
+    }
 }
 
 impl Default for Hack {

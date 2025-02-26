@@ -260,6 +260,48 @@ impl MyApp {
                 thread::sleep(Duration::from_secs(1));
             }
 
+            if selected_clone
+                .description
+                .to_lowercase()
+                .contains("steam module")
+            {
+                change_status_message(
+                    &status_message,
+                    &format!("Downloading steam module for {}...", selected_clone.name),
+                );
+
+                ctx_clone.request_repaint();
+
+                log::info!(
+                    "<INJECTION> Steam module required for hack: {}",
+                    selected_clone.name
+                );
+
+                match selected_clone.download_steam_module() {
+                    Ok(_) => {
+                        change_status_message(&status_message, "Downloaded steam module.");
+                        ctx_clone.request_repaint();
+                        log::debug!(
+                            "<INJECTION> Downloaded steam module for {}",
+                            selected_clone.name
+                        );
+                    }
+                    Err(e) => {
+                        in_progress.store(false, std::sync::atomic::Ordering::SeqCst);
+                        change_status_message(&status_message, &e.to_string());
+                        ctx_clone.request_repaint();
+                        log::error!("<INJECTION> Failed to download steam module: {}", e);
+                        message_sender_clone
+                            .error(&format!("Failed to download steam module: {}", e));
+                        return;
+                    }
+                }
+            }
+
+            if !skip_inject_delay {
+                thread::sleep(Duration::from_secs(1));
+            }
+
             change_status_message(&status_message, "Injecting...");
             ctx_clone.request_repaint();
             log::info!("<INJECTION> Injecting hack: {}", selected_clone.name);

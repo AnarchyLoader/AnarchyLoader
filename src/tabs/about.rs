@@ -255,6 +255,8 @@ impl MyApp {
 
                         ui.heading("Community");
 
+                        ui.add_space(5.0);
+
                         ui.link_button(
                             format!("{} Discord", ICON_BRAND_AWARENESS),
                             "https://discord.com/invite/VPGRgXUCsv",
