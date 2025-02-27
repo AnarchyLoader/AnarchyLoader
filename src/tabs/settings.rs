@@ -133,6 +133,15 @@ impl MyApp {
                         };
                         if ui
                             .ccheckbox(
+                                &mut self.app.config.display.force_unworking_hacks,
+                                "Force use unworking hacks",
+                            )
+                            .changed()
+                        {
+                            self.app.config.save();
+                        }
+                        if ui
+                            .ccheckbox(
                                 &mut self.app.config.display.disable_toasts,
                                 "Disable toasts",
                             )

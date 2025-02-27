@@ -1,5 +1,11 @@
 use std::{
-    collections::BTreeMap, fs, path::Path, process::Command, sync::Arc, thread, time::Duration,
+    collections::BTreeMap,
+    fs,
+    path::Path,
+    process::Command,
+    sync::{Arc, Mutex},
+    thread,
+    time::Duration,
 };
 
 use eframe::epaint::{text::TextFormat, FontFamily};
@@ -33,12 +39,14 @@ use crate::{
 #[derive(Debug)]
 pub struct HomeTab {
     disclaimer_accepted: bool,
+    steam_module_injected: Arc<Mutex<bool>>,
 }
 
 impl HomeTab {
     pub fn new() -> Self {
         Self {
             disclaimer_accepted: false,
+            steam_module_injected: Arc::new(Mutex::new(false)),
         }
     }
 }
@@ -143,14 +151,16 @@ impl MyApp {
                     dropped_filename
                 ));
 
-                MyApp::manual_map_inject(
+                if MyApp::manual_map_inject(
                     self.ui.dropped_file.path.clone(),
                     &self.ui.selected_process_dnd.clone(),
                     self.communication.messages.sender.clone(),
                     self.communication.status_message.clone(),
                     ctx.clone(),
                     use_x64,
-                );
+                ) {
+                    self.toasts.success("Injected successfully");
+                };
                 modal.close();
             }
         });
@@ -310,15 +320,27 @@ impl MyApp {
             let is_selected = self.app.selected_hack.as_ref() == Some(hack);
 
             let response = ui
-                .add_enabled_ui((!in_progress || is_selected) && hack.working, |ui| {
-                    ui.selectable_label(self.app.selected_hack.as_ref() == Some(hack), label)
-                        .on_hover_cursor(Clickable)
-                })
+                .add_enabled_ui(
+                    (!in_progress || is_selected)
+                        && (hack.working || self.app.config.display.force_unworking_hacks),
+                    |ui| {
+                        ui.selectable_label(self.app.selected_hack.as_ref() == Some(hack), label)
+                            .on_hover_cursor(Clickable)
+                    },
+                )
                 .inner;
 
             // show if hack working
             if !hack.working {
-                ui.label(ICON_BLOCK);
+                if self.app.config.display.force_unworking_hacks {
+                    ui.label(RichText::new(ICON_WARNING).color(egui::Color32::LIGHT_RED))
+                        .on_hover_cursor(egui::CursorIcon::Help)
+                        .on_hover_text(
+                            "This hack is marked as unworking, but you can still inject it.",
+                        );
+                } else {
+                    ui.label(ICON_BLOCK);
+                }
             }
 
             self.render_favorite_button(ui, hack);
@@ -598,11 +620,25 @@ impl MyApp {
                     .color(egui::Color32::RED),
             );
         }
+        let steam_module_injected_clone = Arc::clone(&self.ui.tabs.home.steam_module_injected);
 
         if inject_button.clicked() && !is_cs2_32bit {
             if !self.ui.tabs.home.disclaimer_accepted && !self.app.stats.has_injections() {
                 modal.open();
                 return;
+            }
+            if selected.steam_module {
+                let steam_injected = *steam_module_injected_clone.lock().unwrap();
+                if !steam_injected {
+                    self.toasts.info("First injecting steam module...");
+                    self.injection(
+                        selected.clone(),
+                        ctx.clone(),
+                        self.communication.messages.sender.clone(),
+                        ctx.input(|i| i.modifiers.ctrl),
+                    );
+                    return;
+                }
             }
 
             self.toasts

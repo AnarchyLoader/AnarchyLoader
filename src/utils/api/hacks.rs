@@ -13,6 +13,7 @@ pub(crate) struct HackApiResponse {
     pub source: String,
     pub game: String,
     pub working: bool,
+    pub steam_module: bool,
     pub id: i32,
 }
 
@@ -30,6 +31,7 @@ pub(crate) struct Hack {
     pub local: bool,
     pub arch: String,
     pub working: bool,
+    pub steam_module: bool,
     pub id: i32,
 }
 
@@ -45,6 +47,7 @@ impl Hack {
         game: &str,
         local: bool,
         working: bool,
+        steam_module: bool,
         id: i32,
     ) -> Self {
         Self {
@@ -63,6 +66,7 @@ impl Hack {
             local,
             arch: String::new(),
             working,
+            steam_module,
             id,
         }
     }
@@ -79,21 +83,9 @@ impl Hack {
     }
 
     pub(crate) fn download_steam_module(&self) -> Result<(), String> {
-        let steam_dll_name = format!("steam_{}", self.file);
-
-        if !self
-            .file_path
-            .parent()
-            .unwrap()
-            .join(&steam_dll_name)
-            .exists()
-        {
-            match download_file(&steam_dll_name, None) {
-                Ok(_) => Ok(()),
-                Err(e) => Err(format!("{}", e)),
-            }
-        } else {
-            Ok(())
+        match download_file(&format!("steam_{}", self.file), None) {
+            Ok(_) => Ok(()),
+            Err(e) => Err(format!("{}", e)),
         }
     }
 }
@@ -113,6 +105,7 @@ impl Default for Hack {
             local: false,
             arch: "n/a".to_string(),
             working: true,
+            steam_module: false,
             id: 0,
         }
     }
@@ -163,6 +156,7 @@ pub(crate) fn fetch_hacks(
                                     &hack.game,
                                     false,
                                     hack.working,
+                                    hack.steam_module,
                                     hack.id,
                                 )
                             })

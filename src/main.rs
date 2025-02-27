@@ -81,14 +81,19 @@ fn main() {
         multisampling: 8,
         ..Default::default()
     };
+
+    let title = if !is_elevated() {
+        format!("AnarchyLoader v{}", env!("CARGO_PKG_VERSION"))
+    } else {
+        format!(
+            "AnarchyLoader v{} (Administrator)",
+            env!("CARGO_PKG_VERSION")
+        )
+            .to_string()
+    };
+
     eframe::run_native(
-        if !is_elevated() {
-            log::info!("<MAIN> Application started as normal user");
-            "AnarchyLoader"
-        } else {
-            log::info!("<MAIN> Application started as administrator");
-            "AnarchyLoader (Administrator)"
-        },
+        if !is_elevated() { &*title } else { &*title },
         native_options,
         Box::new(|cc| Ok(Box::new(MyApp::new(cc)))),
     )
@@ -261,14 +266,11 @@ impl MyApp {
             SteamAccount::default()
         });
 
-        log::info!("<MAIN> {}", steam_account.name);
-
         let rpc = Rpc::new(!config.disable_rpc);
         if !config.disable_rpc {
             log::info!("<MAIN> Discord RPC initialized");
-        } else {
-            log::info!("<MAIN> Discord RPC disabled in config");
         }
+
         rpc.update(
             Some(&format!("v{}", env!("CARGO_PKG_VERSION"))),
             Some("Selecting a hack"),

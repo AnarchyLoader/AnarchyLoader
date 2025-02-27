@@ -211,7 +211,11 @@ impl MyApp {
                             sorted_inject_counts.sort_by(|a, b| b.1.cmp(a.1));
 
                             sorted_inject_counts.iter().take(3).for_each(|(hack_dll, count)| {
-                                ui.label(format!("{}: {}", get_hack_by_dll(&self.app.hacks, hack_dll).unwrap().name, count));
+                                if let Some(hack) = get_hack_by_dll(&self.app.hacks, hack_dll) {
+                                    ui.label(format!("{}: {}", hack.name, count));
+                                } else {
+                                    ui.label(format!("Unknown hack: {}", count));
+                                }
                             });
                         }
 
