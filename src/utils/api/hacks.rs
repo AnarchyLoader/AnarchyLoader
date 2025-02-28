@@ -36,6 +36,7 @@ pub(crate) struct Hack {
 }
 
 impl Hack {
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         name: &str,
         description: &str,
@@ -115,7 +116,7 @@ pub(crate) fn fetch_hacks(
     api_endpoint: &str,
     api_extra_endpoints: &[String],
     lowercase: bool,
-) -> Result<Vec<Hack>, String> {
+) -> Result<(Vec<Hack>, bool), String> {
     let mut endpoints = vec![api_endpoint.to_string()];
     endpoints.extend(api_extra_endpoints.to_owned());
 
@@ -132,7 +133,7 @@ pub(crate) fn fetch_hacks(
                             "<HACKS> Successfully fetched {} hacks from API",
                             parsed_hacks.len()
                         );
-                        Ok(parsed_hacks
+                        let hacks: Vec<Hack> = parsed_hacks
                             .into_iter()
                             .map(|hack| {
                                 let name = if lowercase {
@@ -160,7 +161,8 @@ pub(crate) fn fetch_hacks(
                                     hack.id,
                                 )
                             })
-                            .collect())
+                            .collect();
+                        return Ok((hacks, false));
                     };
                 }
             }
@@ -170,8 +172,8 @@ pub(crate) fn fetch_hacks(
 
     match load_cached_hacks() {
         Ok(cached_hacks) => {
-            log::info!("Loaded hacks from cache.");
-            Ok(cached_hacks)
+            log::info!("<HACKS> Loaded hacks from cache.");
+            Ok((cached_hacks, true))
         }
         Err(e) => Err(format!(
             "All endpoints failed and no cache available: {}",

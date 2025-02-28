@@ -1,7 +1,12 @@
 use std::{
+    io::{BufRead, BufReader},
     path::PathBuf,
-    process::Command,
-    sync::{mpsc::Sender, Arc, Mutex},
+    process::{Command, Stdio},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        mpsc::Sender,
+        Arc, Mutex,
+    },
     thread,
     time::Duration,
 };
@@ -9,9 +14,17 @@ use std::{
 use eframe::egui::{self};
 
 use crate::{
-    utils::{api::downloader::download_file, ui::messages::MessageSender},
+    utils::{
+        api::downloader::download_file,
+        helpers::{is_process_running, start_cs_prompt},
+        ui::messages::MessageSender,
+    },
     Hack, MyApp,
 };
+
+#[rustfmt::skip]
+#[cfg(feature = "scanner")]
+use crate::scanner::scanner::Scanner;
 
 pub(crate) fn change_status_message(status_message: &Arc<Mutex<String>>, message: &str) {
     let mut status = status_message.lock().unwrap();
@@ -122,8 +135,9 @@ impl MyApp {
         status_message: Arc<Mutex<String>>,
         ctx: egui::Context,
         use_x64: bool,
+        in_progress: Arc<AtomicBool>,
     ) -> bool {
-        let dll_path_clone = dll_path.clone().unwrap();
+        let dll_path_clone = dll_path.clone().expect("dll_path should be Some");
         let is_cs2 = target_process.eq_ignore_ascii_case("cs2.exe");
         let is_rust = target_process.eq_ignore_ascii_case("RustClient.exe");
         let injector_process = if is_cs2 || is_rust || use_x64 {
@@ -159,41 +173,97 @@ impl MyApp {
         }
 
         let mut command = Command::new(file_path);
-        command.arg(target_process).arg(dll_path.unwrap());
+        command
+            .arg(target_process)
+            .arg(dll_path_clone.clone())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
 
         log::debug!("<INJECTION> Executing injector: {:?}", command);
 
-        let output = command.output();
+        match command.spawn() {
+            Ok(mut child) => {
+                let stdout = child.stdout.take().unwrap();
+                let stdout_reader = BufReader::new(stdout);
+                let dll_name = dll_path_clone.clone();
+                let stdout_thread = thread::spawn(move || {
+                    for line in stdout_reader.lines() {
+                        match line {
+                            Ok(line) => {
+                                if line.trim().is_empty() {
+                                    continue;
+                                }
 
-        match output {
-            Ok(output) => {
-                if output.status.success() {
-                    let stdout_message = String::from_utf8_lossy(&output.stdout).trim().to_string();
-                    let log_message = stdout_message.replace("\n", "\n<INJECTION> ");
-                    log::info!("<INJECTION> {}", log_message);
-                    message_sender.success(&dll_path_clone.file_name().unwrap().to_string_lossy());
-                    log::info!("<INJECTION> Injected into {}", target_process);
-                    change_status_message(&status_message, "Injection successful.");
-                    ctx.request_repaint();
-                    true
-                } else {
-                    let mut error_message =
-                        String::from_utf8_lossy(&output.stderr).trim().to_string();
-                    if error_message.contains("Can not find process") {
-                        error_message += ", try running loader as admin.";
+                                let log_message = line.replace("\n", "\n<INJECTION> ");
+                                log::info!("<INJECTION> {}", log_message);
+                            }
+                            Err(e) => log::error!("<INJECTION> Error reading stdout: {}", e),
+                        }
                     }
-                    message_sender.error(&error_message.clone());
-                    log::error!("<INJECTION> Failed to execute injector: {}", error_message);
-                    change_status_message(
-                        &status_message,
-                        &format!("Failed to execute injector: {}", error_message),
-                    );
-                    ctx.request_repaint();
-                    false
+                });
+
+                let stderr = child.stderr.take().unwrap();
+                let stderr_reader = BufReader::new(stderr);
+                let message_sender_clone = message_sender.clone();
+                let status_message_clone = status_message.clone();
+                let ctx_clone = ctx.clone();
+
+                let stderr_thread = thread::spawn(move || {
+                    let mut full_error = String::new();
+                    for line in stderr_reader.lines() {
+                        match line {
+                            Ok(line) => {
+                                full_error.push_str(&line);
+                                log::error!("<INJECTION> {}", line);
+                            }
+                            Err(e) => log::error!("<INJECTION> Error reading stderr: {}", e),
+                        }
+                    }
+
+                    if !full_error.is_empty() {
+                        if full_error.contains("Can not find process") {
+                            full_error += ", try running loader as admin.";
+                        }
+                        message_sender_clone.error(&full_error.clone());
+                        change_status_message(
+                            &status_message_clone,
+                            &format!("Failed to execute injector: {}", full_error),
+                        );
+                        ctx_clone.request_repaint();
+                    }
+                });
+                let in_progress_clone_wait = in_progress.clone();
+
+                match child.wait() {
+                    Ok(status) => {
+                        stdout_thread.join().unwrap();
+                        stderr_thread.join().unwrap();
+
+                        if status.success() && in_progress_clone_wait.load(Ordering::SeqCst) {
+                            let dll = dll_name.file_name().unwrap().to_string_lossy();
+                            if !dll.starts_with("steam_") {
+                                message_sender.success(&format!("Success: {}", &dll));
+                                log::info!("<INJECTION> Injected into {}", target_process);
+                                change_status_message(&status_message, "Injection successful.");
+                                ctx.request_repaint();
+                            }
+                            true
+                        } else {
+                            false
+                        }
+                    }
+                    Err(e) => {
+                        let error_message = format!("Failed to wait for injector: {}", e);
+                        message_sender.error(&error_message.clone());
+                        log::error!("<INJECTION> {}", error_message);
+                        change_status_message(&status_message, &error_message);
+                        ctx.request_repaint();
+                        false
+                    }
                 }
             }
             Err(e) => {
-                let error_message = format!("Failed to execute injector: {}", e);
+                let error_message = format!("Failed to spawn injector: {}", e);
                 message_sender.error(&error_message.clone());
                 log::error!("<INJECTION> {}", error_message);
                 change_status_message(&status_message, &error_message);
@@ -202,8 +272,6 @@ impl MyApp {
             }
         }
     }
-
-    // MARK: Manual map injection
     pub fn injection(
         &mut self,
         selected: Hack,
@@ -217,178 +285,225 @@ impl MyApp {
         let ctx_clone = ctx.clone();
         let skip_inject_delay = self.app.config.skip_injects_delay;
         let message_sender_clone = message_sender.clone();
+        let is_cs2_or_csgo = selected.process.eq_ignore_ascii_case("cs2.exe")
+            || selected.process.eq_ignore_ascii_case("csgo.exe");
+        let automatically_run_game = self.app.config.automatically_run_game;
 
         change_status_message(&status_message, "Starting injection...");
         log::info!("<INJECTION> Starting injection for hack: {}", selected.name);
 
-        in_progress.store(true, std::sync::atomic::Ordering::SeqCst);
+        in_progress.store(true, Ordering::SeqCst);
         let steam_module_injected = Arc::new(Mutex::new(false));
 
-        thread::spawn(move || {
-            ctx_clone.request_repaint();
-            if !skip_inject_delay {
-                thread::sleep(Duration::from_secs(1));
-            }
-
-            if !selected_clone.file_path.exists() && !selected_clone.local {
-                change_status_message(
-                    &status_message,
-                    &format!("Downloading {}...", selected_clone.name),
-                );
+        thread::Builder::new()
+            .name("InjectionThread".to_string())
+            .spawn(move || {
                 ctx_clone.request_repaint();
-                log::info!(
-                    "<INJECTION> Hack file not found, downloading: {}",
-                    selected_clone.name
-                );
-
-                match selected_clone
-                    .download(selected_clone.file_path.to_string_lossy().to_string())
-                {
-                    Ok(_) => {
-                        change_status_message(&status_message, "Downloaded.");
-                        ctx_clone.request_repaint();
-                        log::debug!("<INJECTION> Downloaded {}", selected_clone.name);
+                if automatically_run_game && is_cs2_or_csgo && !selected_clone.steam_module {
+                    if let Err(e) = start_cs_prompt() {
+                        message_sender_clone.error(&format!(
+                            "Failed to start Counter-Strike automatically: {}",
+                            e
+                        ));
+                        log::error!(
+                            "<INJECTION> Failed to start Counter-Strike automatically: {}",
+                            e
+                        );
                     }
-                    Err(e) => {
-                        in_progress.store(false, std::sync::atomic::Ordering::SeqCst);
-                        change_status_message(&status_message, &e.to_string());
+
+                    loop {
+                        if !Self::check_and_cancel(&in_progress, &status_message, &ctx_clone) {
+                            return;
+                        }
+
+                        if is_process_running(&selected_clone.process) {
+                            thread::sleep(Duration::from_secs(10));
+                            break;
+                        }
                         ctx_clone.request_repaint();
-                        log::error!("<INJECTION> Failed to download hack file: {}", e);
-                        message_sender_clone.error(&format!("Failed to download: {}", e));
-                        return;
                     }
                 }
-            }
 
-            if !skip_inject_delay {
-                thread::sleep(Duration::from_secs(1));
-            }
-
-            let steam_module_injected_clone = steam_module_injected.clone();
-
-            if selected_clone.steam_module {
-                let steam_module_path = selected_clone
-                    .file_path
-                    .parent()
-                    .unwrap()
-                    .join(&format!("steam_{}", selected_clone.file));
-                if !steam_module_path.exists() {
+                if !selected_clone.file_path.exists() && !selected_clone.local {
                     change_status_message(
                         &status_message,
-                        &format!("Downloading steam module for {}...", selected_clone.name),
+                        &format!("Downloading {}...", selected_clone.name),
                     );
-
                     ctx_clone.request_repaint();
-
                     log::info!(
-                        "<INJECTION> Steam module required for hack: {}",
+                        "<INJECTION> Hack file not found, downloading: {}",
                         selected_clone.name
                     );
 
-                    match selected_clone.download_steam_module() {
+                    match selected_clone
+                        .download(selected_clone.file_path.to_string_lossy().to_string())
+                    {
                         Ok(_) => {
-                            change_status_message(&status_message, "Downloaded steam module.");
+                            change_status_message(&status_message, "Downloaded.");
                             ctx_clone.request_repaint();
-                            log::debug!(
-                                "<INJECTION> Downloaded steam module for {}",
-                                selected_clone.name
-                            );
+                            log::debug!("<INJECTION> Downloaded {}", selected_clone.name);
                         }
                         Err(e) => {
                             in_progress.store(false, std::sync::atomic::Ordering::SeqCst);
                             change_status_message(&status_message, &e.to_string());
                             ctx_clone.request_repaint();
-                            log::error!("<INJECTION> Failed to download steam module: {}", e);
-                            message_sender_clone
-                                .error(&format!("Failed to download steam module: {}", e));
+                            log::error!("<INJECTION> Failed to download hack file: {}", e);
+                            message_sender_clone.error(&format!("Failed to download: {}", e));
                             return;
                         }
                     }
                 }
 
-                change_status_message(&status_message, "Injecting steam module...");
-                ctx_clone.request_repaint();
-                log::info!(
-                    "<INJECTION> Injecting steam module for hack: {}",
-                    selected_clone.name
-                );
-                if MyApp::manual_map_inject(
-                    Some(steam_module_path),
-                    "steam.exe",
-                    message_sender_clone.clone(),
-                    status_message.clone(),
-                    ctx_clone.clone(),
-                    false,
-                ) {
-                    *steam_module_injected_clone.lock().unwrap() = true;
-                    change_status_message(
-                        &status_message,
-                        "Steam module injected. Please launch Counter-Strike.",
-                    );
-                    ctx_clone.request_repaint();
-                    message_sender_clone.raw("Waiting for user to launch the game...");
-                    log::info!("<INJECTION> Steam module injected, waiting for game launch.");
+                if !skip_inject_delay {
+                    thread::sleep(Duration::from_secs(1));
+                }
 
-                    loop {
-                        let output = Command::new("tasklist").output();
-                        if let Ok(output) = output {
-                            let stdout = String::from_utf8_lossy(&output.stdout);
-                            if stdout.contains(&selected_clone.process) {
-                                thread::sleep(Duration::from_secs(10)); // wait before game launch (maybe i can scan process loaded modules, like client.dll)
-                                break;
+                let steam_module_injected_clone = steam_module_injected.clone();
+                if selected_clone.steam_module {
+                    let steam_module_path = selected_clone
+                        .file_path
+                        .parent()
+                        .unwrap()
+                        .join(format!("steam_{}", selected_clone.file));
+
+                    if !steam_module_path.exists() {
+                        if !Self::check_and_cancel(&in_progress, &status_message, &ctx_clone) {
+                            return;
+                        }
+                        change_status_message(
+                            &status_message,
+                            &format!("Downloading steam module for {}...", selected_clone.name),
+                        );
+                        ctx_clone.request_repaint();
+                        log::info!(
+                            "<INJECTION> Steam module required for hack: {}",
+                            selected_clone.name
+                        );
+
+                        match selected_clone.download_steam_module() {
+                            Ok(_) => {
+                                change_status_message(&status_message, "Downloaded steam module.");
+                                ctx_clone.request_repaint();
+                                log::debug!(
+                                    "<INJECTION> Downloaded steam module for {}",
+                                    selected_clone.name
+                                );
+                            }
+                            Err(e) => {
+                                in_progress.store(false, std::sync::atomic::Ordering::SeqCst);
+                                change_status_message(&status_message, &e.to_string());
+                                ctx_clone.request_repaint();
+                                log::error!("<INJECTION> Failed to download steam module: {}", e);
+                                message_sender_clone
+                                    .error(&format!("Failed to download steam module: {}", e));
+                                return;
                             }
                         }
-
-                        thread::sleep(Duration::from_secs(5));
-                        ctx_clone.request_repaint();
                     }
-                } else {
-                    in_progress.store(false, std::sync::atomic::Ordering::SeqCst);
-                    change_status_message(&status_message, "Failed to inject steam module.");
+
+                    if !Self::check_and_cancel(&in_progress, &status_message, &ctx_clone) {
+                        return;
+                    }
+                    change_status_message(&status_message, "Injecting steam module...");
                     ctx_clone.request_repaint();
+                    log::info!(
+                        "<INJECTION> Injecting steam module for hack: {}",
+                        selected_clone.name
+                    );
+
+                    if MyApp::manual_map_inject(
+                        Some(steam_module_path),
+                        "steam.exe",
+                        message_sender_clone.clone(),
+                        status_message.clone(),
+                        ctx_clone.clone(),
+                        false,
+                        in_progress.clone(),
+                    ) {
+                        *steam_module_injected_clone.lock().unwrap() = true;
+                        change_status_message(
+                            &status_message,
+                            "Steam module injected. Please launch Counter-Strike.",
+                        );
+                        ctx_clone.request_repaint();
+                        message_sender_clone.raw("Waiting for user to launch the game...");
+                        log::info!("<INJECTION> Steam module injected, waiting for game launch.");
+
+                        loop {
+                            if !Self::check_and_cancel(&in_progress, &status_message, &ctx_clone) {
+                                return;
+                            }
+
+                            if is_process_running(&selected_clone.process) {
+                                thread::sleep(Duration::from_secs(10));
+                                break;
+                            }
+
+                            ctx_clone.request_repaint();
+                        }
+                    } else {
+                        in_progress.store(false, Ordering::SeqCst);
+                        change_status_message(&status_message, "Failed to inject steam module.");
+                        ctx_clone.request_repaint();
+                        return;
+                    }
+                }
+
+                if !skip_inject_delay {
+                    thread::sleep(Duration::from_secs(1));
+                }
+
+                if !Self::check_and_cancel(&in_progress, &status_message, &ctx_clone) {
                     return;
                 }
-            }
 
-            if !skip_inject_delay {
-                thread::sleep(Duration::from_secs(1));
-            }
+                change_status_message(&status_message, "Injecting...");
+                ctx_clone.request_repaint();
+                log::info!("<INJECTION> Injecting hack: {}", selected_clone.name);
 
-            change_status_message(&status_message, "Injecting...");
-            ctx_clone.request_repaint();
-            log::info!("<INJECTION> Injecting hack: {}", selected_clone.name);
+                if !skip_inject_delay {
+                    thread::sleep(Duration::from_secs(1));
+                }
 
-            if !skip_inject_delay {
-                thread::sleep(Duration::from_secs(1));
-            }
+                let dll_path = Some(selected_clone.file_path.clone());
+                let target_process = &selected_clone.process;
+                let status_message_clone = status_message.clone();
 
-            let dll_path = Some(selected_clone.file_path.clone());
-            let target_process = &selected_clone.process;
-            let status_message_clone = status_message.clone();
+                log::debug!("<INJECTION> Hack details: {:?}", selected_clone);
 
-            log::debug!("<INJECTION> Hack details: {:?}", selected_clone);
+                if MyApp::manual_map_inject(
+                    dll_path,
+                    target_process,
+                    message_sender_clone.clone(),
+                    status_message_clone,
+                    ctx_clone.clone(),
+                    if selected_clone.arch == "x64" {
+                        true
+                    } else {
+                        force_x64
+                    },
+                    in_progress.clone(),
+                ) {
+                    *steam_module_injected.lock().unwrap() = false;
+                }
 
-            if MyApp::manual_map_inject(
-                dll_path,
-                target_process,
-                message_sender_clone.clone(),
-                status_message_clone,
-                ctx_clone.clone(),
-                if selected_clone.arch == "x64" {
-                    true
-                } else {
-                    force_x64
-                },
-            ) {
-                *steam_module_injected.lock().unwrap() = false;
-            }
+                in_progress.store(false, Ordering::SeqCst);
+                ctx_clone.request_repaint();
+            })
+            .expect("Failed to spawn injection thread");
+    }
 
-            in_progress.store(false, std::sync::atomic::Ordering::SeqCst);
-            ctx_clone.request_repaint();
-            log::info!(
-                "<INJECTION> Injection process completed for hack: {}",
-                selected_clone.name
-            );
-        });
+    fn check_and_cancel(
+        in_progress: &Arc<AtomicBool>,
+        status_message: &Arc<Mutex<String>>,
+        ctx: &egui::Context,
+    ) -> bool {
+        if !in_progress.load(Ordering::SeqCst) {
+            change_status_message(status_message, "Injection cancelled.");
+            ctx.request_repaint();
+            false
+        } else {
+            true
+        }
     }
 }

@@ -66,9 +66,9 @@ impl MyApp {
                             self.app.hacks = match hacks::fetch_hacks(
                                 &self.app.config.api.api_endpoint,
                                 &self.app.config.api.api_extra_endpoints,
-                                self.app.config.lowercase_hacks,
+                                self.app.config.lowercase_hacks
                             ) {
-                                Ok(hacks) => hacks,
+                                Ok((hacks, _)) => hacks,
                                 Err(_err) => {
                                     self.ui.main_menu_message =
                                         "Failed to fetch hacks.".to_string();
@@ -168,6 +168,15 @@ impl MyApp {
                             .ccheckbox(
                                 &mut self.app.config.automatically_select_hack,
                                 "Automatically select recently hack",
+                            )
+                            .changed()
+                        {
+                            self.app.config.save();
+                        }
+                        if ui
+                            .ccheckbox(
+                                &mut self.app.config.automatically_run_game,
+                                "Automatically run game",
                             )
                             .changed()
                         {
@@ -510,7 +519,7 @@ impl MyApp {
                                     .clicked()
                                 {
                                     if let Err(err) = self.delete_injectors("x64") {
-                                        self.toasts.error(err.clone());
+                                        self.toasts.error(err.to_string());
                                         log::error!("<SETTINGS_TAB> Failed to delete x64 injector: {}", err);
                                     } else {
                                         self.toasts.success("x64 injector deleted.");
@@ -524,7 +533,7 @@ impl MyApp {
                                     .clicked()
                                 {
                                     if let Err(err) = self.delete_injectors("x86") {
-                                        self.toasts.error(err.clone());
+                                        self.toasts.error(err.to_string());
                                         log::error!("<SETTINGS_TAB> Failed to delete x86 injector: {}", err);
                                     } else {
                                         self.toasts.success("x86 injector deleted.");
@@ -539,7 +548,7 @@ impl MyApp {
                                     .clicked()
                                 {
                                     if let Err(err) = self.delete_injectors("both") {
-                                        self.toasts.error(err.clone());
+                                        self.toasts.error(err.to_string());
                                     } else {
                                         self.toasts.success("Both injectors deleted.");
                                         modal_injector.close();

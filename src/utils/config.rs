@@ -16,6 +16,7 @@ pub struct Config {
     pub favorites: HashSet<String>,
     pub show_only_favorites: bool,
     pub automatically_select_hack: bool,
+    pub automatically_run_game: bool,
     pub skip_injects_delay: bool,
     pub lowercase_hacks: bool,
     pub disable_rpc: bool,
@@ -39,6 +40,7 @@ impl Default for Config {
             favorites: HashSet::new(),
             show_only_favorites: false,
             automatically_select_hack: true,
+            automatically_run_game: true,
             skip_injects_delay: false,
             lowercase_hacks: true,
             disable_rpc: false,
@@ -128,7 +130,7 @@ impl Config {
         );
 
         match hacks {
-            Ok(hacks) => {
+            Ok((hacks, _)) => {
                 log::debug!(
                     "<CONFIG> Successfully fetched {} hacks from API",
                     hacks.len()

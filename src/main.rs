@@ -78,7 +78,6 @@ fn main() {
             .with_min_inner_size(egui::vec2(600.0, 300.0))
             .with_inner_size(egui::vec2(800.0, 400.0))
             .with_icon(Arc::new(load_icon())),
-        multisampling: 8,
         ..Default::default()
     };
 
@@ -93,7 +92,7 @@ fn main() {
     };
 
     eframe::run_native(
-        if !is_elevated() { &*title } else { &*title },
+        &title,
         native_options,
         Box::new(|cc| Ok(Box::new(MyApp::new(cc)))),
     )
@@ -120,6 +119,7 @@ struct UIState {
     main_menu_message: String,
     dropped_file: DroppedFile,
     selected_process_dnd: String,
+    using_cache: bool,
     popups: Popups,
     parse_error: Option<String>,
     animation: AnimationState,
@@ -205,19 +205,22 @@ impl MyApp {
         log::debug!("<MAIN> Theme set to: {:?}", config.display.theme);
 
         let status_message = Arc::new(Mutex::new(String::new()));
-        let in_progress = Arc::new(std::sync::atomic::AtomicBool::new(false));
         let mut parse_error = None;
+        let mut using_cache = false;
 
         log::info!(
             "<MAIN> Fetching hacks from API endpoint: {}",
             config.api.api_endpoint
         );
+
         let hacks = match hacks::fetch_hacks(
             &config.api.api_endpoint,
             &config.api.api_extra_endpoints,
             config.lowercase_hacks,
         ) {
-            Ok(hacks) => {
+            Ok((hacks, cached)) => {
+                using_cache = cached;
+
                 let mut existing_games: std::collections::HashSet<String> =
                     config.game_order.clone().into_iter().collect();
 
@@ -322,7 +325,6 @@ impl MyApp {
                 selected_hack: selected_hack.clone(),
                 config: config.clone(),
                 stats: statistics.clone(),
-
                 updater,
                 meta: AppMeta {
                     version: env!("CARGO_PKG_VERSION").to_string(),
@@ -355,6 +357,7 @@ impl MyApp {
                 main_menu_message: default_main_menu_message(),
                 dropped_file: DroppedFile::default(),
                 selected_process_dnd: String::new(),
+                using_cache,
                 popups: Popups {
                     local_hack: LocalUI {
                         new_local_dll: String::new(),
@@ -374,7 +377,7 @@ impl MyApp {
             },
             communication: Communication {
                 status_message,
-                in_progress,
+                in_progress: Arc::new(std::sync::atomic::AtomicBool::new(false)),
                 messages,
                 log_buffer,
                 logger: logger.clone(),

@@ -40,6 +40,7 @@ impl MyApp {
                         }
 
                         if ui.cbutton("Copy debug info").clicked() {
+                            #[allow(clippy::format_collect)]
                             let debug_info = "```\n".to_string()
                                 + &debug_info
                                     .iter()

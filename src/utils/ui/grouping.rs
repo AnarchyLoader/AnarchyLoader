@@ -36,10 +36,7 @@ impl MyApp {
         hacks: &[Hack],
         config: &Config,
     ) -> BTreeMap<String, BTreeMap<String, Vec<Hack>>> {
-        let grouped_hacks =
-            Self::group_hacks_by_game_internal(&Self::get_all_hacks(hacks, config), config);
-
-        grouped_hacks
+        Self::group_hacks_by_game_internal(&Self::get_all_hacks(hacks, config), config)
     }
 
     pub(crate) fn group_hacks_by_game_internal(

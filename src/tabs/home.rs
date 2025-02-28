@@ -15,10 +15,10 @@ use egui::{
 };
 use egui_commonmark::CommonMarkViewer;
 use egui_material_icons::icons::{
-    ICON_AWARD_STAR, ICON_BLOCK, ICON_CHECK, ICON_CLOSE, ICON_CLOUD_OFF, ICON_EDITOR_CHOICE,
-    ICON_INVENTORY_2, ICON_LINK, ICON_LOGIN, ICON_MILITARY_TECH, ICON_NO_ACCOUNTS, ICON_PERSON,
-    ICON_PROBLEM, ICON_QUESTION_MARK, ICON_SEARCH, ICON_SEARCH_OFF, ICON_STAR, ICON_SYRINGE,
-    ICON_VISIBILITY, ICON_WARNING,
+    ICON_AWARD_STAR, ICON_BLOCK, ICON_CANCEL, ICON_CHECK, ICON_CLOSE, ICON_CLOUD_OFF,
+    ICON_EDITOR_CHOICE, ICON_INVENTORY_2, ICON_LINK, ICON_LOGIN, ICON_MILITARY_TECH,
+    ICON_NO_ACCOUNTS, ICON_OPEN_IN_NEW, ICON_PERSON, ICON_PROBLEM, ICON_QUESTION_MARK, ICON_SEARCH,
+    ICON_SEARCH_OFF, ICON_STAR, ICON_SYRINGE, ICON_VISIBILITY, ICON_WARNING,
 };
 use egui_modal::Modal;
 use url::Url;
@@ -32,6 +32,7 @@ use crate::{
     tabs::top_panel::AppTab,
     utils::{
         api::hacks::{self, Hack},
+        helpers::start_cs_prompt,
         ui::widgets::{Button, CheckBox, Hyperlink},
     },
 };
@@ -92,7 +93,7 @@ impl MyApp {
                 &self.app.config.api.api_extra_endpoints,
                 self.app.config.lowercase_hacks,
             ) {
-                Ok(hacks) => {
+                Ok((hacks, _)) => {
                     self.ui.main_menu_message = default_main_menu_message();
                     ctx.request_repaint();
                     hacks
@@ -158,6 +159,7 @@ impl MyApp {
                     self.communication.status_message.clone(),
                     ctx.clone(),
                     use_x64,
+                    self.communication.in_progress.clone(),
                 ) {
                     self.toasts.success("Injected successfully");
                 };
@@ -224,6 +226,11 @@ impl MyApp {
                                     .hint_text(format!("{} Search...", ICON_SEARCH))
                             );
                         });
+
+                        if self.ui.using_cache {
+                            ui.add_space(5.0);
+                            ui.label(format!("{} Using cache", ICON_CLOUD_OFF));
+                        }
 
                         ui.add_space(5.0);
                         let mut all_games_hidden = true;
@@ -620,6 +627,7 @@ impl MyApp {
                     .color(egui::Color32::RED),
             );
         }
+
         let steam_module_injected_clone = Arc::clone(&self.ui.tabs.home.steam_module_injected);
 
         if inject_button.clicked() && !is_cs2_32bit {
@@ -686,14 +694,30 @@ impl MyApp {
                 ui.horizontal(|ui| {
                     ui.add(Spinner::new());
                     ui.add_space(5.0);
-                    ui.label(
-                        RichText::new(&status).color(if status.starts_with("Failed") {
-                            egui::Color32::RED
-                        } else {
-                            self.ui.text_animator.color
-                        }),
-                    );
-                    ctx.request_repaint();
+                    ui.vertical(|ui| {
+                        // this content shows when injection is in progress
+
+                        ui.label(
+                            RichText::new(&status).color(if status.starts_with("Failed") {
+                                egui::Color32::RED
+                            } else {
+                                self.ui.text_animator.color
+                            }),
+                        );
+
+                        if status.contains("Please launch Counter-Strike") {
+                            self.start_cs_button(ui);
+                        }
+
+                        if ui.cibutton("Cancel", ICON_CANCEL).clicked() {
+                            self.communication
+                                .in_progress
+                                .store(false, std::sync::atomic::Ordering::SeqCst);
+                            let mut status = self.communication.status_message.lock().unwrap();
+                            *status = "Cancelled.".to_string();
+                            ctx.request_repaint();
+                        }
+                    });
                 });
             });
         } else {
@@ -707,20 +731,36 @@ impl MyApp {
                 };
 
                 ui.group(|ui| {
-                    ui.horizontal(|ui| {
-                        let s = if status.contains("Can not find process") {
-                            ICON_SEARCH_OFF.to_owned() + &*status
-                        } else {
-                            status
-                        }
-                            .replace(
-                                "Failed to execute injector: ",
-                                "Failed to execute injector:\n",
-                            );
+                    let cannot_find = status.contains("Can not find process");
 
-                        ui.label(RichText::new(&s).color(text_color));
-                    });
+                    let s = if cannot_find {
+                        ICON_SEARCH_OFF.to_owned() + &*status
+                    } else {
+                        status.clone()
+                    }
+                        .replace(
+                            "Failed to execute injector: ",
+                            "Failed to execute injector:\n",
+                        );
+
+                    ui.label(RichText::new(&s).color(text_color));
+
+                    if cannot_find {
+                        self.start_cs_button(ui);
+                    }
                 });
+            }
+        }
+    }
+
+    fn start_cs_button(&mut self, ui: &mut egui::Ui) {
+        if ui
+            .cibutton("Launch Counter-Strike", ICON_OPEN_IN_NEW)
+            .clicked()
+        {
+            if let Err(e) = start_cs_prompt() {
+                let mut status = self.communication.status_message.lock().unwrap();
+                *status = format!("Failed to launch CS: {}", e);
             }
         }
     }

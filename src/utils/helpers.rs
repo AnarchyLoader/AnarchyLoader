@@ -1,3 +1,5 @@
+use std::process::Command;
+
 use winreg::{enums::HKEY_LOCAL_MACHINE, RegKey};
 
 pub fn get_windows_version() -> Option<String> {
@@ -15,4 +17,19 @@ pub fn get_windows_version() -> Option<String> {
         "{} (Version: {}, Release ID: {}, Build: {})",
         product_name, version, release_id, build
     ))
+}
+
+pub fn start_cs_prompt() -> Result<(), String> {
+    opener::open("steam://launch/730/dialog")
+        .map_err(|e| format!("Failed to open Counter-Strike: {}", e))
+}
+
+pub fn is_process_running(process_name: &str) -> bool {
+    let output = Command::new("tasklist").output();
+    if let Ok(output) = output {
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        stdout.contains(process_name)
+    } else {
+        false
+    }
 }
