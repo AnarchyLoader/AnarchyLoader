@@ -8,8 +8,11 @@
 ## Showcase
 
 <div align="center">
-    <img src="https://github.com/user-attachments/assets/df220eb2-3740-4f41-8a25-0f68b5b87195" width=500 alt="Showcase">
+    <img src="https://github.com/user-attachments/assets/7324d956-fe95-468e-8a72-6d8b42e414dc" width=500 alt="Showcase">
 </div>
+
+
+
 
 <h3 align="center"><a href="https://www.youtube.com/watch?v=Q-vz4y1qIZs">(Youtube video)</a></h3>
 
