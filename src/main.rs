@@ -46,7 +46,7 @@ use utils::{
 };
 
 use crate::{
-    tabs::{about::AboutTab, home::HomeTab},
+    tabs::{about::AboutTab, home::HomeTab, top_panel::TopPanel},
     utils::{
         helpers::get_windows_version,
         stats::{calculate_session, get_time_difference_in_seconds},
@@ -154,6 +154,7 @@ struct AppMeta {
 
 #[derive(Debug)]
 struct TabStates {
+    top_panel: TopPanel,
     about: AboutTab,
     home: HomeTab,
 }
@@ -288,10 +289,6 @@ impl MyApp {
                 &config.display.selected_hack,
             );
             if selected_hack.is_some() {
-                log::info!(
-                    "<MAIN> Automatically selected hack from config: {}",
-                    config.display.selected_hack
-                );
                 rpc.update(
                     None,
                     Some(&format!("Selected {}", config.display.selected_hack)),
@@ -338,6 +335,7 @@ impl MyApp {
             ui: UIState {
                 tab: AppTab::default(),
                 tabs: TabStates {
+                    top_panel: TopPanel::default(),
                     about: AboutTab::default(),
                     home: HomeTab::default(),
                 },

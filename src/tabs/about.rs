@@ -1,4 +1,4 @@
-use egui::{Image, Response, RichText, TextStyle, Ui, Vec2};
+use egui::{Image, Response, RichText, Sense, TextStyle, Ui, Vec2};
 use egui_material_icons::icons::{
     ICON_BRAND_AWARENESS, ICON_DESKTOP_WINDOWS, ICON_GROUP, ICON_MENU_BOOK,
     ICON_PRECISION_MANUFACTURING, ICON_PUBLIC, ICON_SEND, ICON_STAR, ICON_SYRINGE, ICON_TIMER,
@@ -133,8 +133,13 @@ impl MyApp {
                         ui.add_space(20.0);
                         let image =
                             Image::new(egui::include_image!("../../resources/img/icon.ico"))
-                                .max_width(120.0);
-                        ui.add(image);
+                                .max_width(120.0)
+                                .sense(Sense::click());
+                        if ui.add(image).clicked() {
+                            if let Err(e) = opener::open("https://anarchy.my") {
+                                log::error!("<ABOUT_TAB> {}", format!("Failed to open URL: {}", e));
+                            }
+                        }
                         ui.add_space(10.0);
                     });
 

@@ -120,3 +120,26 @@ impl Hyperlink for Ui {
             .on_hover_text(url)
     }
 }
+
+pub trait Slider {
+    fn cslider(
+        &mut self,
+        value: &mut f32,
+        range: std::ops::RangeInclusive<f32>,
+        text: String,
+        suffix: &str,
+    ) -> Response;
+}
+
+impl Slider for Ui {
+    fn cslider(
+        &mut self,
+        value: &mut f32,
+        range: std::ops::RangeInclusive<f32>,
+        text: String,
+        suffix: &str,
+    ) -> Response {
+        self.add(egui::Slider::new(value, range).text(text).suffix(suffix))
+            .on_hover_cursor(egui::CursorIcon::ResizeHorizontal)
+    }
+}

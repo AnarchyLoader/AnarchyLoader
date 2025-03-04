@@ -1,6 +1,6 @@
 [package]
 name = "anarchyloader"
-version = "1.1.4"
+version = "1.1.5"
 edition = "2021"
 build = "build.rs"
 authors = ["dest4590"]
@@ -36,11 +36,12 @@ serde_json = "1.0.138"
 simplelog = "0.12.2"
 ureq = { version = "2.12.1", features = ["json"] }
 url = "2.5.4"
-vdf-reader = "0.2.0"
+vdf-reader = "0.3.0"
 whoami = "1.5.2"
 winreg = "0.55.0"
 zip-extract = "0.2.1"
 egui-theme-switch = "0.3.0"
+rand = "0.9.0"
 
 [build-dependencies]
 winres = "0.1.12"

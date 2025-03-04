@@ -1,8 +1,11 @@
-use egui_material_icons::*;
+use std::{fmt, sync::LazyLock};
 
-use crate::{utils::ui::widgets::SelectableLabel, MyApp};
+use egui_material_icons::{icons::ICON_FAVORITE, *};
+use rand::prelude::IndexedRandom;
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Default)]
+use crate::{tabs::top_panel::AppTab::*, utils::ui::widgets::SelectableLabel, MyApp};
+
+#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Default, Hash)]
 pub enum AppTab {
     #[default]
     Home,
@@ -10,6 +13,57 @@ pub enum AppTab {
     About,
     Logs,
     Debug,
+}
+
+impl AppTab {
+    pub fn icon(&self) -> &'static str {
+        match self {
+            Home => icons::ICON_HOME,
+            Settings => icons::ICON_SETTINGS,
+            About => icons::ICON_DESCRIPTION,
+            Logs => icons::ICON_EDIT_DOCUMENT,
+            Debug => icons::ICON_BUG_REPORT,
+        }
+    }
+}
+
+impl fmt::Display for AppTab {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            Home => "Home",
+            Settings => "Settings",
+            About => "About",
+            Logs => "Logs",
+            Debug => "Debug",
+        };
+        write!(f, "{}", s)
+    }
+}
+
+static RANDOM_PHRASES: LazyLock<Vec<String>> = LazyLock::new(|| {
+    vec![
+        "by dest4590".to_string(),
+        "thanks for using.".to_string(),
+        format!("made with {}", ICON_FAVORITE),
+        "did you know that loader using own injector?".to_string(),
+        "loader is open source!".to_string(),
+        "loader is written in rust!".to_string(),
+        "contributions are welcome!".to_string(),
+        "stay tuned for updates!".to_string(),
+    ]
+});
+
+#[derive(Debug)]
+pub struct TopPanel {
+    pub(crate) random_phrase: String,
+}
+
+impl Default for TopPanel {
+    fn default() -> Self {
+        Self {
+            random_phrase: RANDOM_PHRASES.choose(&mut rand::rng()).unwrap().to_string(),
+        }
+    }
 }
 
 impl MyApp {
@@ -25,48 +79,54 @@ impl MyApp {
 
                 self.render_tab(
                     ui,
-                    AppTab::Home,
-                    icons::ICON_HOME,
+                    Home,
+                    Home.icon(),
                     "Home",
                     "Go to the home screen",
                     &home_rpc_message,
                 );
                 self.render_tab(
                     ui,
-                    AppTab::Settings,
-                    icons::ICON_SETTINGS,
+                    Settings,
+                    Settings.icon(),
                     "Settings",
                     "Adjust your settings",
                     "Configuring settings",
                 );
                 self.render_tab(
                     ui,
-                    AppTab::About,
-                    icons::ICON_DESCRIPTION,
+                    About,
+                    About.icon(),
                     "About",
                     "Learn more about this loader",
                     "Reading about",
                 );
                 self.render_tab(
                     ui,
-                    AppTab::Logs,
-                    icons::ICON_EDIT_DOCUMENT,
+                    Logs,
+                    Logs.icon(),
                     "Logs",
                     "Check the logs",
                     "Viewing Logs",
                 );
 
                 if (ctx.input_mut(|i| i.modifiers.shift) && ctx.input_mut(|i| i.modifiers.ctrl))
-                    || self.ui.tab == AppTab::Debug
+                    || self.ui.tab == Debug
                 {
                     self.render_tab(
                         ui,
-                        AppTab::Debug,
-                        icons::ICON_BUG_REPORT,
+                        Debug,
+                        Debug.icon(),
                         "Debug",
                         "Get some debug info",
                         "🪲 Debugging",
                     );
+                }
+
+                if self.app.config.display.show_random_phrase {
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        ui.label(self.ui.tabs.top_panel.random_phrase.clone());
+                    });
                 }
             });
             ui.add_space(5.0);
@@ -74,6 +134,14 @@ impl MyApp {
 
         if !self.app.config.display.disable_toasts {
             self.toasts.show(ctx);
+        }
+    }
+
+    pub fn tab_label(&mut self, tab: AppTab, icon: &str, label: &str) -> String {
+        if self.app.config.display.hide_tabs_icons {
+            tab.to_string()
+        } else {
+            format!("{} {}", icon, label)
         }
     }
 
@@ -86,19 +154,21 @@ impl MyApp {
         tooltip: &str,
         rpc_message: &str,
     ) {
-        let tab_label = if self.app.config.display.hide_tabs_icons {
-            label.to_string()
-        } else {
-            format!("{} {}", icon, label)
-        };
-
         if ui
-            .cselectable_label(self.ui.tab == tab, &tab_label)
+            .cselectable_label(
+                self.ui.tab == tab,
+                &self.tab_label(tab.clone(), icon, label),
+            )
             .on_hover_text(tooltip)
             .clicked()
         {
             if self.ui.transitioning {
                 return;
+            }
+
+            if self.ui.tab != tab.clone() {
+                self.ui.tabs.top_panel.random_phrase =
+                    RANDOM_PHRASES.choose(&mut rand::rng()).unwrap().to_string();
             }
 
             self.ui.tab = tab.clone();

@@ -12,6 +12,7 @@ pub struct DisplaySettings {
     pub force_unworking_hacks: bool,
     pub disable_toasts: bool,
     pub skip_update_check: bool,
+    pub show_random_phrase: bool,
     pub theme: ThemePreference,
 }
 
@@ -27,6 +28,7 @@ impl Default for DisplaySettings {
             force_unworking_hacks: false,
             disable_toasts: false,
             skip_update_check: false,
+            show_random_phrase: true,
             theme: ThemePreference::System,
         }
     }

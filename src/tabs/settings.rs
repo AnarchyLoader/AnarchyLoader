@@ -20,7 +20,7 @@ use crate::{
             hacks,
         },
         rpc::{Rpc, RpcUpdate},
-        ui::widgets::{Button, CheckBox, TextEdit},
+        ui::widgets::{Button, CheckBox, Slider, TextEdit},
     },
     MyApp,
 };
@@ -66,7 +66,7 @@ impl MyApp {
                             self.app.hacks = match hacks::fetch_hacks(
                                 &self.app.config.api.api_endpoint,
                                 &self.app.config.api.api_extra_endpoints,
-                                self.app.config.lowercase_hacks
+                                self.app.config.lowercase_hacks,
                             ) {
                                 Ok((hacks, _)) => hacks,
                                 Err(_err) => {
@@ -165,6 +165,12 @@ impl MyApp {
                             self.app.config.save();
                         }
                         if ui
+                            .ccheckbox(&mut self.app.config.display.show_random_phrase, "Show random phrase")
+                            .changed()
+                        {
+                            self.app.config.save();
+                        }
+                        if ui
                             .ccheckbox(
                                 &mut self.app.config.automatically_select_hack,
                                 "Automatically select recently hack",
@@ -188,43 +194,22 @@ impl MyApp {
 
                         modal_animations.show(|ui| {
                             ui.label("Transition duration:");
-
-                            if ui.add(
-                                egui::Slider::new(
-                                    &mut self.app.config.animations.duration,
-                                    0.10..=1.0,
-                                )
-                                    .text("secs"),
-                            ).changed() {
+                            if ui.cslider(&mut self.app.config.animations.duration, 0.10..=1.0, "secs".to_string(), "s").changed() {
                                 self.app.config.save()
                             };
 
                             ui.label("Transition amount:");
-                            if ui.add(
-                                egui::Slider::new(
-                                    &mut self.app.config.animations.amount,
-                                    0.0..=128.0,
-                                )
-                                    .suffix("px")
-                                    .text("pixels"),
-                            ).changed() {
+                            if ui.cslider(&mut self.app.config.animations.amount, 0.0..=128.0, "pixels".to_string(), "px").changed() {
                                 self.app.config.save()
                             };
 
                             ui.label("Text animation speed:");
-                            if ui.add(
-                                egui::Slider::new(
-                                    &mut self.ui.text_animator.speed,
-                                    0.0..=3.5,
-                                )
-                                    .suffix("x"),
-                            ).changed() {
+                            if ui.cslider(&mut self.ui.text_animator.speed, 0.0..=3.5, String::new(), "x").changed() {
                                 self.app.config.animations.text_speed = self.ui.text_animator.speed;
                                 self.app.config.save()
                             };
 
                             ui.add_space(5.0);
-
                             ui.horizontal(|ui| {
                                 if ui
                                     .reset_button("Reset")

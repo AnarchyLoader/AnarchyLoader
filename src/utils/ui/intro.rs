@@ -157,7 +157,8 @@ impl MyApp {
                     egui::Image::new(egui::include_image!("../../../resources/img/icon.ico"))
                         .max_width(scale);
 
-                let tint_color = text_color.gamma_multiply(self.ui.animation.image_opacity);
+                let tint_color =
+                    egui::Color32::WHITE.gamma_multiply(self.ui.animation.image_opacity);
 
                 ui.add(image.tint(tint_color));
 

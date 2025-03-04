@@ -242,7 +242,7 @@ impl MyApp {
                         if status.success() && in_progress_clone_wait.load(Ordering::SeqCst) {
                             let dll = dll_name.file_name().unwrap().to_string_lossy();
                             if !dll.starts_with("steam_") {
-                                message_sender.success(&format!("Success: {}", &dll));
+                                message_sender.success(&format!("{}", &dll));
                                 log::info!("<INJECTION> Injected into {}", target_process);
                                 change_status_message(&status_message, "Injection successful.");
                                 ctx.request_repaint();
