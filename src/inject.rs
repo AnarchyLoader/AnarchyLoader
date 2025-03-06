@@ -12,6 +12,7 @@ use std::{
 };
 
 use eframe::egui::{self};
+use sysinfo::System;
 
 use crate::{
     utils::{
@@ -173,8 +174,14 @@ impl MyApp {
         }
 
         let mut command = Command::new(file_path);
+
+        if dll_path_clone.file_name().unwrap() != "skeet.dll" {
+            command.arg(target_process);
+        } else {
+            change_status_message(&status_message, "Please launch Counter-Strike.");
+        }
+
         command
-            .arg(target_process)
             .arg(dll_path_clone.clone())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
@@ -311,11 +318,14 @@ impl MyApp {
                         );
                     }
 
+                    let mut system = System::new_all();
+
                     loop {
                         if !Self::check_and_cancel(&in_progress, &status_message, &ctx_clone) {
                             return;
                         }
 
+                        system.refresh_all();
                         if is_process_running(&selected_clone.process) {
                             thread::sleep(Duration::from_secs(10));
                             break;
@@ -344,7 +354,7 @@ impl MyApp {
                             log::debug!("<INJECTION> Downloaded {}", selected_clone.name);
                         }
                         Err(e) => {
-                            in_progress.store(false, std::sync::atomic::Ordering::SeqCst);
+                            in_progress.store(false, Ordering::SeqCst);
                             change_status_message(&status_message, &e.to_string());
                             ctx_clone.request_repaint();
                             log::error!("<INJECTION> Failed to download hack file: {}", e);
@@ -390,7 +400,7 @@ impl MyApp {
                                 );
                             }
                             Err(e) => {
-                                in_progress.store(false, std::sync::atomic::Ordering::SeqCst);
+                                in_progress.store(false, Ordering::SeqCst);
                                 change_status_message(&status_message, &e.to_string());
                                 ctx_clone.request_repaint();
                                 log::error!("<INJECTION> Failed to download steam module: {}", e);
@@ -429,11 +439,14 @@ impl MyApp {
                         message_sender_clone.raw("Waiting for user to launch the game...");
                         log::info!("<INJECTION> Steam module injected, waiting for game launch.");
 
+                        let mut system = System::new_all();
+
                         loop {
                             if !Self::check_and_cancel(&in_progress, &status_message, &ctx_clone) {
                                 return;
                             }
 
+                            system.refresh_all();
                             if is_process_running(&selected_clone.process) {
                                 thread::sleep(Duration::from_secs(10));
                                 break;

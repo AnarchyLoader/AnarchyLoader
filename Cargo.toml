@@ -42,6 +42,7 @@ winreg = "0.55.0"
 zip-extract = "0.2.1"
 egui-theme-switch = "0.3.0"
 rand = "0.9.0"
+sysinfo = "0.33.1"
 
 [build-dependencies]
 winres = "0.1.12"

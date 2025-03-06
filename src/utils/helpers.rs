@@ -1,5 +1,4 @@
-use std::process::Command;
-
+use sysinfo::System;
 use winreg::{enums::HKEY_LOCAL_MACHINE, RegKey};
 
 pub fn get_windows_version() -> Option<String> {
@@ -25,11 +24,12 @@ pub fn start_cs_prompt() -> Result<(), String> {
 }
 
 pub fn is_process_running(process_name: &str) -> bool {
-    let output = Command::new("tasklist").output();
-    if let Ok(output) = output {
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        stdout.contains(process_name)
-    } else {
-        false
+    let mut system = System::new_all();
+    system.refresh_all();
+    for process in system.processes_by_name(process_name.as_ref()) {
+        if process.name() == process_name {
+            return true;
+        }
     }
+    false
 }
