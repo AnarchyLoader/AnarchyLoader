@@ -133,8 +133,8 @@ impl MyApp {
                         };
                         if ui
                             .ccheckbox(
-                                &mut self.app.config.display.force_unworking_hacks,
-                                "Force use unworking hacks",
+                                &mut self.app.config.display.force_use_not_working_hacks,
+                                "Force use not working hacks",
                             )
                             .changed()
                         {

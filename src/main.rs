@@ -210,7 +210,7 @@ impl MyApp {
         let mut using_cache = false;
 
         log::info!(
-            "<MAIN> Fetching hacks from API endpoint: {}",
+            "<HACKS> Fetching hacks from API endpoint: {}",
             config.api.api_endpoint
         );
 
@@ -253,26 +253,26 @@ impl MyApp {
                 hacks
             }
             Err(err) => {
-                log::error!("<MAIN> Failed to fetch hacks: {:?}", err);
+                log::error!("<HACKS> Failed to fetch hacks: {:?}", err);
                 parse_error = Some(err);
                 Vec::new()
             }
         };
 
         if let Err(e) = hacks::save_hacks_to_cache(&hacks) {
-            log::error!("<MAIN> Failed to save hacks to cache: {}", e);
+            log::error!("<HACKS> Failed to save hacks to cache: {}", e);
         } else {
-            log::info!("<MAIN> Hacks saved to cache successfully.");
+            log::info!("<HACKS> Hacks saved to cache successfully.");
         }
 
         let steam_account = SteamAccount::new().unwrap_or_else(|_| {
-            log::warn!("<MAIN> Failed to get Steam account details");
+            log::warn!("<STEAM> Failed to get Steam account details");
             SteamAccount::default()
         });
 
         let rpc = Rpc::new(!config.disable_rpc);
         if !config.disable_rpc {
-            log::info!("<MAIN> Discord RPC initialized");
+            log::info!("<RPC> Discord RPC initialized");
         }
 
         rpc.update(

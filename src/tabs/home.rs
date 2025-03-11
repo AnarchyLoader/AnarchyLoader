@@ -109,7 +109,7 @@ impl MyApp {
     }
 
     pub fn handle_dnd(&mut self, ctx: &egui::Context) {
-        let modal = Modal::new(ctx, "dnd_modal");
+        let modal = Modal::new(ctx, "dnd_modal").with_close_on_outside_click(true);
 
         modal.show(|ui| {
             ui.heading("Select process:");
@@ -329,7 +329,7 @@ impl MyApp {
             let response = ui
                 .add_enabled_ui(
                     (!in_progress || is_selected)
-                        && (hack.working || self.app.config.display.force_unworking_hacks),
+                        && (hack.working || self.app.config.display.force_use_not_working_hacks),
                     |ui| {
                         ui.selectable_label(self.app.selected_hack.as_ref() == Some(hack), label)
                             .on_hover_cursor(Clickable)
@@ -339,7 +339,7 @@ impl MyApp {
 
             // show if hack working
             if !hack.working {
-                if self.app.config.display.force_unworking_hacks {
+                if self.app.config.display.force_use_not_working_hacks {
                     ui.label(RichText::new(ICON_WARNING).color(egui::Color32::LIGHT_RED))
                         .on_hover_cursor(egui::CursorIcon::Help)
                         .on_hover_text(

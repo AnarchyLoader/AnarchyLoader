@@ -1,3 +1,5 @@
+use std::ops::RangeInclusive;
+
 use egui::{CursorIcon::PointingHand as Clickable, Response, Ui, WidgetText};
 use egui_material_icons::icons::{ICON_CHECK, ICON_RESTART_ALT};
 use egui_notify::Toasts;
@@ -125,7 +127,7 @@ pub trait Slider {
     fn cslider(
         &mut self,
         value: &mut f32,
-        range: std::ops::RangeInclusive<f32>,
+        range: RangeInclusive<f32>,
         text: String,
         suffix: &str,
     ) -> Response;
@@ -135,7 +137,7 @@ impl Slider for Ui {
     fn cslider(
         &mut self,
         value: &mut f32,
-        range: std::ops::RangeInclusive<f32>,
+        range: RangeInclusive<f32>,
         text: String,
         suffix: &str,
     ) -> Response {

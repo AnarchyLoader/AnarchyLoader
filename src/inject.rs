@@ -306,7 +306,12 @@ impl MyApp {
             .name("InjectionThread".to_string())
             .spawn(move || {
                 ctx_clone.request_repaint();
-                if automatically_run_game && is_cs2_or_csgo && !selected_clone.steam_module {
+                if automatically_run_game
+                    && is_cs2_or_csgo
+                    && !selected_clone.steam_module
+                    && !is_process_running(&selected.process)
+                    && selected.file != "skeet.dll"
+                {
                     if let Err(e) = start_cs_prompt() {
                         message_sender_clone.error(&format!(
                             "Failed to start Counter-Strike automatically: {}",

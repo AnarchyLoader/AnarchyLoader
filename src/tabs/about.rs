@@ -179,8 +179,7 @@ impl MyApp {
                                 .strong(),
                         );
 
-                        ui.add_space(15.0);
-
+                        ui.add_space(10.0);
 
                         ui.heading("Usage Statistics");
 
@@ -306,7 +305,6 @@ impl MyApp {
                     };
 
                     ui.add_space(10.0);
-
 
                     let stargazers_collapsing = ui.collapsing(
                         RichText::new(format!("{} Stargazers", ICON_STAR)).strong(),
