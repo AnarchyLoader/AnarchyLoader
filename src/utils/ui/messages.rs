@@ -39,7 +39,7 @@ impl MessageSender for mpsc::Sender<String> {
 }
 
 impl MyApp {
-    pub(crate) fn update_rpc_status_selecting(&mut self) {
+    pub(crate) fn update_rpc_status_selecting(&mut self, ctx: &egui::Context) {
         let version = format!("v{}", env!("CARGO_PKG_VERSION"));
         let status = if let Some(hack) = &self.app.selected_hack {
             format!("Selected {}", hack.name)
@@ -52,17 +52,23 @@ impl MyApp {
             status
         );
         self.rpc.update(Some(&version), Some(&status), Some("home"));
+
+        ctx.send_viewport_cmd(egui::ViewportCommand::EnableButtons {
+            close: true,
+            minimized: true,
+            maximize: true,
+        });
     }
 
-    pub fn handle_received_messages(&mut self) {
+    pub fn handle_received_messages(&mut self, ctx: &egui::Context) {
         match self.communication.messages.receiver.try_recv() {
             Ok(message) => {
                 if message.starts_with("SUCCESS: ") {
                     self.handle_successful_injection_message(message.clone());
-                    self.update_rpc_status_selecting();
+                    self.update_rpc_status_selecting(ctx);
                 } else if message.starts_with("ERROR: ") {
                     self.handle_error_message(message.clone());
-                    self.update_rpc_status_selecting();
+                    self.update_rpc_status_selecting(ctx);
                 } else {
                     self.handle_raw_message(message.clone());
                 }

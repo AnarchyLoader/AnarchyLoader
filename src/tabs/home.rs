@@ -386,13 +386,13 @@ impl MyApp {
         let is_favorite = self.app.config.favorites.contains(&hack.name);
         if is_favorite
             && ui
-                .add(
-                    egui::Button::new(ICON_STAR)
-                        .frame(false)
-                        .sense(Sense::click()),
-                )
-                .on_hover_cursor(Clickable)
-                .clicked()
+            .add(
+                egui::Button::new(ICON_STAR)
+                    .frame(false)
+                    .sense(Sense::click()),
+            )
+            .on_hover_cursor(Clickable)
+            .clicked()
         {
             self.toggle_favorite(hack.name.clone());
             self.toasts

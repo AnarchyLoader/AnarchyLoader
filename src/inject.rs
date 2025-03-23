@@ -12,6 +12,7 @@ use std::{
 };
 
 use eframe::egui::{self};
+use egui::ViewportCommand;
 use sysinfo::System;
 
 use crate::{
@@ -22,10 +23,6 @@ use crate::{
     },
     Hack, MyApp,
 };
-
-#[rustfmt::skip]
-#[cfg(feature = "scanner")]
-use crate::scanner::scanner::Scanner;
 
 pub(crate) fn change_status_message(status_message: &Arc<Mutex<String>>, message: &str) {
     let mut status = status_message.lock().unwrap();
@@ -66,8 +63,8 @@ impl MyApp {
                 let response = ureq::get(
                     "https://api.github.com/repos/AnarchyLoader/AnarchyInjector/releases",
                 )
-                .call()
-                .unwrap();
+                    .call()
+                    .unwrap();
 
                 let data: serde_json::Value = response.into_json().unwrap();
 
@@ -302,6 +299,12 @@ impl MyApp {
         in_progress.store(true, Ordering::SeqCst);
         let steam_module_injected = Arc::new(Mutex::new(false));
 
+        ctx.send_viewport_cmd(ViewportCommand::EnableButtons {
+            close: false,
+            minimized: true,
+            maximize: true,
+        });
+
         thread::Builder::new()
             .name("InjectionThread".to_string())
             .spawn(move || {
@@ -310,7 +313,7 @@ impl MyApp {
                     && is_cs2_or_csgo
                     && !selected_clone.steam_module
                     && !is_process_running(&selected.process)
-                    && selected.file != "skeet.dll"
+                    && !selected.steam_module
                 {
                     if let Err(e) = start_cs_prompt() {
                         message_sender_clone.error(&format!(

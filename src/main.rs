@@ -96,7 +96,7 @@ fn main() {
         native_options,
         Box::new(|cc| Ok(Box::new(MyApp::new(cc)))),
     )
-    .unwrap();
+        .unwrap();
 }
 
 #[derive(Debug)]
@@ -525,7 +525,7 @@ impl App for MyApp {
         self.render_top_panel(ctx);
 
         self.handle_dnd(ctx);
-        self.handle_received_messages();
+        self.handle_received_messages(ctx);
 
         egui::CentralPanel::default().show(ctx, |ui| {
             if self.app.config.animations.tab_animations {

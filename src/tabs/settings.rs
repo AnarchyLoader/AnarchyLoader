@@ -312,7 +312,7 @@ impl MyApp {
                                             self.app.config.save();
                                             log::info!("<SETTINGS_TAB> Game '{}' visibility toggled off, saving config", game_name);
                                         }
-                                        ui.label(game_name.clone());
+                                        ui.label(game_name.clone()).on_hover_cursor(egui::CursorIcon::Grab);
                                     });
                                 });
                             },
@@ -322,7 +322,7 @@ impl MyApp {
                             response.update_vec(&mut game_order);
                             self.app.config.game_order = game_order;
                             self.app.config.save();
-                            log::info!("<SETTINGS_TAB> Game order updated and saved: {:?}", self.app.config.game_order);
+                            log::debug!("<SETTINGS_TAB> Game order updated and saved: {:?}", self.app.config.game_order);
                         }
 
                         ui.add_space(5.0);
@@ -331,14 +331,14 @@ impl MyApp {
                             if ui.cibutton("Show all", ICON_VISIBILITY).clicked() {
                                 self.app.config.hidden_games.clear();
                                 self.app.config.save();
-                                log::info!("<SETTINGS_TAB> All games set to visible, saving config");
+                                log::debug!("<SETTINGS_TAB> All games set to visible, saving config");
                             }
 
                             if ui.cibutton("Hide all", ICON_VISIBILITY_OFF).clicked() {
                                 self.app.config.hidden_games =
                                     self.app.config.game_order.clone().into_iter().collect();
                                 self.app.config.save();
-                                log::info!("<SETTINGS_TAB> All games set to hidden, saving config");
+                                log::debug!("<SETTINGS_TAB> All games set to hidden, saving config");
                             }
                         });
 
@@ -349,7 +349,7 @@ impl MyApp {
                             {
                                 self.app.config.reset_game_order();
                                 self.toasts.success("Game order reset.");
-                                log::info!("<SETTINGS_TAB> Game order reset to default.");
+                                log::debug!("<SETTINGS_TAB> Game order reset to default.");
                             }
 
                             if ui
@@ -362,7 +362,7 @@ impl MyApp {
                                 self.app.config.hidden_games.clear();
                                 self.app.config.save();
                                 self.toasts.success("Hidden games reset.");
-                                log::info!("<SETTINGS_TAB> Hidden games reset to default, saving config");
+                                log::debug!("<SETTINGS_TAB> Hidden games reset to default, saving config");
                             }
                         });
 
