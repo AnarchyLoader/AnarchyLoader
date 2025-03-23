@@ -1,38 +1,91 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8"/>
-    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-    <title>AnarchyLoader</title>
-    <link href="static/css/styles.css" rel="stylesheet"/>
-    <script src="static/js/script.js"></script>
-    <link href="static/assets/logo.png" rel="icon"/>
-</head>
-<body>
-<video autoplay class="background-video" muted>
-    <source src="static/assets/background.mp4" type="video/mp4"/>
-</video>
+    <head>
+        <meta charset="UTF-8" />
+        <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+        <title>AnarchyLoader - HVH Loader</title>
 
-<div class="warn center">
-    <h1>PRESS INSERT.</h1>
-    <p id="wait">Or wait 5 seconds...</p>
-</div>
+        <!-- css -->
+        <link href="static/css/styles.css" rel="stylesheet" />
+        <link href="static/css/header.css" rel="stylesheet" />
+        <link
+            rel="stylesheet"
+            href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,300,0,0"
+        />
 
-<div class="gui">
-    <h1>Downloader</h1>
+        <!-- inter sigma font -->
+        <link rel="preconnect" href="https://rsms.me/" />
+        <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
 
-    <img alt="logo" class="logo" src="static/assets/logo.png"/>
+        <script src="static/js/script.js" type="module"></script>
+        <script src="static/js/onload.js"></script>
+        <script src="static/js/libraries/hacker-text.js"></script>
+        <link href="static/assets/logo.png" rel="icon" />
 
-    <div class="buttons">
-        <a href="https://discord.com/invite/VPGRgXUCsv">Discord</a>
+        <!-- Meta -->
+        <meta
+            name="description"
+            content="AnarchyLoader, loader for hacks, completely open source, experemental solution for HVH"
+        />
+        <meta
+            property="og:description"
+            content="AnarchyLoader, loader for hacks, completely open source, experemental solution for HVH"
+        />
+        <meta name="darkreader-lock" />
+        <meta
+            name="keywords"
+            content="anarhcyloader, hacks, loader, hvh, hvh loader, open source, skeet, onetap, aimware, primordial"
+        />
+        <meta name="author" content="dest4590" />
+        <meta property="og:title" content="AnarchyLoader - HVH Loader" />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://anarchy.my" />
+    </head>
 
-        <a href="#" id="release" target="_blank"
-        >Download latest release</a
-        >
-        <a href="#" id="nightly" target="_blank"
-        >Download nightly version</a
-        >
-    </div>
-</div>
-</body>
+    <body onload="document.load()">
+        <div class="header">
+            <video autoplay loop muted playsinline>
+                <source src="static/assets/anarchytext.mp4" type="video/mp4" />
+            </video>
+
+            <div class="buttons">
+                <nav class="header-buttons">
+                    <a
+                        href="https://github.com/AnarchyLoader/AnarchyLoader"
+                        target="_blank"
+                        id="github"
+                        >GITHUB</a
+                    >
+                    <a href="https://api.anarchy.my/" target="_blank" id="api"
+                        >API</a
+                    >
+                </nav>
+            </div>
+        </div>
+
+        <div class="center download-buttons">
+            <a
+                class="button disabled"
+                href="#"
+                id="download-stable"
+                onclick="document.openDownloadPage(this)"
+                ><span class="material-symbols-outlined">download</span
+                >stable</a
+            >
+            <a
+                class="button disabled"
+                href="#"
+                id="download-prerelease"
+                onclick="document.openDownloadPage(this)"
+                ><span class="material-symbols-outlined">api</span>nightly</a
+            >
+
+            <a class="button button-discord" href="/discord/"
+                ><img
+                    src="static/assets/discord-icon.svg"
+                    width="24"
+                />discord</a
+            >
+        </div>
+    </body>
 </html>
