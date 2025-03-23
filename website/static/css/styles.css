@@ -1,21 +1,85 @@
-body {
-    margin: 0;
-    padding: 0;
-    background-color: black;
-    color: white;
-    font-family: monospace;
+:root {
+    font-family: Inter, sans-serif;
+    font-feature-settings: 'liga' 1, 'calt' 1; /* fix for Chrome */
 }
 
-.background-video {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
+@supports (font-variation-settings: normal) {
+    :root {
+        font-family: InterVariable, sans-serif;
+    }
+}
+
+html.lenis,
+html.lenis body {
+    height: auto;
+}
+
+html {
     height: 100%;
-    z-index: -1000;
-    object-fit: cover;
-    filter: brightness(0.3);
-    transition: all 1s;
+}
+
+body {
+    background-color: black;
+    color: white;
+    margin: 0;
+}
+
+* {
+    color-scheme: dark;
+}
+
+a {
+    text-decoration: none;
+    color: rgb(222, 197, 255);
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+.button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    color: #23272a;
+    background-color: #ffffffde;
+    backdrop-filter: blur(5px);
+
+    border-radius: 10px;
+    padding: 15px 30px;
+    font-size: 19px;
+    line-height: 24px;
+    transition: all 0.2s;
+    width: max-content;
+    text-decoration: none !important;
+    font-weight: 600;
+}
+
+.button-discord {
+    color: #17191b;
+    background-color: #96a6e2;
+}
+
+.button:hover {
+    transform: scale(1.05);
+}
+
+.button:active {
+    transform: scale(0.95);
+}
+
+.disabled {
+    opacity: 0.5;
+    cursor: not-allowed !important;
+}
+
+.material-symbols-outlined {
+    margin-right: 0.35rem;
+}
+
+.button img {
+    margin-right: 0.5rem;
 }
 
 .center {
@@ -27,79 +91,20 @@ body {
     text-align: center;
 }
 
-#wait {
-    opacity: 0;
-    transition: all 500ms;
-}
-
-.warn {
-    opacity: 0;
-    transition: all 500ms;
-    font-size: x-large;
-}
-
-.gui {
+.download-buttons {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-direction: column;
-
-    margin: 0;
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    opacity: 0;
-    transition: all 300ms;
-    width: 500px;
-    height: 300px;
-    background-color: rgba(255, 255, 255, 0.048);
-    border-radius: 10px;
-    pointer-events: none;
-    backdrop-filter: blur(10px);
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 2rem;
 }
 
-.gui h1 {
-    user-select: none;
+/* fonts */
+@font-face {
+    font-family: NotoSans;
+    src: url('/static/fonts/NotoSans-Regular.woff2');
 }
 
-.gui-mobile {
-    width: calc(500px / 2);
-    height: calc(300px / 2);
-}
-
-.gui img {
-    height: 100px;
-    transition: all 300ms;
-    opacity: 0;
-    pointer-events: none;
-    user-select: none;
-}
-
-.buttons {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-
-    margin-bottom: 1rem;
-}
-
-.buttons a {
-    padding: 0.2rem;
-    text-align: center;
-    color: white;
-    text-decoration: none;
-    font-size: 1.5rem;
-    transition: all 300ms;
-}
-
-.buttons a:hover {
-    color: #ff0000;
-    text-decoration: underline;
-}
-
-.disabled {
-    color: gray;
-    pointer-events: none;
-    cursor: not-allowed;
+@font-face {
+    font-family: NotoSansBold;
+    src: url('/static/fonts/NotoSans-Bold.woff2');
 }

@@ -1,88 +1,36 @@
-function isMobile() {
-    const toMatch = [
-        /Android/i,
-        /webOS/i,
-        /iPhone/i,
-        /iPad/i,
-        /iPod/i,
-        /BlackBerry/i,
-        /Windows Phone/i,
-    ];
-
-    return toMatch.some((toMatchItem) => {
-        return navigator.userAgent.match(toMatchItem);
-    });
+function setOSName() {
+    const userAgent = window.navigator.userAgent;
+    document.OSName = /Windows/.test(userAgent)
+        ? 'Windows'
+        : /Mac/.test(userAgent)
+        ? 'Mac/iOS'
+        : /X11/.test(userAgent)
+        ? 'UNIX'
+        : /Linux/.test(userAgent)
+        ? 'Linux'
+        : 'Unknown';
 }
-window.onload = function () {
-    console.log('Is mobile: ' + isMobile());
 
-    if (!isMobile()) {
-        setRelease();
-        setNightly();
+export async function load() {
+    setOSName();
 
-        const video = document.querySelector('.background-video');
-        const warn = document.querySelector('.warn');
-        const waitText = document.querySelector('#wait');
-        var showen = false;
-        var insertPressed = false;
+    if (location.pathname === '/') {
+        const latestRelease = await fetchLatestRelease();
+        if (latestRelease !== '') {
+            document.getElementById('download-stable').link = latestRelease;
+            document
+                .getElementById('download-stable')
+                .classList.remove('disabled');
+        }
 
-        video.addEventListener('ended', () => {
-            video.src = 'static/assets/background_loop.mp4';
-            video.loop = true;
-        });
-
-        setTimeout(() => {
-            warn.style.opacity = 1;
-            video.style.filter = 'brightness(0.1)';
-            showen = true;
-
-            setTimeout(() => {
-                if (!insertPressed) {
-                    waitText.style.opacity = 1;
-                    setTimeout(() => {
-                        handleGui();
-                    }, 4000);
-                }
-            }, 3000);
-        }, 2000);
-
-        document.addEventListener('keydown', (event) => {
-            if (event.key === 'Insert' && showen) {
-                insertPressed = true;
-                handleGui();
-            }
-        });
-    } else {
-        const video = document.querySelector('.background-video');
-        const gui = document.querySelector('.gui');
-        video.src = 'static/assets/background_loop.mp4';
-        video.loop = true;
-
-        gui.classList.add('gui-mobile');
-
-        handleGui();
-    }
-};
-
-function handleGui() {
-    console.log('Showing GUI');
-
-    const gui = document.querySelector('.gui');
-    const warn = document.querySelector('.warn');
-    const logo = document.querySelector('.logo');
-
-    if (gui.style.opacity == 0) {
-        warn.style.opacity = 0;
-        gui.style.opacity = 1;
-        gui.style.pointerEvents = 'auto';
-
-        setTimeout(() => {
-            gui.style.height = '400px';
-        }, 300);
-
-        setTimeout(() => {
-            logo.style.opacity = 1;
-        }, 400);
+        const latestPrerelease = await fetchLatestPrerelease();
+        if (latestPrerelease !== '') {
+            document.getElementById('download-prerelease').link =
+                latestPrerelease;
+            document
+                .getElementById('download-prerelease')
+                .classList.remove('disabled');
+        }
     }
 }
 
@@ -99,30 +47,32 @@ async function fetchJSON(url) {
     }
 }
 
-async function setRelease() {
+async function fetchLatestRelease() {
     const data = await fetchJSON(
         'https://api.github.com/repos/AnarchyLoader/AnarchyLoader/releases/latest'
     );
-    const downloadUrl = data?.assets?.[0]?.browser_download_url ?? '';
-    const downloadButton = document.querySelector('#release');
-    if (downloadUrl) {
-        downloadButton.href = downloadUrl;
-    } else {
-        downloadButton.classList.add('disabled');
-    }
+    return data?.assets?.[0]?.browser_download_url ?? '';
 }
 
-async function setNightly() {
+async function fetchLatestPrerelease() {
     const data = await fetchJSON(
         'https://api.github.com/repos/AnarchyLoader/AnarchyLoader/releases'
     );
-    const downloadUrl =
-        data?.find((release) => release.prerelease)?.assets?.[0]
-            ?.browser_download_url ?? '';
-    const downloadButton = document.querySelector('#nightly');
-    if (downloadUrl) {
-        downloadButton.href = downloadUrl;
-    } else {
-        downloadButton.classList.add('disabled');
+    const latestPrerelease = data?.find((release) => release.prerelease);
+    return latestPrerelease?.assets?.[0]?.browser_download_url ?? '';
+}
+
+function alertCompatibility() {
+    if (document.OSName !== 'Windows') {
+        alert('Loader is not supported on Unix or Mac');
     }
 }
+
+async function openDownloadPage(self) {
+    alertCompatibility();
+    if (self.classList.contains('disabled')) return;
+    window.open(self.link, '_blank');
+}
+
+document.load = load;
+document.openDownloadPage = openDownloadPage;
