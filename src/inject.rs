@@ -276,13 +276,140 @@ impl MyApp {
             }
         }
     }
+
+    pub fn inject_steam_module(
+        &mut self,
+        hack: Arc<Hack>,
+        ctx: egui::Context,
+        message_sender: Sender<String>,
+    ) {
+        let in_progress = Arc::clone(&self.communication.in_progress);
+        let status_message = Arc::clone(&self.communication.status_message);
+        let ctx_clone = ctx.clone();
+        let message_sender_clone = message_sender.clone();
+        let hack_clone = hack.clone();
+
+        if !hack.steam_module {
+            message_sender_clone.error("Selected hack does not have a steam module.");
+            log::error!("<INJECTION> Selected hack does not have a steam module.");
+            return;
+        }
+
+        change_status_message(&status_message, "Starting steam module injection...");
+        log::info!(
+            "<INJECTION> Starting steam module injection for hack: {}",
+            hack.name
+        );
+
+        in_progress.store(true, Ordering::SeqCst);
+
+        ctx.send_viewport_cmd(ViewportCommand::EnableButtons {
+            close: false,
+            minimized: true,
+            maximize: true,
+        });
+
+        thread::Builder::new()
+            .name("SteamModuleInjectionThread".to_string())
+            .spawn(move || {
+                ctx_clone.request_repaint();
+                let steam_module_path = hack_clone
+                    .file_path
+                    .parent()
+                    .unwrap()
+                    .join(format!("steam_{}", hack_clone.file));
+
+                if !steam_module_path.exists() {
+                    if !Self::check_and_cancel(&in_progress, &status_message, &ctx_clone) {
+                        return;
+                    }
+                    change_status_message(
+                        &status_message,
+                        &format!("Downloading steam module for {}...", hack_clone.name),
+                    );
+                    ctx_clone.request_repaint();
+                    log::info!(
+                        "<INJECTION> Steam module required for hack: {}",
+                        hack_clone.name
+                    );
+
+                    match hack_clone.download_steam_module() {
+                        Ok(_) => {
+                            change_status_message(&status_message, "Downloaded steam module.");
+                            ctx_clone.request_repaint();
+                            log::debug!(
+                                "<INJECTION> Downloaded steam module for {}",
+                                hack_clone.name
+                            );
+                        }
+                        Err(e) => {
+                            in_progress.store(false, Ordering::SeqCst);
+                            change_status_message(&status_message, &e.to_string());
+                            ctx_clone.request_repaint();
+                            log::error!("<INJECTION> Failed to download steam module: {}", e);
+                            message_sender_clone
+                                .error(&format!("Failed to download steam module: {}", e));
+                            return;
+                        }
+                    }
+                }
+
+                if !Self::check_and_cancel(&in_progress, &status_message, &ctx_clone) {
+                    return;
+                }
+
+                change_status_message(&status_message, "Injecting steam module...");
+                ctx_clone.request_repaint();
+                log::info!(
+                    "<INJECTION> Injecting steam module for hack: {}",
+                    hack_clone.name
+                );
+
+                if MyApp::manual_map_inject(
+                    Some(steam_module_path),
+                    "steam.exe",
+                    message_sender_clone.clone(),
+                    status_message.clone(),
+                    ctx_clone.clone(),
+                    false,
+                    in_progress.clone(),
+                ) {
+                    change_status_message(
+                        &status_message,
+                        "Steam module injected. Please launch Counter-Strike.",
+                    );
+                    ctx_clone.request_repaint();
+                    message_sender_clone.raw("Steam module injected successfully!");
+                    log::info!("<INJECTION> Steam module injected successfully!");
+                } else {
+                    in_progress.store(false, Ordering::SeqCst);
+                    change_status_message(&status_message, "Failed to inject steam module.");
+                    ctx_clone.request_repaint();
+                    message_sender_clone.error("Failed to inject steam module.");
+                    log::error!("<INJECTION> Failed to inject steam module.");
+                    return;
+                }
+
+                in_progress.store(false, Ordering::SeqCst);
+                ctx_clone.request_repaint();
+            })
+            .expect("Failed to spawn steam module injection thread");
+    }
+
     pub fn injection(
         &mut self,
         selected: Hack,
         ctx: egui::Context,
         message_sender: Sender<String>,
         force_x64: bool,
+        inject_steam_module_only: bool,
     ) {
+        if inject_steam_module_only {
+            let hack_arc = Arc::new(selected);
+            self.inject_steam_module(hack_arc, ctx, message_sender);
+            return;
+        }
+
         let in_progress = Arc::clone(&self.communication.in_progress);
         let status_message = Arc::clone(&self.communication.status_message);
         let selected_clone = selected.clone();
@@ -521,6 +648,11 @@ impl MyApp {
     ) -> bool {
         if !in_progress.load(Ordering::SeqCst) {
             change_status_message(status_message, "Injection cancelled.");
+            ctx.send_viewport_cmd(ViewportCommand::EnableButtons {
+                close: true,
+                minimized: true,
+                maximize: true,
+            });
             ctx.request_repaint();
             false
         } else {

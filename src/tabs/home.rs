@@ -16,9 +16,10 @@ use egui::{
 use egui_commonmark::CommonMarkViewer;
 use egui_material_icons::icons::{
     ICON_AWARD_STAR, ICON_BLOCK, ICON_CANCEL, ICON_CHECK, ICON_CLOSE, ICON_CLOUD_OFF,
-    ICON_EDITOR_CHOICE, ICON_INVENTORY_2, ICON_LINK, ICON_LOGIN, ICON_MILITARY_TECH,
-    ICON_NO_ACCOUNTS, ICON_OPEN_IN_NEW, ICON_PERSON, ICON_PROBLEM, ICON_QUESTION_MARK, ICON_SEARCH,
-    ICON_SEARCH_OFF, ICON_STAR, ICON_SYRINGE, ICON_VISIBILITY, ICON_WARNING,
+    ICON_EDITOR_CHOICE, ICON_EXTENSION, ICON_INVENTORY_2, ICON_LINK, ICON_LOGIN,
+    ICON_MILITARY_TECH, ICON_NO_ACCOUNTS, ICON_OPEN_IN_NEW, ICON_PERSON, ICON_PROBLEM,
+    ICON_QUESTION_MARK, ICON_SEARCH, ICON_SEARCH_OFF, ICON_STAR, ICON_SYRINGE, ICON_VISIBILITY,
+    ICON_WARNING,
 };
 use egui_modal::Modal;
 use url::Url;
@@ -79,6 +80,7 @@ impl MyApp {
                     selected.clone(),
                     ctx.clone(),
                     self.communication.messages.sender.clone(),
+                    false,
                     false,
                 );
             }
@@ -621,6 +623,26 @@ impl MyApp {
             })
             .inner;
 
+        let inject_steam_module_button = ui
+            .add_enabled_ui(!in_progress && selected.steam_module, |ui| {
+                ui.button_with_tooltip(
+                    format!("{} Inject steam module", ICON_EXTENSION),
+                    "Inject the steam module",
+                )
+            })
+            .inner;
+
+        if selected.steam_module && inject_steam_module_button.clicked() {
+            self.toasts.info("Injecting steam module...");
+            self.injection(
+                selected.clone(),
+                ctx.clone(),
+                self.communication.messages.sender.clone(),
+                ctx.input(|i| i.modifiers.ctrl),
+                true,
+            );
+        }
+
         if is_32bit {
             ui.label(
                 RichText::new("32-bit detected, cs2 hacks are not supported.")
@@ -644,6 +666,7 @@ impl MyApp {
                         ctx.clone(),
                         self.communication.messages.sender.clone(),
                         ctx.input(|i| i.modifiers.ctrl),
+                        false,
                     );
                     return;
                 }
@@ -677,6 +700,7 @@ impl MyApp {
                     ctx.clone(),
                     self.communication.messages.sender.clone(),
                     ctx.input(|i| i.modifiers.ctrl),
+                    false,
                 );
             } else {
                 self.run_executor(
