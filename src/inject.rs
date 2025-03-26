@@ -13,6 +13,7 @@ use std::{
 
 use eframe::egui::{self};
 use egui::ViewportCommand;
+use proc_mem::Process;
 use sysinfo::System;
 
 use crate::{
@@ -131,7 +132,6 @@ impl MyApp {
         target_process: &str,
         message_sender: Sender<String>,
         status_message: Arc<Mutex<String>>,
-        ctx: egui::Context,
         use_x64: bool,
         in_progress: Arc<AtomicBool>,
     ) -> bool {
@@ -164,7 +164,7 @@ impl MyApp {
                     message_sender.error(&error_message.clone());
                     log::error!("<INJECTION> {}", error_message);
                     change_status_message(&status_message, &error_message);
-                    ctx.request_repaint();
+
                     return false;
                 }
             }
@@ -210,7 +210,6 @@ impl MyApp {
                 let stderr_reader = BufReader::new(stderr);
                 let message_sender_clone = message_sender.clone();
                 let status_message_clone = status_message.clone();
-                let ctx_clone = ctx.clone();
 
                 let stderr_thread = thread::spawn(move || {
                     let mut full_error = String::new();
@@ -233,7 +232,6 @@ impl MyApp {
                             &status_message_clone,
                             &format!("Failed to execute injector: {}", full_error),
                         );
-                        ctx_clone.request_repaint();
                     }
                 });
                 let in_progress_clone_wait = in_progress.clone();
@@ -249,7 +247,6 @@ impl MyApp {
                                 message_sender.success(&format!("{}", &dll));
                                 log::info!("<INJECTION> Injected into {}", target_process);
                                 change_status_message(&status_message, "Injection successful.");
-                                ctx.request_repaint();
                             }
                             true
                         } else {
@@ -261,7 +258,7 @@ impl MyApp {
                         message_sender.error(&error_message.clone());
                         log::error!("<INJECTION> {}", error_message);
                         change_status_message(&status_message, &error_message);
-                        ctx.request_repaint();
+
                         false
                     }
                 }
@@ -271,7 +268,7 @@ impl MyApp {
                 message_sender.error(&error_message.clone());
                 log::error!("<INJECTION> {}", error_message);
                 change_status_message(&status_message, &error_message);
-                ctx.request_repaint();
+
                 false
             }
         }
@@ -312,7 +309,6 @@ impl MyApp {
         thread::Builder::new()
             .name("SteamModuleInjectionThread".to_string())
             .spawn(move || {
-                ctx_clone.request_repaint();
                 let steam_module_path = hack_clone
                     .file_path
                     .parent()
@@ -327,7 +323,7 @@ impl MyApp {
                         &status_message,
                         &format!("Downloading steam module for {}...", hack_clone.name),
                     );
-                    ctx_clone.request_repaint();
+
                     log::info!(
                         "<INJECTION> Steam module required for hack: {}",
                         hack_clone.name
@@ -336,7 +332,7 @@ impl MyApp {
                     match hack_clone.download_steam_module() {
                         Ok(_) => {
                             change_status_message(&status_message, "Downloaded steam module.");
-                            ctx_clone.request_repaint();
+
                             log::debug!(
                                 "<INJECTION> Downloaded steam module for {}",
                                 hack_clone.name
@@ -345,7 +341,7 @@ impl MyApp {
                         Err(e) => {
                             in_progress.store(false, Ordering::SeqCst);
                             change_status_message(&status_message, &e.to_string());
-                            ctx_clone.request_repaint();
+
                             log::error!("<INJECTION> Failed to download steam module: {}", e);
                             message_sender_clone
                                 .error(&format!("Failed to download steam module: {}", e));
@@ -359,7 +355,7 @@ impl MyApp {
                 }
 
                 change_status_message(&status_message, "Injecting steam module...");
-                ctx_clone.request_repaint();
+
                 log::info!(
                     "<INJECTION> Injecting steam module for hack: {}",
                     hack_clone.name
@@ -370,7 +366,6 @@ impl MyApp {
                     "steam.exe",
                     message_sender_clone.clone(),
                     status_message.clone(),
-                    ctx_clone.clone(),
                     false,
                     in_progress.clone(),
                 ) {
@@ -378,20 +373,19 @@ impl MyApp {
                         &status_message,
                         "Steam module injected. Please launch Counter-Strike.",
                     );
-                    ctx_clone.request_repaint();
+
                     message_sender_clone.raw("Steam module injected successfully!");
                     log::info!("<INJECTION> Steam module injected successfully!");
                 } else {
                     in_progress.store(false, Ordering::SeqCst);
                     change_status_message(&status_message, "Failed to inject steam module.");
-                    ctx_clone.request_repaint();
+
                     message_sender_clone.error("Failed to inject steam module.");
                     log::error!("<INJECTION> Failed to inject steam module.");
                     return;
                 }
 
                 in_progress.store(false, Ordering::SeqCst);
-                ctx_clone.request_repaint();
             })
             .expect("Failed to spawn steam module injection thread");
     }
@@ -419,6 +413,7 @@ impl MyApp {
         let is_cs2_or_csgo = selected.process.eq_ignore_ascii_case("cs2.exe")
             || selected.process.eq_ignore_ascii_case("csgo.exe");
         let automatically_run_game = self.app.config.automatically_run_game;
+        let immediately_inject = self.app.config.immediately_inject_hack;
 
         change_status_message(&status_message, "Starting injection...");
         log::info!("<INJECTION> Starting injection for hack: {}", selected.name);
@@ -435,7 +430,6 @@ impl MyApp {
         thread::Builder::new()
             .name("InjectionThread".to_string())
             .spawn(move || {
-                ctx_clone.request_repaint();
                 if automatically_run_game
                     && is_cs2_or_csgo
                     && !selected_clone.steam_module
@@ -465,7 +459,6 @@ impl MyApp {
                             thread::sleep(Duration::from_secs(10));
                             break;
                         }
-                        ctx_clone.request_repaint();
                     }
                 }
 
@@ -474,7 +467,7 @@ impl MyApp {
                         &status_message,
                         &format!("Downloading {}...", selected_clone.name),
                     );
-                    ctx_clone.request_repaint();
+
                     log::info!(
                         "<INJECTION> Hack file not found, downloading: {}",
                         selected_clone.name
@@ -485,13 +478,13 @@ impl MyApp {
                     {
                         Ok(_) => {
                             change_status_message(&status_message, "Downloaded.");
-                            ctx_clone.request_repaint();
+
                             log::debug!("<INJECTION> Downloaded {}", selected_clone.name);
                         }
                         Err(e) => {
                             in_progress.store(false, Ordering::SeqCst);
                             change_status_message(&status_message, &e.to_string());
-                            ctx_clone.request_repaint();
+
                             log::error!("<INJECTION> Failed to download hack file: {}", e);
                             message_sender_clone.error(&format!("Failed to download: {}", e));
                             return;
@@ -519,7 +512,7 @@ impl MyApp {
                             &status_message,
                             &format!("Downloading steam module for {}...", selected_clone.name),
                         );
-                        ctx_clone.request_repaint();
+
                         log::info!(
                             "<INJECTION> Steam module required for hack: {}",
                             selected_clone.name
@@ -528,7 +521,7 @@ impl MyApp {
                         match selected_clone.download_steam_module() {
                             Ok(_) => {
                                 change_status_message(&status_message, "Downloaded steam module.");
-                                ctx_clone.request_repaint();
+
                                 log::debug!(
                                     "<INJECTION> Downloaded steam module for {}",
                                     selected_clone.name
@@ -537,7 +530,7 @@ impl MyApp {
                             Err(e) => {
                                 in_progress.store(false, Ordering::SeqCst);
                                 change_status_message(&status_message, &e.to_string());
-                                ctx_clone.request_repaint();
+
                                 log::error!("<INJECTION> Failed to download steam module: {}", e);
                                 message_sender_clone
                                     .error(&format!("Failed to download steam module: {}", e));
@@ -550,7 +543,7 @@ impl MyApp {
                         return;
                     }
                     change_status_message(&status_message, "Injecting steam module...");
-                    ctx_clone.request_repaint();
+
                     log::info!(
                         "<INJECTION> Injecting steam module for hack: {}",
                         selected_clone.name
@@ -561,7 +554,6 @@ impl MyApp {
                         "steam.exe",
                         message_sender_clone.clone(),
                         status_message.clone(),
-                        ctx_clone.clone(),
                         false,
                         in_progress.clone(),
                     ) {
@@ -570,7 +562,7 @@ impl MyApp {
                             &status_message,
                             "Steam module injected. Please launch Counter-Strike.",
                         );
-                        ctx_clone.request_repaint();
+
                         message_sender_clone.raw("Waiting for user to launch the game...");
                         log::info!("<INJECTION> Steam module injected, waiting for game launch.");
 
@@ -586,13 +578,11 @@ impl MyApp {
                                 thread::sleep(Duration::from_secs(10));
                                 break;
                             }
-
-                            ctx_clone.request_repaint();
                         }
                     } else {
                         in_progress.store(false, Ordering::SeqCst);
                         change_status_message(&status_message, "Failed to inject steam module.");
-                        ctx_clone.request_repaint();
+
                         return;
                     }
                 }
@@ -601,12 +591,71 @@ impl MyApp {
                     thread::sleep(Duration::from_secs(1));
                 }
 
+                let process_name = selected_clone.process.clone();
+                let mut client_dll_found = false;
+                let start_time = std::time::Instant::now();
+
+                if !is_process_running(&selected_clone.process) {
+                    in_progress.store(false, Ordering::SeqCst);
+                    let error_message = format!(
+                        "Failed to find process {}, try running loader as admin.",
+                        &selected_clone.process
+                    );
+                    message_sender_clone.error(&error_message);
+                    change_status_message(&status_message, &error_message);
+
+                    log::error!("<INJECTION> {}", error_message);
+                    return;
+                }
+
+                if !immediately_inject {
+                    while !client_dll_found && start_time.elapsed() < Duration::from_secs(60) {
+                        if !Self::check_and_cancel(&in_progress, &status_message, &ctx_clone) {
+                            return;
+                        }
+
+                        if let Ok(process) = Process::with_name(&process_name) {
+                            if let Ok(_module) = process.module("client.dll") {
+                                client_dll_found = true;
+                                break;
+                            } else {
+                                log::warn!("<INJECTION> Failed to get process modules, retrying.");
+                            }
+                        } else {
+                            log::warn!("<INJECTION> Process not found, retrying.");
+                        }
+
+                        if !client_dll_found {
+                            thread::sleep(Duration::from_secs(1));
+                        }
+                    }
+
+                    if !client_dll_found {
+                        in_progress.store(false, Ordering::SeqCst);
+                        let error_message =
+                            "client.dll not found after 60 seconds, injection aborted.";
+                        message_sender_clone.error(error_message);
+                        change_status_message(&status_message, error_message);
+
+                        log::error!("<INJECTION> {}", error_message);
+                        return;
+                    }
+
+                    log::info!("<INJECTION> client.dll found, waiting 10 seconds...");
+                    change_status_message(
+                        &status_message,
+                        "Found client.dll, waiting 10 seconds...",
+                    );
+
+                    thread::sleep(Duration::from_secs(10));
+                }
+
                 if !Self::check_and_cancel(&in_progress, &status_message, &ctx_clone) {
                     return;
                 }
 
                 change_status_message(&status_message, "Injecting...");
-                ctx_clone.request_repaint();
+
                 log::info!("<INJECTION> Injecting hack: {}", selected_clone.name);
 
                 if !skip_inject_delay {
@@ -624,7 +673,6 @@ impl MyApp {
                     target_process,
                     message_sender_clone.clone(),
                     status_message_clone,
-                    ctx_clone.clone(),
                     if selected_clone.arch == "x64" {
                         true
                     } else {
@@ -636,7 +684,6 @@ impl MyApp {
                 }
 
                 in_progress.store(false, Ordering::SeqCst);
-                ctx_clone.request_repaint();
             })
             .expect("Failed to spawn injection thread");
     }
@@ -653,7 +700,7 @@ impl MyApp {
                 minimized: true,
                 maximize: true,
             });
-            ctx.request_repaint();
+
             false
         } else {
             true

@@ -159,7 +159,6 @@ impl MyApp {
                     &self.ui.selected_process_dnd.clone(),
                     self.communication.messages.sender.clone(),
                     self.communication.status_message.clone(),
-                    ctx.clone(),
                     use_x64,
                     self.communication.in_progress.clone(),
                 ) {
@@ -623,24 +622,26 @@ impl MyApp {
             })
             .inner;
 
-        let inject_steam_module_button = ui
-            .add_enabled_ui(!in_progress && selected.steam_module, |ui| {
-                ui.button_with_tooltip(
-                    format!("{} Inject steam module", ICON_EXTENSION),
-                    "Inject the steam module",
-                )
-            })
-            .inner;
+        if selected.steam_module {
+            let inject_steam_module_button = ui
+                .add_enabled_ui(!in_progress, |ui| {
+                    ui.button_with_tooltip(
+                        format!("{} Inject steam module", ICON_EXTENSION),
+                        "Inject the steam module",
+                    )
+                })
+                .inner;
 
-        if selected.steam_module && inject_steam_module_button.clicked() {
-            self.toasts.info("Injecting steam module...");
-            self.injection(
-                selected.clone(),
-                ctx.clone(),
-                self.communication.messages.sender.clone(),
-                ctx.input(|i| i.modifiers.ctrl),
-                true,
-            );
+            if selected.steam_module && inject_steam_module_button.clicked() {
+                self.toasts.info("Injecting steam module...");
+                self.injection(
+                    selected.clone(),
+                    ctx.clone(),
+                    self.communication.messages.sender.clone(),
+                    ctx.input(|i| i.modifiers.ctrl),
+                    true,
+                );
+            }
         }
 
         if is_32bit {
@@ -755,7 +756,7 @@ impl MyApp {
                 };
 
                 ui.group(|ui| {
-                    let cannot_find = status.contains("Can not find process");
+                    let cannot_find = status.contains("Failed to find process");
 
                     let s = if cannot_find {
                         ICON_SEARCH_OFF.to_owned() + &*status
@@ -786,6 +787,8 @@ impl MyApp {
                 let mut status = self.communication.status_message.lock().unwrap();
                 *status = format!("Failed to launch CS: {}", e);
             }
+
+            self.toasts.info("Starting Counter-Strike...");
         }
     }
 

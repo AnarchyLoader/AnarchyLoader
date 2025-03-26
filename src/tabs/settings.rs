@@ -159,6 +159,13 @@ impl MyApp {
                             self.app.config.save();
                         }
                         if ui
+                            .ccheckbox(&mut self.app.config.immediately_inject_hack,
+                                       "Immediately inject hack")
+                            .changed()
+                        {
+                            self.app.config.save();
+                        }
+                        if ui
                             .ccheckbox(&mut self.app.config.display.skip_update_check, "Skip update check")
                             .changed()
                         {

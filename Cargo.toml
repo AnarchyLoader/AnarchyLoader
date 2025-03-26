@@ -43,6 +43,7 @@ zip-extract = "0.2.1"
 egui-theme-switch = "0.3.0"
 rand = "0.9.0"
 sysinfo = "0.33.1"
+proc_mem = "0.1.6"
 
 [build-dependencies]
 winres = "0.1.12"
