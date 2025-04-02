@@ -16,7 +16,9 @@ use eframe::{
     egui::{self, RichText},
     App,
 };
-use egui::{emath::easing, include_image, DroppedFile, FontFamily, FontId, Id, Image, Vec2};
+use egui::{
+    emath::easing, include_image, DroppedFile, FontFamily, FontId, Id, Image, Vec2,
+};
 use egui_alignments::center_vertical;
 use egui_commonmark::CommonMarkCache;
 use egui_notify::Toasts;
@@ -362,7 +364,6 @@ impl MyApp {
                         new_local_process: String::new(),
                         new_local_arch: String::new(),
                     },
-
                     #[cfg(feature = "scanner")]
                     scanner: ScannerPopup {
                         dll: String::new(),
@@ -415,6 +416,10 @@ impl MyApp {
 impl App for MyApp {
     // MARK: Global render
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        if self.app.config.display.use_catppuccin_theme {
+            catppuccin_egui::set_theme(ctx, self.app.config.display.catpuccin_flavor.convert());
+        }
+
         egui_extras::install_image_loaders(ctx);
 
         if !self.app.config.display.disable_hack_name_animation {

@@ -25,6 +25,9 @@ use crate::{
     Hack, MyApp,
 };
 
+const STEAM_EXE: &str = "steam.exe";
+const CLIENT_DLL: &str = "client.dll";
+
 pub(crate) fn change_status_message(status_message: &Arc<Mutex<String>>, message: &str) {
     let mut status = status_message.lock().unwrap();
     *status = message.to_string();
@@ -39,91 +42,99 @@ impl MyApp {
             _ => return Err("Invalid architecture specified".to_string()),
         };
 
-        for injector in injectors {
-            let injector_path = dirs::config_dir()
-                .unwrap_or_else(|| PathBuf::from("."))
-                .join("anarchyloader")
-                .join(injector);
-
+        let mut errors = Vec::new();
+        for injector in &injectors {
+            let injector_path = self.get_injector_path(injector);
             if injector_path.exists() {
                 if let Err(e) = std::fs::remove_file(&injector_path) {
                     log::error!("<INJECTION> Failed to delete {} injector: {}", injector, e);
-                    return Err(format!("Failed to delete {} injector: {}", injector, e));
+                    errors.push(format!("Failed to delete {} injector: {}", injector, e));
+                } else {
+                    log::info!("<INJECTION> Deleted {}", injector);
                 }
-                log::info!("<INJECTION> Deleted {}", injector);
             }
         }
-        Ok(())
+
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(errors.join("\n"))
+        }
+    }
+
+    fn get_injector_path(&self, injector_name: &str) -> PathBuf {
+        dirs::config_dir()
+            .unwrap_or_else(|| PathBuf::from("."))
+            .join("anarchyloader")
+            .join(injector_name)
     }
 
     pub fn download_injectors(&mut self, message_sender: Sender<String>, nightly: bool) {
-        if nightly {
-            let injectors = vec![0, 1];
+        let message_sender_clone = message_sender.clone();
 
-            thread::spawn(move || {
-                let response = ureq::get(
-                    "https://api.github.com/repos/AnarchyLoader/AnarchyInjector/releases",
-                )
-                    .call()
-                    .unwrap();
+        thread::spawn(move || {
+            if nightly {
+                Self::download_nightly_injectors(message_sender_clone);
+            } else {
+                Self::download_stable_injectors(message_sender_clone);
+            }
+        });
+    }
 
-                let data: serde_json::Value = response.into_json().unwrap();
-
-                for injector in injectors {
-                    let injector_name = if injector == 0 {
-                        "AnarchyInjector_x86.exe"
-                    } else {
-                        "AnarchyInjector_x64.exe"
-                    };
-
-                    let download_url = data
-                        .as_array()
-                        .unwrap()
-                        .iter()
-                        .find(|release| release["prerelease"].as_bool().unwrap_or(false))
-                        .and_then(|release| release["assets"].as_array())
-                        .and_then(|assets| assets.get(injector))
-                        .and_then(|asset| asset["browser_download_url"].as_str())
-                        .unwrap_or("")
-                        .to_string();
-
-                    if download_url.is_empty() {
-                        log::error!(
-                            "<INJECTION> Failed to get download URL for {}",
-                            injector_name
-                        );
-                        message_sender
-                            .error(&format!("Failed to get download URL for {}", injector_name));
-                    }
-
-                    if let Err(e) = download_file(&download_url, None) {
-                        log::error!("<INJECTION> Failed to download {}: {}", injector_name, e);
-                        message_sender
-                            .error(&format!("Failed to download {}: {}", injector_name, e));
-                    }
-
-                    message_sender.raw(&format!("Downloaded (nightly) {}", injector_name));
-                    log::info!("<INJECTION> Downloaded nightly injector: {}", injector_name);
+    fn download_stable_injectors(message_sender: Sender<String>) {
+        let injectors = vec!["AnarchyInjector_x86.exe", "AnarchyInjector_x64.exe"];
+        for injector in injectors {
+            match download_file(injector, None) {
+                Ok(_) => {
+                    log::info!("<INJECTION> Downloaded {}", injector);
+                    message_sender.raw(&format!("Downloaded (from cdn) {}", injector));
+                    log::info!("<INJECTION> Downloaded stable injector: {}", injector);
                 }
-            });
-        } else {
-            let injectors = vec!["AnarchyInjector_x86.exe", "AnarchyInjector_x64.exe"];
-            thread::spawn(move || {
-                for injector in injectors {
-                    match download_file(injector, None) {
-                        Ok(_) => {
-                            log::info!("<INJECTION> Downloaded {}", injector);
-                            message_sender.raw(&format!("Downloaded (from cdn) {}", injector));
-                            log::info!("<INJECTION> Downloaded stable injector: {}", injector);
-                        }
-                        Err(e) => {
-                            log::error!("<INJECTION> Failed to download {}: {}", injector, e);
-                            message_sender
-                                .error(&format!("Failed to download {}: {}", injector, e));
-                        }
-                    }
+                Err(e) => {
+                    log::error!("<INJECTION> Failed to download {}: {}", injector, e);
+                    message_sender.error(&format!("Failed to download {}: {}", injector, e));
                 }
-            });
+            }
+        }
+    }
+
+    fn download_nightly_injectors(message_sender: Sender<String>) {
+        let response =
+            ureq::get("https://api.github.com/repos/AnarchyLoader/AnarchyInjector/releases")
+                .call()
+                .unwrap();
+
+        let data: serde_json::Value = response.into_json().unwrap();
+
+        let injector_names = vec!["AnarchyInjector_x86.exe", "AnarchyInjector_x64.exe"];
+        for (index, injector_name) in injector_names.iter().enumerate() {
+            let download_url = data
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|release| release["prerelease"].as_bool().unwrap_or(false))
+                .and_then(|release| release["assets"].as_array())
+                .and_then(|assets| assets.get(index))
+                .and_then(|asset| asset["browser_download_url"].as_str())
+                .unwrap_or("")
+                .to_string();
+
+            if download_url.is_empty() {
+                log::error!(
+                    "<INJECTION> Failed to get download URL for {}",
+                    injector_name
+                );
+                message_sender.error(&format!("Failed to get download URL for {}", injector_name));
+                continue;
+            }
+
+            if let Err(e) = download_file(&download_url, None) {
+                log::error!("<INJECTION> Failed to download {}: {}", injector_name, e);
+                message_sender.error(&format!("Failed to download {}: {}", injector_name, e));
+            } else {
+                message_sender.raw(&format!("Downloaded (nightly) {}", injector_name));
+                log::info!("<INJECTION> Downloaded nightly injector: {}", injector_name);
+            }
         }
     }
 
@@ -135,7 +146,16 @@ impl MyApp {
         use_x64: bool,
         in_progress: Arc<AtomicBool>,
     ) -> bool {
-        let dll_path_clone = dll_path.clone().expect("dll_path should be Some");
+        let dll_path_clone = match dll_path {
+            Some(path) => path,
+            None => {
+                message_sender.error("DLL path is missing.");
+                change_status_message(&status_message, "DLL path is missing.");
+                log::error!("<INJECTION> DLL path is missing.");
+                return false;
+            }
+        };
+
         let is_cs2 = target_process.eq_ignore_ascii_case("cs2.exe");
         let is_rust = target_process.eq_ignore_ascii_case("RustClient.exe");
         let injector_process = if is_cs2 || is_rust || use_x64 {
@@ -280,17 +300,17 @@ impl MyApp {
         ctx: egui::Context,
         message_sender: Sender<String>,
     ) {
+        if !hack.steam_module {
+            message_sender.error("Selected hack does not have a steam module.");
+            log::error!("<INJECTION> Selected hack does not have a steam module.");
+            return;
+        }
+
         let in_progress = Arc::clone(&self.communication.in_progress);
         let status_message = Arc::clone(&self.communication.status_message);
         let ctx_clone = ctx.clone();
         let message_sender_clone = message_sender.clone();
         let hack_clone = hack.clone();
-
-        if !hack.steam_module {
-            message_sender_clone.error("Selected hack does not have a steam module.");
-            log::error!("<INJECTION> Selected hack does not have a steam module.");
-            return;
-        }
 
         change_status_message(&status_message, "Starting steam module injection...");
         log::info!(
@@ -363,7 +383,7 @@ impl MyApp {
 
                 if MyApp::manual_map_inject(
                     Some(steam_module_path),
-                    "steam.exe",
+                    STEAM_EXE,
                     message_sender_clone.clone(),
                     status_message.clone(),
                     false,
@@ -551,7 +571,7 @@ impl MyApp {
 
                     if MyApp::manual_map_inject(
                         Some(steam_module_path),
-                        "steam.exe",
+                        STEAM_EXE,
                         message_sender_clone.clone(),
                         status_message.clone(),
                         false,
@@ -608,14 +628,14 @@ impl MyApp {
                     return;
                 }
 
-                if !immediately_inject {
+                if !immediately_inject && is_cs2_or_csgo {
                     while !client_dll_found && start_time.elapsed() < Duration::from_secs(60) {
                         if !Self::check_and_cancel(&in_progress, &status_message, &ctx_clone) {
                             return;
                         }
 
                         if let Ok(process) = Process::with_name(&process_name) {
-                            if let Ok(_module) = process.module("client.dll") {
+                            if let Ok(_module) = process.module(CLIENT_DLL) {
                                 client_dll_found = true;
                                 break;
                             } else {

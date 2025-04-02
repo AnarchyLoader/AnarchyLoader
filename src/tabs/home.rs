@@ -301,11 +301,8 @@ impl MyApp {
         ctx: &egui::Context,
     ) {
         if !version.is_empty() {
-            ui.with_layout(Layout::top_down_justified(Align::Center), |ui| {
-                ui.label(RichText::new(version).heading());
-            });
+            ui.label(RichText::new(version).size(18.0).monospace());
         }
-
         for hack in hacks {
             self.render_hack_item(ui, &hack, ctx);
         }

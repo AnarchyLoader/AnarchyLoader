@@ -1,10 +1,35 @@
 use egui::ThemePreference;
 use serde::{Deserialize, Serialize};
 
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Copy)]
+pub enum Flavor {
+    Latte,
+    Frappe,
+    Macchiato,
+    Mocha,
+}
+
+impl Flavor {
+    pub fn all() -> [Self; 4] {
+        [Self::Latte, Self::Frappe, Self::Macchiato, Self::Mocha]
+    }
+
+    pub fn convert(&self) -> catppuccin_egui::Theme {
+        match self {
+            Flavor::Latte => catppuccin_egui::LATTE,
+            Flavor::Frappe => catppuccin_egui::FRAPPE,
+            Flavor::Macchiato => catppuccin_egui::MACCHIATO,
+            Flavor::Mocha => catppuccin_egui::MOCHA,
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct DisplaySettings {
     pub favorites_color: egui::Color32,
     pub selected_hack: String,
+    pub use_catppuccin_theme: bool,
+    pub catpuccin_flavor: Flavor,
     pub disable_hack_name_animation: bool,
     pub hide_steam_account: bool,
     pub hide_statistics: bool,
@@ -21,6 +46,8 @@ impl Default for DisplaySettings {
         DisplaySettings {
             favorites_color: egui::Color32::GOLD,
             selected_hack: "".to_string(),
+            use_catppuccin_theme: true,
+            catpuccin_flavor: Flavor::Frappe,
             disable_hack_name_animation: false,
             hide_steam_account: false,
             hide_statistics: false,

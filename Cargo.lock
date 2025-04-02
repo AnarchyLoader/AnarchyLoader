@@ -164,6 +164,7 @@ checksum = "4aa90d7ce82d4be67b64039a3d588d38dbcc6736577de4a847025ce5b0c468d1"
 name = "anarchyloader"
 version = "1.1.5"
 dependencies = [
+    "catppuccin-egui",
  "chrono",
  "dirs",
  "discord-rich-presence",
@@ -787,6 +788,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "catppuccin-egui"
+version = "5.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a93c74882fe7e6b16089cc70122af492e16b76016d3ed2af9b0c4b6a8bca0ab0"
+dependencies = [
+    "egui",
+]
+
+[[package]]
 name = "cc"
 version = "1.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1277,7 +1287,7 @@ dependencies = [
 [[package]]
 name = "egui-modal"
 version = "0.6.0"
-source = "git+https://github.com/mkrueger/egui-modal?branch=mkrueger%2Fegui0.31#74add2407bb945992bd15c79fcedc2af2ee0fb4a"
+source = "git+https://github.com/mkrueger/egui-modal?rev=74add24#74add2407bb945992bd15c79fcedc2af2ee0fb4a"
 dependencies = [
  "egui",
 ]
@@ -1342,9 +1352,9 @@ dependencies = [
 
 [[package]]
 name = "egui_alignments"
-version = "0.2.7"
+version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fa62889b0fc31f6a702860cbe58b4d17625f6582ad9f6e468a5774606c1180e5"
+checksum = "7c22721e53e212b3cebbcb57c33328d9badfb42b63e05bb921521a745d55b9ba"
 dependencies = [
  "egui",
 ]
@@ -4198,15 +4208,14 @@ dependencies = [
 
 [[package]]
 name = "sysinfo"
-version = "0.33.1"
+version = "0.34.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4fc858248ea01b66f19d8e8a6d55f41deaf91e9d495246fd01368d99935c6c01"
+checksum = "927fa32067cbb22b8a91987d84c0ff94c7441ccf3f767165a58d77a656d6267c"
 dependencies = [
- "core-foundation-sys",
  "libc",
  "memchr",
  "ntapi",
- "rayon",
+    "objc2-core-foundation",
  "windows 0.57.0",
 ]
 
