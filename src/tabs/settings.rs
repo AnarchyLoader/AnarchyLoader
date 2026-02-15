@@ -20,7 +20,7 @@ use crate::{
         ui::{
             modal::Modal,
             ui_settings::Flavor,
-            widgets::{Button, CheckBox, Hyperlink, Slider, TextEdit},
+            widgets::{Button, CheckBox, Hyperlink, TextEdit},
         },
     },
     MyApp,
@@ -239,52 +239,6 @@ impl MyApp {
                             .changed()
                         {
                             self.app.config.save();
-                        }
-
-                        let modal_animations = Modal::new(ctx, "animations_configure_dialog")
-                            .with_close_on_outside_click(true);
-
-                        modal_animations.show(|ui| {
-                            ui.label("Transition duration:");
-                            if ui.cslider(&mut self.app.config.animations.duration, 0.10..=1.0, "secs".to_string(), "s").changed() {
-                                self.app.config.save()
-                            };
-
-                            ui.label("Transition amount:");
-                            if ui.cslider(&mut self.app.config.animations.amount, 0.0..=128.0, "pixels".to_string(), "px").changed() {
-                                self.app.config.save()
-                            };
-
-                            ui.label("Text animation speed:");
-                            if ui.cslider(&mut self.app.config.animations.text_speed, 0.0..=3.5, String::new(), "x").changed() {
-                                self.app.config.save()
-                            };
-
-                            ui.add_space(5.0);
-                            ui.horizontal(|ui| {
-                                if ui
-                                    .reset_button("Reset")
-                                    .clicked()
-                                {
-                                    self.app.config.animations = Default::default();
-                                    self.app.config.save();
-                                    // speed now stored in config directly
-                                    log::info!("<SETTINGS_TAB> Transition settings reset to default, saving config");
-                                }
-
-                                if ui.cibutton("Close", ICON_CLOSE).clicked() {
-                                    modal_animations.close();
-                                }
-                            });
-                        });
-
-                        ui.add_space(3.0);
-
-                        if ui
-                            .cbutton(format!("{} Configure animations", ICON_MANUFACTURING))
-                            .clicked()
-                        {
-                            modal_animations.open();
                         }
 
                         ui.add_space(5.0);

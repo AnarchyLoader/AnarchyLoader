@@ -1,5 +1,3 @@
-use std::ops::RangeInclusive;
-
 use egui::{CursorIcon::PointingHand as Clickable, Response, Ui, WidgetText};
 use egui_material_icons::icons::{ICON_CHECK, ICON_RESTART_ALT};
 use egui_notify::Toasts;
@@ -120,28 +118,5 @@ impl Hyperlink for Ui {
         self.hyperlink_to(text, url)
             .on_hover_cursor(Clickable)
             .on_hover_text(url)
-    }
-}
-
-pub trait Slider {
-    fn cslider(
-        &mut self,
-        value: &mut f32,
-        range: RangeInclusive<f32>,
-        text: String,
-        suffix: &str,
-    ) -> Response;
-}
-
-impl Slider for Ui {
-    fn cslider(
-        &mut self,
-        value: &mut f32,
-        range: RangeInclusive<f32>,
-        text: String,
-        suffix: &str,
-    ) -> Response {
-        self.add(egui::Slider::new(value, range).text(text).suffix(suffix))
-            .on_hover_cursor(egui::CursorIcon::ResizeHorizontal)
     }
 }
