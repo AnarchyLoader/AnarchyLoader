@@ -137,7 +137,7 @@ impl MyApp {
                     egui::Color32::BLACK
                 };
 
-                let hello_text = format!("Hello, {}!", whoami::username());
+                let hello_text = format!("Hello, {}!", whoami::username().unwrap_or_default());
                 ui.label(
                     egui::RichText::new(hello_text)
                         .size(40.0 * self.ui.animation.hello_scale)

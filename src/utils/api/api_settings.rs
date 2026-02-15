@@ -9,11 +9,11 @@ pub struct ApiSettings {
 }
 
 pub fn default_api_endpoint() -> String {
-    "https://api.anarchy.my/api/".to_string()
+    "https://objectstorage.eu-frankfurt-1.oraclecloud.com/n/froxlhdz2fil/b/bucket-20240619-2047/o/".to_string()
 }
 
 pub fn default_api_extra_endpoints() -> Vec<String> {
-    vec!["https://anarchy.ttfdk.lol/api/".to_string()]
+    vec!["https://objectstorage.eu-frankfurt-1.oraclecloud.com/n/froxlhdz2fil/b/bucket-20240619-2047/o/".to_string()]
 }
 
 pub fn default_cdn_endpoint() -> String {
@@ -21,7 +21,7 @@ pub fn default_cdn_endpoint() -> String {
 }
 
 pub fn default_cdn_extra_endpoints() -> Vec<String> {
-    vec!["https://axkanxneklh7.objectstorage.eu-amsterdam-1.oci.customer-oci.com/n/axkanxneklh7/b/anarchy/o/".to_string()]
+    vec!["https://objectstorage.eu-frankfurt-1.oraclecloud.com/n/froxlhdz2fil/b/bucket-20240619-2047/o/".to_string()]
 }
 
 impl Default for ApiSettings {

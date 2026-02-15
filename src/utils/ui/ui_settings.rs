@@ -72,7 +72,7 @@ pub struct AnimationSettings {
 impl Default for AnimationSettings {
     fn default() -> Self {
         AnimationSettings {
-            tab_animations: true,
+            tab_animations: false,
             duration: 0.20,
             amount: 32.0,
             text_speed: 1.5,

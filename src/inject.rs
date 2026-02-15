@@ -104,7 +104,8 @@ impl MyApp {
                 .call()
                 .unwrap();
 
-        let data: serde_json::Value = response.into_json().unwrap();
+        let body = response.into_string().unwrap_or_default();
+        let data: serde_json::Value = serde_json::from_str(&body).unwrap_or_default();
 
         let injector_names = vec!["AnarchyInjector_x86.exe", "AnarchyInjector_x64.exe"];
         for (index, injector_name) in injector_names.iter().enumerate() {
@@ -114,7 +115,7 @@ impl MyApp {
                 .iter()
                 .find(|release| release["prerelease"].as_bool().unwrap_or(false))
                 .and_then(|release| release["assets"].as_array())
-                .and_then(|assets| assets.get(index))
+                .and_then(|assets: &Vec<serde_json::Value>| assets.get(index))
                 .and_then(|asset| asset["browser_download_url"].as_str())
                 .unwrap_or("")
                 .to_string();

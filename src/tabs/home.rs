@@ -21,21 +21,20 @@ use egui_material_icons::icons::{
     ICON_QUESTION_MARK, ICON_SEARCH, ICON_SEARCH_OFF, ICON_STAR, ICON_SYRINGE, ICON_VISIBILITY,
     ICON_WARNING,
 };
-use egui_modal::Modal;
 use url::Url;
 
-use crate::{default_main_menu_message, MyApp};
-
-#[rustfmt::skip]
-#[cfg(feature = "scanner")]
-use crate::scanner::scanner::Scanner;
 use crate::{
+    default_main_menu_message,
     tabs::top_panel::AppTab,
     utils::{
         api::hacks::{self, Hack},
         helpers::start_cs_prompt,
-        ui::widgets::{Button, CheckBox, Hyperlink},
+        ui::{
+            modal::Modal,
+            widgets::{Button, CheckBox, Hyperlink},
+        },
     },
+    MyApp,
 };
 
 #[derive(Debug)]
@@ -67,7 +66,6 @@ impl MyApp {
             self.rpc.update(None, Some("Selecting hack"), None);
             self.app.selected_hack = None;
             self.app.config.display.selected_hack = "".to_string();
-            self.ui.text_animator.reset();
         }
 
         if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Enter)) {
@@ -185,12 +183,12 @@ impl MyApp {
         }
 
         if ctx.input(|i| !i.raw.hovered_files.is_empty()) {
-            let screen_rect = ctx.screen_rect();
+            let content_rect = ctx.content_rect();
             let painter = ctx.layer_painter(egui::LayerId::new(
                 egui::Order::Foreground,
                 egui::Id::new("layer"),
             ));
-            painter.rect_filled(screen_rect, 0.0, egui::Color32::from_black_alpha(128));
+            painter.rect_filled(content_rect, 0.0, egui::Color32::from_black_alpha(128));
         }
     }
 
@@ -384,13 +382,13 @@ impl MyApp {
         let is_favorite = self.app.config.favorites.contains(&hack.name);
         if is_favorite
             && ui
-            .add(
-                egui::Button::new(ICON_STAR)
-                    .frame(false)
-                    .sense(Sense::click()),
-            )
-            .on_hover_cursor(Clickable)
-            .clicked()
+                .add(
+                    egui::Button::new(ICON_STAR)
+                        .frame(false)
+                        .sense(Sense::click()),
+                )
+                .on_hover_cursor(Clickable)
+                .clicked()
         {
             self.toggle_favorite(hack.name.clone());
             self.toasts
@@ -435,14 +433,7 @@ impl MyApp {
     fn select_hack(&mut self, new_hack: &Hack) {
         log::debug!("<HOME_TAB> Selecting hack: {}", new_hack.name);
 
-        self.ui.text_animator.text = new_hack.name.clone();
-
-        // do not play animation if hack is not changed
-        if let Some(selected_hack) = &self.app.selected_hack {
-            if selected_hack.name != new_hack.name {
-                self.ui.text_animator.reset();
-            }
-        }
+        // animation removed; nothing to update here
 
         self.app.selected_hack = Some(new_hack.clone());
         self.app.config.display.selected_hack = new_hack.name.clone();
@@ -462,63 +453,50 @@ impl MyApp {
         ctx: &egui::Context,
         selected: &Hack,
     ) {
-        let is_roblox = selected.game == "Roblox";
+        // text animator removed; render static label
+        ui.label(
+            RichText::new(&selected.name)
+                .size(19.0)
+                .color(self.ui.text_color),
+        );
 
-        if self.app.selected_hack.is_some() && self.ui.text_animator.timer < 1.0 {
-            self.ui.text_animator.process_animation(ctx);
-            ctx.request_repaint();
-        }
+        if !selected.author.is_empty() {
+            ui.horizontal_wrapped(|ui| {
+                let body_font = TextStyle::Body.resolve(ui.style());
+                let width = body_font.size * 0.6;
+                ui.spacing_mut().item_spacing.x = width;
 
-        ui.vertical(|ui| {
-            if !self.app.config.display.disable_hack_name_animation {
-                self.ui.text_animator.render(ui);
-            } else {
-                ui.label(
-                    RichText::new(&selected.name)
-                        .size(19.0)
-                        .color(self.ui.text_animator.color),
-                );
-            }
-            if !selected.author.is_empty() {
-                ui.horizontal_wrapped(|ui| {
-                    let width =
-                        ui.fonts(|f| f.glyph_width(&TextStyle::Body.resolve(ui.style()), ' '));
-                    ui.spacing_mut().item_spacing.x = width;
+                if !selected.local {
+                    if selected.author == "???" {
+                        ui.label(ICON_NO_ACCOUNTS);
+                        ui.label("Unknown author");
+                    } else {
+                        ui.label(ICON_PERSON);
+                        ui.label("by");
+                        ui.label(RichText::new(&selected.author).color(self.ui.text_color))
+                            .on_hover_text("Author of the hack");
+                    }
 
-                    if !selected.local {
-                        if selected.author == "???" {
-                            ui.label(ICON_NO_ACCOUNTS);
-                            ui.label("Unknown author");
+                    ui.add_space(5.0);
+
+                    if !selected.source.is_empty() && selected.source != "n/a" {
+                        if let Ok(url) = Url::parse(&selected.source) {
+                            ui.clink(
+                                format!("{} (source, {})", ICON_LINK, url.domain().unwrap()),
+                                &selected.source,
+                            );
                         } else {
-                            ui.label(ICON_PERSON);
-                            ui.label("by");
-                            ui.label(
-                                RichText::new(&selected.author).color(self.ui.text_animator.color),
-                            )
-                                .on_hover_text("Author of the hack");
-                        }
-
-                        ui.add_space(5.0);
-
-                        if !selected.source.is_empty() && selected.source != "n/a" {
-                            if let Ok(url) = Url::parse(&selected.source) {
-                                ui.clink(
-                                    format!("{} (source, {})", ICON_LINK, url.domain().unwrap()),
-                                    &selected.source,
-                                );
-                            } else {
-                                ui.label(format!("{} (cannot parse source)", ICON_CLOUD_OFF));
-                            }
-                        } else {
-                            ui.label(format!("{} (source not available)", ICON_CLOUD_OFF));
+                            ui.label(format!("{} (cannot parse source)", ICON_CLOUD_OFF));
                         }
                     } else {
-                        ui.label(ICON_INVENTORY_2);
-                        ui.label(format!("Local hack ({}, {})", selected.file, selected.arch));
+                        ui.label(format!("{} (source not available)", ICON_CLOUD_OFF));
                     }
-                });
-            }
-        });
+                } else {
+                    ui.label(ICON_INVENTORY_2);
+                    ui.label(format!("Local hack ({}, {})", selected.file, selected.arch));
+                }
+            });
+        }
 
         ui.separator();
 
@@ -528,16 +506,16 @@ impl MyApp {
             ui.label(format!("{} No description available.", ICON_PROBLEM));
         }
 
-        if !self.app.config.display.hide_steam_account && !is_roblox {
+        if !self.app.config.display.hide_steam_account {
             ui.horizontal_wrapped(|ui| {
-                let width = ui.fonts(|f| f.glyph_width(&TextStyle::Body.resolve(ui.style()), ' '));
+                let body_font = TextStyle::Body.resolve(ui.style());
+                let width = body_font.size * 0.6;
                 ui.spacing_mut().item_spacing.x = width;
 
                 ui.label(format!("{} Logged in as (Steam):", ICON_LOGIN));
                 if ui
                     .label(
-                        RichText::new(&self.app.meta.steam_account.name)
-                            .color(self.ui.text_animator.color),
+                        RichText::new(&self.app.meta.steam_account.name).color(self.ui.text_color),
                     )
                     .on_hover_text_at_pointer(&self.app.meta.steam_account.username)
                     .on_hover_cursor(egui::CursorIcon::Help)
@@ -564,7 +542,7 @@ impl MyApp {
 
             let text_format = TextFormat { font_id: FontId::new(14.0, FontFamily::Proportional), ..Default::default() };
 
-            job.append(&format!("Hey {}!", whoami::username()), 0.0, text_format.clone());
+            job.append(&format!("Hey {}!", whoami::username().unwrap_or_default()), 0.0, text_format.clone());
             job.append("\n\n", 0.0, TextFormat::default());
             job.append("Using cheats or unauthorized modifications in online games violates their terms of service.", 0.0, text_format.clone());
             job.append("\n\n", 0.0, TextFormat::default());
@@ -578,7 +556,7 @@ impl MyApp {
             job.append(" from the game and related services.", 0.0, text_format.clone());
             job.append("\n\n", 0.0, TextFormat::default());
             job.append("We are not responsible for any consequences resulting from the use of this program.", 0.0, TextFormat {
-                color: self.ui.text_animator.color,
+                color: self.ui.text_color,
                 ..Default::default()
             });
 
@@ -609,11 +587,7 @@ impl MyApp {
         let inject_button = ui
             .add_enabled_ui(!in_progress && !is_cs2_32bit, |ui| {
                 ui.button_with_tooltip(
-                    if !is_roblox {
-                        format!("{} Inject {}", ICON_SYRINGE, selected.name)
-                    } else {
-                        "Run".to_string()
-                    },
+                    format!("{} Inject {}", ICON_SYRINGE, selected.name),
                     &selected.file,
                 )
             })
@@ -672,11 +646,7 @@ impl MyApp {
 
             self.toasts
                 .custom(
-                    if !is_roblox {
-                        format!("Injecting {}", selected.name)
-                    } else {
-                        "Running...".to_string()
-                    },
+                    format!("Injecting {}", selected.name),
                     "⌛".to_string(),
                     egui::Color32::from_rgb(150, 200, 210),
                 )
@@ -684,29 +654,17 @@ impl MyApp {
 
             self.rpc.update(
                 None,
-                Some(&if !is_roblox {
-                    format!("Injecting {}", selected.name)
-                } else {
-                    "Running...".to_string()
-                }),
-                Some(if !is_roblox { "injecting" } else { "running" }),
+                Some(&format!("Injecting {}", selected.name)),
+                Some("injecting"),
             );
 
-            if !is_roblox {
-                self.injection(
-                    selected.clone(),
-                    ctx.clone(),
-                    self.communication.messages.sender.clone(),
-                    ctx.input(|i| i.modifiers.ctrl),
-                    false,
-                );
-            } else {
-                self.run_executor(
-                    selected.clone(),
-                    ctx.clone(),
-                    self.communication.messages.sender.clone(),
-                );
-            }
+            self.injection(
+                selected.clone(),
+                ctx.clone(),
+                self.communication.messages.sender.clone(),
+                ctx.input(|i| i.modifiers.ctrl),
+                false,
+            );
         }
 
         if in_progress {
@@ -723,7 +681,7 @@ impl MyApp {
                             RichText::new(&status).color(if status.starts_with("Failed") {
                                 egui::Color32::RED
                             } else {
-                                self.ui.text_animator.color
+                                self.ui.text_color
                             }),
                         );
 
@@ -749,7 +707,7 @@ impl MyApp {
                 let text_color = if status.starts_with("Failed") || status.starts_with("Error") {
                     egui::Color32::RED
                 } else {
-                    self.ui.text_animator.color
+                    self.ui.text_color
                 };
 
                 ui.group(|ui| {
@@ -760,10 +718,10 @@ impl MyApp {
                     } else {
                         status.clone()
                     }
-                        .replace(
-                            "Failed to execute injector: ",
-                            "Failed to execute injector:\n",
-                        );
+                    .replace(
+                        "Failed to execute injector: ",
+                        "Failed to execute injector:\n",
+                    );
 
                     ui.label(RichText::new(&s).color(text_color));
 
@@ -795,7 +753,6 @@ impl MyApp {
         let ctx_clone = ctx.clone();
         let status_message = Arc::clone(&self.communication.status_message);
         let is_favorite = self.app.config.favorites.contains(&hack.name);
-        let is_roblox = hack.game == "Roblox";
 
         response.context_menu(|ui| {
             if is_favorite {
@@ -804,17 +761,17 @@ impl MyApp {
                     self.app.config.save();
                     self.toasts
                         .success(format!("Removed {} from favorites.", hack.name));
-                    ui.close_menu();
+                    ui.close();
                 }
             } else if ui.cbutton("Add to favorites").clicked() {
                 self.app.config.favorites.insert(hack.name.clone());
                 self.app.config.save();
                 self.toasts
                     .success(format!("Added {} to favorites.", hack.name));
-                ui.close_menu();
+                ui.close();
             }
 
-            if !is_roblox && !hack.local {
+            if !hack.local {
                 // show only if file exists
                 if Path::new(&file_path_owned).exists() {
                     if ui
@@ -832,7 +789,7 @@ impl MyApp {
                             *status = format!("Failed to open Explorer: {}", e);
                             self.toasts.error(format!("Failed to open Explorer: {}", e));
                         }
-                        ui.close_menu();
+                        ui.close();
                     }
 
                     if ui
@@ -846,7 +803,7 @@ impl MyApp {
                             let mut status = self.communication.status_message.lock().unwrap();
                             *status = "Uninstall successful.".to_string();
                         }
-                        ui.close_menu();
+                        ui.close();
                     }
 
                     if ui
@@ -886,25 +843,7 @@ impl MyApp {
                                 }
                             }
                         });
-                        ui.close_menu();
-                    }
-
-                    #[cfg(feature = "scanner")]
-                    if ui
-                        .button_with_tooltip("Scan", "Scan the selected hack")
-                        .clicked()
-                    {
-                        let scanner = Scanner::new(hack.file_path.clone());
-
-                        match scanner.scan(self.app.meta.path.clone()) {
-                            Ok(()) => {
-                                self.open_scanner_log();
-                            }
-                            Err(err) => {
-                                self.toasts.error(err);
-                            }
-                        }
-                        ui.close_menu();
+                        ui.close();
                     }
                 } else if ui.cbutton("Download").clicked() {
                     let file_path = hack.file_path.clone();
@@ -921,7 +860,7 @@ impl MyApp {
                             }
                         }
                     });
-                    ui.close_menu();
+                    ui.close();
                 }
             }
 
@@ -936,7 +875,7 @@ impl MyApp {
                     MyApp::group_hacks_by_game_internal(&self.app.hacks, &self.app.config);
                 self.app.config.game_order = grouped.keys().cloned().collect();
                 self.toasts.success(format!("Removed {}.", hack.name));
-                ui.close_menu();
+                ui.close();
             }
         });
     }

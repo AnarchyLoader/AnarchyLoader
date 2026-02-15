@@ -25,17 +25,14 @@ impl Rpc {
 
         if enabled {
             thread::spawn(move || {
-                let mut client = match DiscordIpcClient::new("1317814620152528948") {
-                    Ok(mut c) => match c.connect() {
+                let mut client = {
+                    let mut c = DiscordIpcClient::new("1317814620152528948");
+                    match c.connect() {
                         Ok(_) => Some(c),
                         Err(e) => {
                             log::error!("<RPC> Failed to connect to Discord RPC: {}", e);
                             None
                         }
-                    },
-                    Err(e) => {
-                        log::error!("<RPC> Failed to create Discord RPC client: {}", e);
-                        None
                     }
                 };
 
@@ -46,10 +43,10 @@ impl Rpc {
                 loop {
                     match rx.recv() {
                         Ok(RpcUpdate::Update {
-                               state,
-                               details,
-                               small_image,
-                           }) => {
+                            state,
+                            details,
+                            small_image,
+                        }) => {
                             if let Some(s) = state {
                                 current_state = s;
                             }

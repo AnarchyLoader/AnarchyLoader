@@ -121,11 +121,13 @@ pub(crate) fn fetch_hacks(
     endpoints.extend(api_extra_endpoints.to_owned());
 
     for endpoint in endpoints {
-        match ureq::get(&format!("{}hacks/", &endpoint)).call() {
+        match ureq::get(&format!("{}hacks.json", &endpoint)).call() {
             Ok(res) => {
                 if res.status() == 200 {
-                    let parsed_hacks: Vec<HackApiResponse> =
-                        res.into_json().map_err(|e| e.to_string())?;
+                    let parsed_hacks: Vec<HackApiResponse> = {
+                        let body = res.into_string().map_err(|e| e.to_string())?;
+                        serde_json::from_str(&body).map_err(|e| e.to_string())?
+                    };
                     return if parsed_hacks.is_empty() {
                         Err("No hacks available.".to_string())
                     } else {

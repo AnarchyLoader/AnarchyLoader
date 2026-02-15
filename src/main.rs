@@ -1,9 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-// ^-- disable console window in release mode
 
 mod games;
 mod inject;
-mod scanner;
 mod tabs;
 mod utils;
 
@@ -16,18 +14,12 @@ use eframe::{
     egui::{self, RichText},
     App,
 };
-use egui::{
-    emath::easing, include_image, DroppedFile, FontFamily, FontId, Id, Image, Vec2,
-};
+use egui::{include_image, DroppedFile, Image, Vec2};
 use egui_alignments::center_vertical;
 use egui_commonmark::CommonMarkCache;
 use egui_notify::Toasts;
-use egui_text_animation::{AnimationType, TextAnimator};
-use egui_transition_animation::{animated_pager, TransitionStyle, TransitionType};
 use games::local::LocalUI;
 use is_elevated::is_elevated;
-#[cfg(feature = "scanner")]
-use scanner::scanner::ScannerPopup;
 use tabs::top_panel::AppTab;
 use utils::{
     api::{
@@ -90,7 +82,7 @@ fn main() {
             "AnarchyLoader v{} (Administrator)",
             env!("CARGO_PKG_VERSION")
         )
-            .to_string()
+        .to_string()
     };
 
     eframe::run_native(
@@ -98,7 +90,7 @@ fn main() {
         native_options,
         Box::new(|cc| Ok(Box::new(MyApp::new(cc)))),
     )
-        .unwrap();
+    .unwrap();
 }
 
 #[derive(Debug)]
@@ -115,7 +107,7 @@ struct AppState {
 struct UIState {
     tab: AppTab,
     tabs: TabStates,
-    text_animator: TextAnimator,
+    text_color: egui::Color32,
     mark_cache: CommonMarkCache,
     search_query: String,
     main_menu_message: String,
@@ -131,8 +123,6 @@ struct UIState {
 #[derive(Debug)]
 struct Popups {
     local_hack: LocalUI,
-    #[cfg(feature = "scanner")]
-    scanner: ScannerPopup,
 }
 
 #[derive(Debug)]
@@ -172,13 +162,12 @@ struct MyApp {
 fn default_main_menu_message() -> String {
     format!(
         "Hello {}!\nPlease select a hack from the list.",
-        whoami::username()
+        whoami::username().unwrap_or_default()
     )
 }
 
 static LOGGER: OnceLock<MyLogger> = OnceLock::new();
 impl MyApp {
-    // MARK: Init
     fn new(cc: &eframe::CreationContext) -> Self {
         let mut config = Config::load();
         let app_path = dirs::config_dir()
@@ -341,17 +330,11 @@ impl MyApp {
                     about: AboutTab::default(),
                     home: HomeTab::default(),
                 },
-                text_animator: TextAnimator::new(
-                    &selected_hack.unwrap_or_default().name,
-                    FontId::new(19.0, FontFamily::Proportional),
-                    if cc.egui_ctx.style().visuals.dark_mode {
-                        egui::Color32::LIGHT_GRAY
-                    } else {
-                        egui::Color32::DARK_GRAY
-                    },
-                    config.animations.text_speed,
-                    AnimationType::FadeIn,
-                ),
+                text_color: if cc.egui_ctx.style().visuals.dark_mode {
+                    egui::Color32::LIGHT_GRAY
+                } else {
+                    egui::Color32::DARK_GRAY
+                },
                 mark_cache: CommonMarkCache::default(),
                 search_query: String::new(),
                 main_menu_message: default_main_menu_message(),
@@ -363,11 +346,6 @@ impl MyApp {
                         new_local_dll: String::new(),
                         new_local_process: String::new(),
                         new_local_arch: String::new(),
-                    },
-                    #[cfg(feature = "scanner")]
-                    scanner: ScannerPopup {
-                        dll: String::new(),
-                        show_results: false,
                     },
                 },
                 parse_error,
@@ -389,7 +367,11 @@ impl MyApp {
     fn render_central_panel(&mut self, ctx: &egui::Context) {
         egui::CentralPanel::default().show(ctx, |ui| {
             if let Some(selected) = self.app.selected_hack.clone() {
-                self.display_hack_details(ui, ctx, &selected);
+                egui::ScrollArea::vertical()
+                    .auto_shrink([false; 2])
+                    .show(ui, |ui| {
+                        self.display_hack_details(ui, ctx, &selected);
+                    });
             } else {
                 center_vertical(ui, |ui| {
                     ui.label(self.ui.main_menu_message.clone());
@@ -414,7 +396,6 @@ impl MyApp {
 }
 
 impl App for MyApp {
-    // MARK: Global render
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         if self.app.config.display.use_catppuccin_theme {
             catppuccin_egui::set_theme(ctx, self.app.config.display.catpuccin_flavor.convert());
@@ -514,8 +495,6 @@ impl App for MyApp {
         }
 
         if self.app.stats.opened_count == 1 && self.ui.animation.phase != AnimationPhase::Complete {
-            // uncomment to show always show intro screen
-            // if true {
             let dt = ctx.input(|i| i.unstable_dt);
             self.update_animation(dt);
             self.render_intro_screen(ctx);
@@ -532,28 +511,8 @@ impl App for MyApp {
         self.handle_dnd(ctx);
         self.handle_received_messages(ctx);
 
-        egui::CentralPanel::default().show(ctx, |ui| {
-            if self.app.config.animations.tab_animations {
-                let transition_style = TransitionStyle {
-                    easing: easing::cubic_out,
-                    t_type: TransitionType::HorizontalMove,
-                    duration: self.app.config.animations.duration,
-                    amount: self.app.config.animations.amount,
-                };
-
-                let state = animated_pager(
-                    ui,
-                    self.ui.tab.clone(),
-                    &transition_style,
-                    Id::new("tabs"),
-                    |_, tab| self.render_tabs(ctx, tab),
-                );
-
-                self.ui.transitioning = state.animation_running;
-            } else {
-                self.render_tabs(ctx, self.ui.tab.clone());
-            }
-        });
+        self.render_tabs(ctx, self.ui.tab.clone());
+        self.ui.transitioning = false;
     }
 
     fn on_exit(&mut self, _gl: Option<&eframe::glow::Context>) {

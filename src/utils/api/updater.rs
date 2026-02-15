@@ -10,10 +10,12 @@ pub struct Updater {
 
 impl Updater {
     #[allow(clippy::result_large_err)]
-    pub fn get_latest_releases(&self) -> Result<Vec<Release>, ureq::Error> {
+    pub fn get_latest_releases(&self) -> Result<Vec<Release>, String> {
         let url = format!("https://api.github.com/repos/{}/releases", self.repository);
-        let response: Vec<Release> = ureq::get(&url).call()?.into_json()?;
-        Ok(response)
+        let resp = ureq::get(&url).call().map_err(|e| e.to_string())?;
+        let body = resp.into_string().map_err(|e| e.to_string())?;
+        let releases: Vec<Release> = serde_json::from_str(&body).map_err(|e| e.to_string())?;
+        Ok(releases)
     }
 
     pub fn get_remote_version(&self) -> Option<String> {

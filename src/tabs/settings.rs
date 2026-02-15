@@ -4,11 +4,8 @@ use egui_material_icons::icons::{
     ICON_ADD, ICON_CLOSE, ICON_CONTRAST, ICON_DELETE, ICON_DOWNLOAD, ICON_EYE_TRACKING,
     ICON_FOLDER, ICON_MANUFACTURING, ICON_RESTART_ALT, ICON_VISIBILITY, ICON_VISIBILITY_OFF,
 };
-use egui_modal::Modal;
 use egui_theme_switch::ThemeSwitch;
 
-#[cfg(feature = "scanner")]
-use crate::scanner::scanner::ScannerPopup;
 use crate::{
     games::local::{LocalHack, LocalUI},
     utils::{
@@ -21,6 +18,7 @@ use crate::{
         },
         rpc::{Rpc, RpcUpdate},
         ui::{
+            modal::Modal,
             ui_settings::Flavor,
             widgets::{Button, CheckBox, Hyperlink, Slider, TextEdit},
         },
@@ -32,16 +30,8 @@ impl MyApp {
     pub fn render_settings_tab(&mut self, ctx: &egui::Context) {
         egui::CentralPanel::default().show(ctx, |ui| {
             egui::ScrollArea::vertical()
-                .drag_to_scroll(false)
                 .show(ui, |ui| {
                     ui.set_width(ui.available_width());
-
-                    #[cfg(feature = "scanner")]
-                    {
-                        // MARK: - Scanner
-                        ui.add_space(3.0);
-                        self.render_scanner(ctx, ui);
-                    }
 
                     // MARK: - Display Options
                     ui.group(|ui| {
@@ -266,8 +256,7 @@ impl MyApp {
                             };
 
                             ui.label("Text animation speed:");
-                            if ui.cslider(&mut self.ui.text_animator.speed, 0.0..=3.5, String::new(), "x").changed() {
-                                self.app.config.animations.text_speed = self.ui.text_animator.speed;
+                            if ui.cslider(&mut self.app.config.animations.text_speed, 0.0..=3.5, String::new(), "x").changed() {
                                 self.app.config.save()
                             };
 
@@ -279,7 +268,7 @@ impl MyApp {
                                 {
                                     self.app.config.animations = Default::default();
                                     self.app.config.save();
-                                    self.ui.text_animator.speed = self.app.config.animations.text_speed;
+                                    // speed now stored in config directly
                                     log::info!("<SETTINGS_TAB> Transition settings reset to default, saving config");
                                 }
 
@@ -288,16 +277,6 @@ impl MyApp {
                                 }
                             });
                         });
-
-                        if ui
-                            .ccheckbox(
-                                &mut self.app.config.animations.tab_animations,
-                                "Enable tab animations",
-                            )
-                            .changed()
-                        {
-                            self.app.config.save();
-                        }
 
                         ui.add_space(3.0);
 
@@ -711,11 +690,6 @@ impl MyApp {
 
                                         // clear popups
                                         self.ui.popups.local_hack = LocalUI::default();
-
-                                        #[cfg(feature = "scanner")]
-                                        {
-                                            self.ui.popups.scanner = ScannerPopup::default();
-                                        }
 
                                         self.toasts.success("Settings reset.");
                                         modal_settings.close();

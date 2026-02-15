@@ -31,7 +31,8 @@ impl State {
 
 impl MyApp {
     pub fn setup_text_animator_color(&mut self, ctx: &Context) {
-        self.ui.text_animator.color = if ctx.theme() == Dark {
+        // update plain text color used across the UI
+        self.ui.text_color = if ctx.theme() == Dark {
             egui::Color32::WHITE
         } else {
             egui::Color32::BLACK

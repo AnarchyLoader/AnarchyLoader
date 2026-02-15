@@ -70,9 +70,8 @@ impl MyApp {
                         };
 
                         ui.horizontal_wrapped(|ui| {
-                            let width = ui.fonts(|f| {
-                                f.glyph_width(&TextStyle::Body.resolve(ui.style()), ' ')
-                            });
+                            let body_font = TextStyle::Body.resolve(ui.style());
+                            let width = body_font.size * 0.6;
                             ui.spacing_mut().item_spacing.x = width;
 
                             ui.colored_label(color, format!("[{:?}]", level));
