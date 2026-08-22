@@ -8,24 +8,18 @@ use std::{
         Arc, Mutex,
     },
     thread,
-    time::Duration,
 };
 
 use eframe::egui::{self};
-use egui::ViewportCommand;
-use proc_mem::Process;
-use sysinfo::System;
 
 use crate::{
-    utils::{
-        api::downloader::download_file,
-        helpers::{is_process_running, start_cs_prompt},
-        ui::messages::MessageSender,
-    },
+    utils::{api::downloader::download_file, ui::messages::MessageSender},
     Hack, MyApp,
 };
 
+#[cfg(target_os = "windows")]
 const STEAM_EXE: &str = "steam.exe";
+#[cfg(target_os = "windows")]
 const CLIENT_DLL: &str = "client.dll";
 
 pub(crate) fn change_status_message(status_message: &Arc<Mutex<String>>, message: &str) {
@@ -99,15 +93,15 @@ impl MyApp {
     }
 
     fn download_nightly_injectors(message_sender: Sender<String>) {
-        let response =
+        let mut response =
             ureq::get("https://api.github.com/repos/AnarchyLoader/AnarchyInjector/releases")
                 .call()
                 .unwrap();
 
-        let body = response.into_string().unwrap_or_default();
+        let body = response.body_mut().read_to_string().unwrap_or_default();
         let data: serde_json::Value = serde_json::from_str(&body).unwrap_or_default();
 
-        let injector_names = vec!["AnarchyInjector_x86.exe", "AnarchyInjector_x64.exe"];
+        let injector_names = ["AnarchyInjector_x86.exe", "AnarchyInjector_x64.exe"];
         for (index, injector_name) in injector_names.iter().enumerate() {
             let download_url = data
                 .as_array()
@@ -265,7 +259,7 @@ impl MyApp {
                         if status.success() && in_progress_clone_wait.load(Ordering::SeqCst) {
                             let dll = dll_name.file_name().unwrap().to_string_lossy();
                             if !dll.starts_with("steam_") {
-                                message_sender.success(&format!("{}", &dll));
+                                message_sender.success(&format!("{}", dll));
                                 log::info!("<INJECTION> Injected into {}", target_process);
                                 change_status_message(&status_message, "Injection successful.");
                             }
@@ -295,12 +289,15 @@ impl MyApp {
         }
     }
 
+    #[cfg(target_os = "windows")]
     pub fn inject_steam_module(
         &mut self,
         hack: Arc<Hack>,
         ctx: egui::Context,
         message_sender: Sender<String>,
     ) {
+        use egui::ViewportCommand;
+
         if !hack.steam_module {
             message_sender.error("Selected hack does not have a steam module.");
             log::error!("<INJECTION> Selected hack does not have a steam module.");
@@ -411,6 +408,20 @@ impl MyApp {
             .expect("Failed to spawn steam module injection thread");
     }
 
+    #[cfg(not(target_os = "windows"))]
+    pub fn injection(
+        &mut self,
+        _selected: Hack,
+        _ctx: egui::Context,
+        message_sender: Sender<String>,
+        _force_x64: bool,
+        _inject_steam_module_only: bool,
+    ) {
+        message_sender.error("Injection is not supported on Linux.");
+        log::error!("<INJECTION> Injection is not supported on Linux.");
+    }
+
+    #[cfg(target_os = "windows")]
     pub fn injection(
         &mut self,
         selected: Hack,
@@ -419,6 +430,8 @@ impl MyApp {
         force_x64: bool,
         inject_steam_module_only: bool,
     ) {
+        use egui::ViewportCommand;
+
         if inject_steam_module_only {
             let hack_arc = Arc::new(selected);
             self.inject_steam_module(hack_arc, ctx, message_sender);
@@ -451,12 +464,18 @@ impl MyApp {
         thread::Builder::new()
             .name("InjectionThread".to_string())
             .spawn(move || {
+                use std::time::Duration;
+
+                use crate::utils::helpers::is_process_running;
+
                 if automatically_run_game
                     && is_cs2_or_csgo
                     && !selected_clone.steam_module
                     && !is_process_running(&selected.process)
                     && !selected.steam_module
                 {
+                    use crate::utils::helpers::start_cs_prompt;
+
                     if let Err(e) = start_cs_prompt() {
                         message_sender_clone.error(&format!(
                             "Failed to start Counter-Strike automatically: {}",
@@ -468,7 +487,7 @@ impl MyApp {
                         );
                     }
 
-                    let mut system = System::new_all();
+                    let mut system = sysinfo::System::new_all();
 
                     loop {
                         if !Self::check_and_cancel(&in_progress, &status_message, &ctx_clone) {
@@ -587,7 +606,7 @@ impl MyApp {
                         message_sender_clone.raw("Waiting for user to launch the game...");
                         log::info!("<INJECTION> Steam module injected, waiting for game launch.");
 
-                        let mut system = System::new_all();
+                        let mut system = sysinfo::System::new_all();
 
                         loop {
                             if !Self::check_and_cancel(&in_progress, &status_message, &ctx_clone) {
@@ -614,6 +633,7 @@ impl MyApp {
 
                 let process_name = selected_clone.process.clone();
                 let mut client_dll_found = false;
+
                 let start_time = std::time::Instant::now();
 
                 if !is_process_running(&selected_clone.process) {
@@ -635,15 +655,22 @@ impl MyApp {
                             return;
                         }
 
-                        if let Ok(process) = Process::with_name(&process_name) {
-                            if let Ok(_module) = process.module(CLIENT_DLL) {
-                                client_dll_found = true;
-                                break;
+                        #[cfg(target_os = "windows")]
+                        {
+                            use proc_mem::Process;
+
+                            if let Ok(process) = Process::with_name(&process_name) {
+                                if let Ok(_module) = process.module(CLIENT_DLL) {
+                                    client_dll_found = true;
+                                    break;
+                                } else {
+                                    log::warn!(
+                                        "<INJECTION> Failed to get process modules, retrying."
+                                    );
+                                }
                             } else {
-                                log::warn!("<INJECTION> Failed to get process modules, retrying.");
+                                log::warn!("<INJECTION> Process not found, retrying.");
                             }
-                        } else {
-                            log::warn!("<INJECTION> Process not found, retrying.");
                         }
 
                         if !client_dll_found {
@@ -709,13 +736,17 @@ impl MyApp {
             .expect("Failed to spawn injection thread");
     }
 
+    #[cfg(target_os = "windows")]
     fn check_and_cancel(
         in_progress: &Arc<AtomicBool>,
         status_message: &Arc<Mutex<String>>,
         ctx: &egui::Context,
     ) -> bool {
         if !in_progress.load(Ordering::SeqCst) {
+            use egui::ViewportCommand;
+
             change_status_message(status_message, "Injection cancelled.");
+
             ctx.send_viewport_cmd(ViewportCommand::EnableButtons {
                 close: true,
                 minimized: true,

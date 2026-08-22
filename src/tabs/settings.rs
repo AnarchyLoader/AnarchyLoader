@@ -19,16 +19,16 @@ use crate::{
         rpc::{Rpc, RpcUpdate},
         ui::{
             modal::Modal,
-            ui_settings::Flavor,
-            widgets::{Button, CheckBox, Hyperlink, Slider, TextEdit},
+            widgets::{Button, CheckBox, TextEdit},
         },
     },
     MyApp,
 };
 
 impl MyApp {
-    pub fn render_settings_tab(&mut self, ctx: &egui::Context) {
-        egui::CentralPanel::default().show(ctx, |ui| {
+    pub fn render_settings_tab(&mut self, ui: &mut egui::Ui) {
+        let ctx = ui.ctx().clone();
+        egui::CentralPanel::default().show(ui, |ui| {
             egui::ScrollArea::vertical()
                 .show(ui, |ui| {
                     ui.set_width(ui.available_width());
@@ -38,54 +38,27 @@ impl MyApp {
                         ui.label("Display Options:");
                         ui.add_space(5.0);
 
-                        let theme_modal = Modal::new(ctx, "theme_configure_dialog")
+                        let theme_modal = Modal::new(&ctx, "theme_configure_dialog")
                             .with_close_on_outside_click(true);
 
                         theme_modal.show(|ui| {
-                            ui.clink("Powered by Catppuccin egui library", "https://github.com/catppuccin/egui");
+                            ui.label("Theme:");
 
-                            if ui.ccheckbox(
-                                &mut self.app.config.display.use_catppuccin_theme,
-                                "Use Catppuccin theme",
-                            ).changed() {
+                            let mut preference = ui.ctx().options(|opt| opt.theme_preference);
+
+                            if ui.add(ThemeSwitch::new(&mut preference)).changed() {
+                                ui.ctx().set_theme(preference);
+                                self.app.config.display.theme = preference;
                                 self.app.config.save();
-                            }
+                                log::info!("<SETTINGS_TAB> Theme preference changed to: {:?}, saving config", preference);
 
-                            if self.app.config.display.use_catppuccin_theme {
-                                egui::ComboBox::from_id_salt("catpuccin_flavor")
-                                    .selected_text(format!("{:?}", self.app.config.display.catpuccin_flavor))
-                                    .show_ui(ui, |ui| {
-                                        for flavor in &Flavor::all() {
-                                            if ui.selectable_value(
-                                                &mut self.app.config.display.catpuccin_flavor,
-                                                *flavor,
-                                                format!("{:?}", flavor),
-                                            )
-                                                .on_hover_cursor(Clickable)
-                                                .clicked() {
-                                                self.app.config.save();
-                                            };
-                                        }
-                                    })
-                                    .response
-                                    .on_hover_cursor(Clickable);
-                            } else {
-                                let mut preference = ui.ctx().options(|opt| opt.theme_preference);
-
-                                if ui.add(ThemeSwitch::new(&mut preference)).changed() {
-                                    ui.ctx().set_theme(preference);
-                                    self.app.config.display.theme = preference;
-                                    self.app.config.save();
-                                    log::info!("<SETTINGS_TAB> Theme preference changed to: {:?}, saving config", preference);
-
-                                    if preference == ThemePreference::Light {
-                                        self.toasts.info("Dark theme is recommended for a better experience.");
-                                    }
+                                if preference == ThemePreference::Light {
+                                    self.toasts.info("Dark theme is recommended for a better experience.");
                                 }
-                            };
+                            }
                         });
 
-                        if ui.cibutton("Configure theme", ICON_CONTRAST).clicked() {
+                        if ui.cibutton("Configure theme", ICON_CONTRAST.codepoint).clicked() {
                             theme_modal.open();
                         }
 
@@ -241,52 +214,6 @@ impl MyApp {
                             self.app.config.save();
                         }
 
-                        let modal_animations = Modal::new(ctx, "animations_configure_dialog")
-                            .with_close_on_outside_click(true);
-
-                        modal_animations.show(|ui| {
-                            ui.label("Transition duration:");
-                            if ui.cslider(&mut self.app.config.animations.duration, 0.10..=1.0, "secs".to_string(), "s").changed() {
-                                self.app.config.save()
-                            };
-
-                            ui.label("Transition amount:");
-                            if ui.cslider(&mut self.app.config.animations.amount, 0.0..=128.0, "pixels".to_string(), "px").changed() {
-                                self.app.config.save()
-                            };
-
-                            ui.label("Text animation speed:");
-                            if ui.cslider(&mut self.app.config.animations.text_speed, 0.0..=3.5, String::new(), "x").changed() {
-                                self.app.config.save()
-                            };
-
-                            ui.add_space(5.0);
-                            ui.horizontal(|ui| {
-                                if ui
-                                    .reset_button("Reset")
-                                    .clicked()
-                                {
-                                    self.app.config.animations = Default::default();
-                                    self.app.config.save();
-                                    // speed now stored in config directly
-                                    log::info!("<SETTINGS_TAB> Transition settings reset to default, saving config");
-                                }
-
-                                if ui.cibutton("Close", ICON_CLOSE).clicked() {
-                                    modal_animations.close();
-                                }
-                            });
-                        });
-
-                        ui.add_space(3.0);
-
-                        if ui
-                            .cbutton(format!("{} Configure animations", ICON_MANUFACTURING))
-                            .clicked()
-                        {
-                            modal_animations.open();
-                        }
-
                         ui.add_space(5.0);
 
                         ui.horizontal(|ui| {
@@ -319,7 +246,7 @@ impl MyApp {
                                         ui.label("☰").on_hover_cursor(egui::CursorIcon::Grab);
                                         if hidden_games.contains(game_name) {
                                             if ui
-                                                .cbutton(ICON_VISIBILITY_OFF)
+                                                .cbutton(ICON_VISIBILITY_OFF.codepoint)
                                                 .on_hover_text("Toggle on visibility")
                                                 .clicked()
                                             {
@@ -329,7 +256,7 @@ impl MyApp {
                                                 log::info!("<SETTINGS_TAB> Game '{}' visibility toggled on, saving config", game_name);
                                             }
                                         } else if ui
-                                            .cbutton(ICON_VISIBILITY)
+                                            .cbutton(ICON_VISIBILITY.codepoint)
                                             .on_hover_text("Toggle off visibility")
                                             .clicked()
                                         {
@@ -354,13 +281,13 @@ impl MyApp {
                         ui.add_space(5.0);
 
                         ui.horizontal(|ui| {
-                            if ui.cibutton("Show all", ICON_VISIBILITY).clicked() {
+                            if ui.cibutton("Show all", ICON_VISIBILITY.codepoint).clicked() {
                                 self.app.config.hidden_games.clear();
                                 self.app.config.save();
                                 log::debug!("<SETTINGS_TAB> All games set to visible, saving config");
                             }
 
-                            if ui.cibutton("Hide all", ICON_VISIBILITY_OFF).clicked() {
+                            if ui.cibutton("Hide all", ICON_VISIBILITY_OFF.codepoint).clicked() {
                                 self.app.config.hidden_games =
                                     self.app.config.game_order.clone().into_iter().collect();
                                 self.app.config.save();
@@ -381,7 +308,7 @@ impl MyApp {
                             if ui
                                 .cbutton(RichText::new(format!(
                                     "{} Reset hidden games",
-                                    ICON_EYE_TRACKING
+                                    ICON_EYE_TRACKING.codepoint
                                 )))
                                 .clicked()
                             {
@@ -392,7 +319,7 @@ impl MyApp {
                             }
                         });
 
-                        let local_hack_modal = Modal::new(ctx, "add_local_hack_modal")
+                        let local_hack_modal = Modal::new(&ctx, "add_local_hack_modal")
                             .with_close_on_outside_click(true);
                         local_hack_modal.show(|ui| {
                             ui.label("Add Local Hack");
@@ -493,17 +420,17 @@ impl MyApp {
                                     local_hack_modal.close();
                                     log::info!("<SETTINGS_TAB> Local hack added successfully.");
                                 }
-                                if ui.cibutton("Cancel", ICON_CLOSE).clicked() {
+                                if ui.cibutton("Cancel", ICON_CLOSE.codepoint).clicked() {
                                     local_hack_modal.close();
                                 }
                             });
                         });
 
                         ui.horizontal(|ui| {
-                            if ui.cibutton("Add local hack", ICON_ADD).clicked() {
+                            if ui.cibutton("Add local hack", ICON_ADD.codepoint).clicked() {
                                 local_hack_modal.open();
                             }
-                            if ui.cibutton("Reset local hacks", ICON_DELETE).clicked() {
+                            if ui.cibutton("Reset local hacks", ICON_DELETE.codepoint).clicked() {
                                 self.app.config.local_hacks.clear();
                                 self.app.config.reset_game_order();
                                 self.app.config.save();
@@ -519,7 +446,7 @@ impl MyApp {
                     ui.group(|ui| {
                         ui.label("Injection Options:");
 
-                        let modal_injector = Modal::new(ctx, "injector_confirm_dialog")
+                        let modal_injector = Modal::new(&ctx, "injector_confirm_dialog")
                             .with_close_on_outside_click(true);
 
                         modal_injector.show(|ui| {
@@ -566,18 +493,18 @@ impl MyApp {
                                     }
                                 }
 
-                                if ui.cibutton("Cancel", ICON_CLOSE).clicked() {
+                                if ui.cibutton("Cancel", ICON_CLOSE.codepoint).clicked() {
                                     modal_injector.close();
                                 }
                             });
                         });
 
-                        if ui.cibutton("Delete injector", ICON_DELETE).clicked() {
+                        if ui.cibutton("Delete injector", ICON_DELETE.codepoint).clicked() {
                             modal_injector.open();
                         }
 
                         if ui
-                            .cibutton("Download stable injectors", ICON_DOWNLOAD)
+                            .cibutton("Download stable injectors", ICON_DOWNLOAD.codepoint)
                             .clicked()
                         {
                             self.download_injectors(
@@ -587,7 +514,7 @@ impl MyApp {
                         }
 
                         if ui
-                            .cibutton("Download nightly injectors", ICON_DOWNLOAD)
+                            .cibutton("Download nightly injectors", ICON_DOWNLOAD.codepoint)
                             .clicked()
                         {
                             self.download_injectors(
@@ -660,13 +587,13 @@ impl MyApp {
                         ui.label("Utility Options:");
 
                         ui.horizontal(|ui| {
-                            if ui.cibutton("Open loader folder", ICON_FOLDER).clicked() {
+                            if ui.cibutton("Open loader folder", ICON_FOLDER.codepoint).clicked() {
                                 let _ = opener::open(self.app.meta.path.clone());
                                 log::info!("<SETTINGS_TAB> Opened loader folder: {}", self.app.meta.path.display());
                             }
 
                             #[cfg(debug_assertions)]
-                            if ui.cibutton("Open config file", ICON_MANUFACTURING).clicked() {
+                            if ui.cibutton("Open config file", ICON_MANUFACTURING.codepoint).clicked() {
                                 let _ = opener::open(self.app.meta.path.join("config.json").clone());
                                 log::info!("<SETTINGS_TAB> Opened config file: {}", self.app.meta.path.join("config.json").display());
                             }
@@ -675,7 +602,7 @@ impl MyApp {
                         ui.add_space(5.0);
 
                         ui.horizontal(|ui| {
-                            let modal_settings = Modal::new(ctx, "settings_reset_confirm_dialog")
+                            let modal_settings = Modal::new(&ctx, "settings_reset_confirm_dialog")
                                 .with_close_on_outside_click(true);
 
                             modal_settings.show(|ui| {
@@ -696,7 +623,7 @@ impl MyApp {
                                         log::info!("<SETTINGS_TAB> Settings reset to default.");
                                     }
 
-                                    if ui.cibutton("Cancel", ICON_CLOSE).clicked() {
+                                    if ui.cibutton("Cancel", ICON_CLOSE.codepoint).clicked() {
                                         modal_settings.close();
                                     }
                                 });
@@ -704,14 +631,14 @@ impl MyApp {
 
                             if ui
                                 .cbutton(
-                                    RichText::new(format!("{} Reset settings", ICON_RESTART_ALT)).color(egui::Color32::LIGHT_RED),
+                                    RichText::new(format!("{} Reset settings", ICON_RESTART_ALT.codepoint)).color(egui::Color32::LIGHT_RED),
                                 )
                                 .clicked()
                             {
                                 modal_settings.open();
                             }
 
-                            let modal_statistics = Modal::new(ctx, "statistics_reset_confirm_dialog")
+                            let modal_statistics = Modal::new(&ctx, "statistics_reset_confirm_dialog")
                                 .with_close_on_outside_click(true);
 
                             modal_statistics.show(|ui| {
@@ -727,7 +654,7 @@ impl MyApp {
                                         log::info!("<SETTINGS_TAB> Statistics reset to default.");
                                     }
 
-                                    if ui.cibutton("Cancel", ICON_CLOSE).clicked() {
+                                    if ui.cibutton("Cancel", ICON_CLOSE.codepoint).clicked() {
                                         modal_statistics.close();
                                     }
                                 });

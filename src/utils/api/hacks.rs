@@ -83,6 +83,7 @@ impl Hack {
         }
     }
 
+    #[cfg(target_os = "windows")]
     pub(crate) fn download_steam_module(&self) -> Result<(), String> {
         match download_file(&format!("steam_{}", self.file), None) {
             Ok(_) => Ok(()),
@@ -121,11 +122,11 @@ pub(crate) fn fetch_hacks(
     endpoints.extend(api_extra_endpoints.to_owned());
 
     for endpoint in endpoints {
-        match ureq::get(&format!("{}hacks.json", &endpoint)).call() {
-            Ok(res) => {
+        match ureq::get(&format!("{}hacks.json", endpoint)).call() {
+            Ok(mut res) => {
                 if res.status() == 200 {
                     let parsed_hacks: Vec<HackApiResponse> = {
-                        let body = res.into_string().map_err(|e| e.to_string())?;
+                        let body = res.body_mut().read_to_string().map_err(|e| e.to_string())?;
                         serde_json::from_str(&body).map_err(|e| e.to_string())?
                     };
                     return if parsed_hacks.is_empty() {

@@ -16,7 +16,8 @@ struct State {
 }
 
 impl State {
-    fn end_frame(ctx: &Context) {
+    fn end_frame(ui: &mut egui::Ui) {
+        let ctx = ui.ctx().clone();
         let preference = ctx.options(|opt| opt.theme_preference);
         let has_changed = !ctx
             .data(|d| d.get_temp::<State>(Id::NULL))

@@ -9,7 +9,8 @@ pub struct ApiSettings {
 }
 
 pub fn default_api_endpoint() -> String {
-    "https://objectstorage.eu-frankfurt-1.oraclecloud.com/n/froxlhdz2fil/b/bucket-20240619-2047/o/".to_string()
+    "https://objectstorage.eu-frankfurt-1.oraclecloud.com/n/froxlhdz2fil/b/bucket-20240619-2047/o/"
+        .to_string()
 }
 
 pub fn default_api_extra_endpoints() -> Vec<String> {
@@ -17,7 +18,8 @@ pub fn default_api_extra_endpoints() -> Vec<String> {
 }
 
 pub fn default_cdn_endpoint() -> String {
-    "https://cdn.anarchy.my/".to_string()
+    "https://objectstorage.eu-frankfurt-1.oraclecloud.com/n/froxlhdz2fil/b/bucket-20240619-2047/o/"
+        .to_string()
 }
 
 pub fn default_cdn_extra_endpoints() -> Vec<String> {

@@ -3,8 +3,8 @@ use egui::RichText;
 use crate::{utils::ui::widgets::Button, MyApp};
 
 impl MyApp {
-    pub fn render_debug_tab(&mut self, ctx: &egui::Context) {
-        egui::CentralPanel::default().show(ctx, |ui| {
+    pub fn render_debug_tab(&mut self, ui: &mut egui::Ui) {
+        egui::CentralPanel::default().show(ui, |ui| {
             egui::ScrollArea::vertical().show(ui, |ui| {
                 ui.set_width(ui.available_width());
 
@@ -45,7 +45,7 @@ impl MyApp {
                             .map(|(label, value)| format!("{} {}\n", label, value))
                             .collect::<String>()
                         + "```";
-                    ctx.copy_text(debug_info.clone());
+                    ui.ctx().copy_text(debug_info.clone());
                     self.toasts.success("Debug info copied to clipboard.");
                 }
             });

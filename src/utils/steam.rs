@@ -1,6 +1,9 @@
+#[cfg(target_os = "windows")]
 use std::{fs, path::PathBuf};
 
+#[cfg(target_os = "windows")]
 use vdf_reader::{entry::Table, Reader};
+#[cfg(target_os = "windows")]
 use winreg::{
     enums::{HKEY_LOCAL_MACHINE, KEY_READ},
     RegKey,
@@ -13,6 +16,7 @@ pub struct SteamAccount {
     pub name: String,
 }
 
+#[cfg(target_os = "windows")]
 impl SteamAccount {
     fn locate_steam() -> Result<PathBuf, String> {
         let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
@@ -74,6 +78,21 @@ impl SteamAccount {
 
     pub fn default() -> Self {
         log::info!("<STEAM> Creating default SteamAccount instance");
+        Self {
+            id: "unknown".to_string(),
+            username: "unknown".to_string(),
+            name: "unknown".to_string(),
+        }
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+impl SteamAccount {
+    pub fn new() -> Result<Self, String> {
+        Err("Steam account detection not available on this platform".into())
+    }
+
+    pub fn default() -> Self {
         Self {
             id: "unknown".to_string(),
             username: "unknown".to_string(),

@@ -108,8 +108,9 @@ impl MyApp {
         }
     }
 
-    pub fn handle_dnd(&mut self, ctx: &egui::Context) {
-        let modal = Modal::new(ctx, "dnd_modal").with_close_on_outside_click(true);
+    pub fn handle_dnd(&mut self, ui: &mut egui::Ui) {
+        let ctx = ui.ctx().clone();
+        let modal = Modal::new(&ctx, "dnd_modal").with_close_on_outside_click(true);
 
         modal.show(|ui| {
             ui.heading("Select process:");
@@ -117,7 +118,6 @@ impl MyApp {
             let dropped_filename = self
                 .ui
                 .dropped_file
-                .path
                 .as_ref()
                 .and_then(|p| p.file_name())
                 .unwrap_or_default()
@@ -153,7 +153,7 @@ impl MyApp {
                 ));
 
                 if MyApp::manual_map_inject(
-                    self.ui.dropped_file.path.clone(),
+                    self.ui.dropped_file.clone(),
                     &self.ui.selected_process_dnd.clone(),
                     self.communication.messages.sender.clone(),
                     self.communication.status_message.clone(),
@@ -167,18 +167,12 @@ impl MyApp {
         });
 
         if let Some(dropped_file) = ctx.input(|i| i.raw.dropped_files.first().cloned()) {
-            if dropped_file
-                .path
-                .as_ref()
-                .unwrap()
-                .extension()
-                .unwrap_or_default()
-                != "dll"
-            {
+            let ext = dropped_file.path().extension().unwrap_or_default();
+            if ext != "dll" {
                 self.toasts.error("Only DLL files are supported.");
                 return;
             }
-            self.ui.dropped_file = dropped_file.clone();
+            self.ui.dropped_file = Some(dropped_file.path().to_path_buf());
             modal.open();
         }
 
@@ -193,25 +187,25 @@ impl MyApp {
     }
 
     // MARK: Home tab
-    pub(crate) fn render_home_tab(&mut self, ctx: &egui::Context) {
-        self.handle_key_events(ctx);
+    pub(crate) fn render_home_tab(&mut self, ui: &mut egui::Ui) {
+        let ctx = ui.ctx().clone();
+        self.handle_key_events(&ctx);
 
         let hacks_by_game = MyApp::group_hacks_by_game(&self.app.hacks, &self.app.config);
 
-        self.render_left_panel(ctx, hacks_by_game);
-        self.render_central_panel(ctx);
+        self.render_left_panel(ui, hacks_by_game);
+        self.render_central_panel(ui);
     }
 
     pub(crate) fn render_left_panel(
         &mut self,
-        ctx: &egui::Context,
+        ui: &mut egui::Ui,
         hacks_by_game: BTreeMap<String, BTreeMap<String, Vec<Hack>>>,
     ) {
-        egui::SidePanel::left("left_panel")
+        egui::Panel::left("left_panel")
             .resizable(true)
-            .default_width(200.0)
-            .max_width(300.0)
-            .show(ctx, |ui| {
+            .default_size(200.0)
+            .show(ui, |ui| {
                 egui::ScrollArea::vertical()
                     .scroll_bar_visibility(AlwaysHidden)
                     .show(ui, |ui| {
@@ -222,21 +216,22 @@ impl MyApp {
                         ui.with_layout(Layout::right_to_left(Align::Min), |ui| {
                             ui.add(
                                 egui::TextEdit::singleline(&mut self.ui.search_query)
-                                    .hint_text(format!("{} Search...", ICON_SEARCH))
+                                    .hint_text(format!("{} Search...", ICON_SEARCH.codepoint))
                             );
                         });
 
                         if self.ui.using_cache {
                             ui.add_space(5.0);
-                            ui.label(format!("{} Using cache", ICON_CLOUD_OFF));
+                            ui.label(format!("{} Using cache", ICON_CLOUD_OFF.codepoint));
                         }
 
                         ui.add_space(5.0);
                         let mut all_games_hidden = true;
+                        let ctx = ui.ctx().clone();
                         for game_name in self.app.config.game_order.clone() {
                             if let Some(versions) = hacks_by_game.get(&game_name) {
                                 if !self.app.config.hidden_games.contains(&game_name) {
-                                    self.render_game_hacks(ui, game_name, versions.clone(), ctx);
+                                    self.render_game_hacks(ui, game_name, versions.clone(), &ctx);
                                     ui.add_space(5.0);
                                     all_games_hidden = false;
                                 }
@@ -254,7 +249,7 @@ impl MyApp {
                             } else {
                                 ui.label("All games are hidden");
 
-                                if ui.cibutton("Show all", ICON_VISIBILITY).clicked() {
+                                if ui.cibutton("Show all", ICON_VISIBILITY.codepoint).clicked() {
                                     self.app.config.hidden_games.clear();
                                     self.app.config.save();
                                 }
@@ -419,10 +414,10 @@ impl MyApp {
             }
 
             let label = match count {
-                100.. => RichText::new(format!("{}x {}", count, ICON_AWARD_STAR))
+                100.. => RichText::new(format!("{}x {}", count, ICON_AWARD_STAR.codepoint))
                     .color(egui::Color32::YELLOW),
-                25.. => format!("{}x {}", count, ICON_EDITOR_CHOICE).into(),
-                10.. => format!("{}x {}", count, ICON_MILITARY_TECH).into(),
+                25.. => format!("{}x {}", count, ICON_EDITOR_CHOICE.codepoint).into(),
+                10.. => format!("{}x {}", count, ICON_MILITARY_TECH.codepoint).into(),
                 _ => format!("{}x", count).into(),
             };
 
@@ -482,14 +477,24 @@ impl MyApp {
                     if !selected.source.is_empty() && selected.source != "n/a" {
                         if let Ok(url) = Url::parse(&selected.source) {
                             ui.clink(
-                                format!("{} (source, {})", ICON_LINK, url.domain().unwrap()),
+                                format!(
+                                    "{} (source, {})",
+                                    ICON_LINK.codepoint,
+                                    url.domain().unwrap()
+                                ),
                                 &selected.source,
                             );
                         } else {
-                            ui.label(format!("{} (cannot parse source)", ICON_CLOUD_OFF));
+                            ui.label(format!(
+                                "{} (cannot parse source)",
+                                ICON_CLOUD_OFF.codepoint
+                            ));
                         }
                     } else {
-                        ui.label(format!("{} (source not available)", ICON_CLOUD_OFF));
+                        ui.label(format!(
+                            "{} (source not available)",
+                            ICON_CLOUD_OFF.codepoint
+                        ));
                     }
                 } else {
                     ui.label(ICON_INVENTORY_2);
@@ -503,7 +508,10 @@ impl MyApp {
         if !selected.description.is_empty() && !selected.description.contains("n/a") {
             CommonMarkViewer::new().show(ui, &mut self.ui.mark_cache, &selected.description);
         } else {
-            ui.label(format!("{} No description available.", ICON_PROBLEM));
+            ui.label(format!(
+                "{} No description available.",
+                ICON_PROBLEM.codepoint
+            ));
         }
 
         if !self.app.config.display.hide_steam_account {
@@ -512,7 +520,7 @@ impl MyApp {
                 let width = body_font.size * 0.6;
                 ui.spacing_mut().item_spacing.x = width;
 
-                ui.label(format!("{} Logged in as (Steam):", ICON_LOGIN));
+                ui.label(format!("{} Logged in as (Steam):", ICON_LOGIN.codepoint));
                 if ui
                     .label(
                         RichText::new(&self.app.meta.steam_account.name).color(self.ui.text_color),
@@ -535,7 +543,7 @@ impl MyApp {
         let modal = Modal::new(ctx, "disclaimer");
 
         modal.show(|ui| {
-            ui.heading(RichText::new(format!("{} Disclaimer", ICON_WARNING)).color(egui::Color32::RED));
+            ui.heading(RichText::new(format!("{} Disclaimer", ICON_WARNING.codepoint)).color(egui::Color32::RED));
             ui.separator();
 
             let mut job = LayoutJob::default();
@@ -565,14 +573,14 @@ impl MyApp {
             ui.add_space(5.0);
 
             ui.horizontal(|ui| {
-                if ui.cibutton("I understand", ICON_CHECK).clicked() {
+                if ui.cibutton("I understand", ICON_CHECK.codepoint).clicked() {
                     self.ui.tabs.home.disclaimer_accepted = true;
                     self.toasts.info("Press the inject button again to proceed.");
                     modal.close();
                 }
-                if ui.cibutton("Cancel", ICON_CLOSE).clicked() {
+                if ui.cibutton("Cancel", ICON_CLOSE.codepoint).clicked() {
                     modal.close();
-                    self.toasts.custom("But why did you download the loader?", ICON_QUESTION_MARK.to_string(), egui::Color32::from_rgb(150, 200, 210));
+                    self.toasts.custom("But why did you download the loader?", ICON_QUESTION_MARK.codepoint.to_string(), egui::Color32::from_rgb(150, 200, 210));
                 }
             });
         });
@@ -587,7 +595,7 @@ impl MyApp {
         let inject_button = ui
             .add_enabled_ui(!in_progress && !is_cs2_32bit, |ui| {
                 ui.button_with_tooltip(
-                    format!("{} Inject {}", ICON_SYRINGE, selected.name),
+                    format!("{} Inject {}", ICON_SYRINGE.codepoint, selected.name),
                     &selected.file,
                 )
             })
@@ -597,7 +605,7 @@ impl MyApp {
             let inject_steam_module_button = ui
                 .add_enabled_ui(!in_progress, |ui| {
                     ui.button_with_tooltip(
-                        format!("{} Inject steam module", ICON_EXTENSION),
+                        format!("{} Inject steam module", ICON_EXTENSION.codepoint),
                         "Inject the steam module",
                     )
                 })
@@ -689,7 +697,7 @@ impl MyApp {
                             self.start_cs_button(ui);
                         }
 
-                        if ui.cibutton("Cancel", ICON_CANCEL).clicked() {
+                        if ui.cibutton("Cancel", ICON_CANCEL.codepoint).clicked() {
                             self.communication
                                 .in_progress
                                 .store(false, std::sync::atomic::Ordering::SeqCst);
@@ -714,7 +722,7 @@ impl MyApp {
                     let cannot_find = status.contains("Failed to find process");
 
                     let s = if cannot_find {
-                        ICON_SEARCH_OFF.to_owned() + &*status
+                        ICON_SEARCH_OFF.codepoint.to_owned() + &*status
                     } else {
                         status.clone()
                     }
@@ -735,7 +743,7 @@ impl MyApp {
 
     fn start_cs_button(&mut self, ui: &mut egui::Ui) {
         if ui
-            .cibutton("Launch Counter-Strike", ICON_OPEN_IN_NEW)
+            .cibutton("Launch Counter-Strike", ICON_OPEN_IN_NEW.codepoint)
             .clicked()
         {
             if let Err(e) = start_cs_prompt() {

@@ -2,6 +2,7 @@ use std::process::Command;
 #[cfg(target_os = "windows")]
 use std::{env, io};
 
+#[cfg(target_os = "windows")]
 fn main() -> io::Result<()> {
     if env::var_os("CARGO_CFG_WINDOWS").is_some() {
         let mut res = winres::WindowsResource::new();
@@ -15,14 +16,24 @@ fn main() -> io::Result<()> {
             .set_language(0x0409) // US English
             .set_version_info(winres::VersionInfo::PRODUCTVERSION, version_info);
         res.compile()?;
-
-        // get commit
-        let output = Command::new("git").args(["rev-parse", "HEAD"]).output()?;
-        let git_hash = String::from_utf8(output.stdout).unwrap();
-        println!("cargo:rustc-env=GIT_HASH={}", git_hash);
     }
+
+    // get commit hash on all platforms
+    if let Ok(output) = Command::new("git").args(["rev-parse", "HEAD"]).output() {
+        if let Ok(git_hash) = String::from_utf8(output.stdout) {
+            println!("cargo:rustc-env=GIT_HASH={}", git_hash.trim());
+        }
+    }
+
     Ok(())
 }
 
 #[cfg(not(target_os = "windows"))]
-fn main() {}
+fn main() {
+    // get commit hash on all platforms
+    if let Ok(output) = Command::new("git").args(["rev-parse", "HEAD"]).output() {
+        if let Ok(git_hash) = String::from_utf8(output.stdout) {
+            println!("cargo:rustc-env=GIT_HASH={}", git_hash.trim());
+        }
+    }
+}

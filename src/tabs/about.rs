@@ -2,6 +2,7 @@ use egui::{Image, Response, RichText, Sense, TextStyle, Ui, Vec2};
 use egui_material_icons::icons::{
     ICON_BRAND_AWARENESS, ICON_DESKTOP_WINDOWS, ICON_GROUP, ICON_MENU_BOOK,
     ICON_PRECISION_MANUFACTURING, ICON_PUBLIC, ICON_SEND, ICON_STAR, ICON_SYRINGE, ICON_TIMER,
+    ICON_WARNING,
 };
 
 use crate::{
@@ -34,7 +35,7 @@ impl User {
 
         if response.clicked() {
             if let Err(e) = opener::open(format!("https://github.com/{}", self.username)) {
-                log::error!("<ABOUT_TAB> {}", format!("Failed to open URL: {}", e));
+                log::error!("<ABOUT_TAB> Failed to open URL: {}", e);
             }
         }
 
@@ -69,11 +70,11 @@ impl MyApp {
 
         let user_type_clone = user_type.to_string();
 
-        let client = ureq::builder().user_agent("AnarchyLoader").build();
+        let agent = ureq::agent();
 
-        match client.get(&api_url).call() {
-            Ok(response) => {
-                let body = match response.into_string() {
+        match agent.get(&api_url).call() {
+            Ok(mut response) => {
+                let body = match response.body_mut().read_to_string() {
                     Ok(s) => s,
                     Err(e) => {
                         log::error!("<ABOUT_TAB> Failed to read response body: {}", e);
@@ -145,8 +146,8 @@ impl MyApp {
         }
     }
 
-    pub fn render_about_tab(&mut self, ctx: &egui::Context) {
-        egui::CentralPanel::default().show(ctx, |ui| {
+    pub fn render_about_tab(&mut self, ui: &mut egui::Ui) {
+        egui::CentralPanel::default().show(ui, |ui| {
             egui::ScrollArea::vertical().show(ui, |ui| {
                 ui.set_width(ui.available_width());
 
@@ -157,7 +158,7 @@ impl MyApp {
                         .sense(Sense::click());
                     if ui.add(image).clicked() {
                         if let Err(e) = opener::open("https://anarchy.my") {
-                            log::error!("<ABOUT_TAB> {}", format!("Failed to open URL: {}", e));
+                            log::error!("<ABOUT_TAB> Failed to open URL: {}", e);
                         }
                     }
                     ui.add_space(10.0);
@@ -240,16 +241,22 @@ impl MyApp {
                     ui.heading("Session Information");
                     ui.label(format!(
                         "{} OS: {}",
-                        ICON_DESKTOP_WINDOWS, &self.app.meta.os_version
+                        ICON_DESKTOP_WINDOWS.codepoint, self.app.meta.os_version
                     ));
+                    if self.app.meta.is_wine {
+                        ui.label(
+                            RichText::new(format!("{} Wine detected", ICON_WARNING.codepoint))
+                                .color(egui::Color32::from_rgb(255, 200, 50)),
+                        );
+                    }
                     ui.label(format!(
                         "{} You have been using AnarchyLoader for: {}",
-                        ICON_TIMER,
+                        ICON_TIMER.codepoint,
                         &*get_time_from_seconds(self.app.stats.total_seconds)
                     ));
                     ui.label(format!(
                         "{} Current session: {}",
-                        ICON_TIMER,
+                        ICON_TIMER.codepoint,
                         &*calculate_session(self.app.meta.session.clone())
                     ));
 
@@ -260,7 +267,7 @@ impl MyApp {
                     ui.add_space(5.0);
 
                     ui.link_button(
-                        format!("{} Website", ICON_PUBLIC),
+                        format!("{} Website", ICON_PUBLIC.codepoint),
                         "https://anarchy.my",
                         &mut self.toasts,
                     );
@@ -268,7 +275,7 @@ impl MyApp {
                     ui.add_space(5.0);
 
                     ui.link_button(
-                        format!("{} Source Code", ICON_MENU_BOOK),
+                        format!("{} Source Code", ICON_MENU_BOOK.codepoint),
                         "https://github.com/AnarchyLoader/AnarchyLoader",
                         &mut self.toasts,
                     );
@@ -276,7 +283,7 @@ impl MyApp {
                     ui.add_space(5.0);
 
                     ui.link_button(
-                        format!("{} Injector Code", ICON_SYRINGE),
+                        format!("{} Injector Code", ICON_SYRINGE.codepoint),
                         "https://github.com/AnarchyLoader/AnarchyInjector",
                         &mut self.toasts,
                     );
@@ -288,7 +295,7 @@ impl MyApp {
                     ui.add_space(5.0);
 
                     ui.link_button(
-                        format!("{} Discord", ICON_BRAND_AWARENESS),
+                        format!("{} Discord", ICON_BRAND_AWARENESS.codepoint),
                         "https://discord.com/invite/VPGRgXUCsv",
                         &mut self.toasts,
                     );
@@ -296,7 +303,7 @@ impl MyApp {
                     ui.add_space(5.0);
 
                     ui.link_button(
-                        format!("{} Telegram", ICON_SEND),
+                        format!("{} Telegram", ICON_SEND.codepoint),
                         "https://t.me/anarchyloader",
                         &mut self.toasts,
                     );
@@ -305,7 +312,7 @@ impl MyApp {
                 ui.add_space(20.0);
 
                 let contributors_collapsing = ui.collapsing(
-                    RichText::new(format!("{} Contributors", ICON_GROUP)).strong(),
+                    RichText::new(format!("{} Contributors", ICON_GROUP.codepoint)).strong(),
                     |ui| {
                         ui.label(
                             "Special thanks to the people who have contributed to this project.",
@@ -331,7 +338,7 @@ impl MyApp {
                 ui.add_space(10.0);
 
                 let stargazers_collapsing = ui.collapsing(
-                    RichText::new(format!("{} Stargazers", ICON_STAR)).strong(),
+                    RichText::new(format!("{} Stargazers", ICON_STAR.codepoint)).strong(),
                     |ui| {
                         ui.label("Show your appreciation by starring the project on GitHub!");
                         ui.clink(
@@ -395,7 +402,7 @@ impl MyApp {
 
                         ui.label("Built with");
                         ui.hyperlink_to(
-                            format!("{} egui", ICON_PRECISION_MANUFACTURING),
+                            format!("{} egui", ICON_PRECISION_MANUFACTURING.codepoint),
                             "https://www.egui.rs/",
                         );
                         ui.label("by");

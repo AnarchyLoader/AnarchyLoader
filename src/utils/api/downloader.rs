@@ -11,7 +11,7 @@ pub fn download_file(
         log::info!("<DOWNLOAD> Downloading {} from URL...", file);
 
         match ureq::get(file).call() {
-            Ok(resp) if resp.status() == 200 => {
+            Ok(mut resp) if resp.status() == 200 => {
                 log::info!("<DOWNLOAD> Downloading {} from URL...", file);
                 let file_name = Path::new(file)
                     .file_name()
@@ -31,7 +31,7 @@ pub fn download_file(
                 log::info!("Destination directory exists: {}", dest_path.exists());
 
                 let mut dest_file = File::create(dest_path)?;
-                copy(&mut resp.into_reader(), &mut dest_file)?;
+                copy(&mut resp.body_mut().as_reader(), &mut dest_file)?;
                 return Ok(());
             }
             Ok(resp) if resp.status() == 404 => {
@@ -59,7 +59,7 @@ pub fn download_file(
             let url = format!("{}{}", endpoint, file);
             log::info!("<DOWNLOAD> Downloading {} from CDN {}...", file, i + 1);
             match ureq::get(&url).call() {
-                Ok(resp) if resp.status() == 200 => {
+                Ok(mut resp) if resp.status() == 200 => {
                     let dest_path = dirs::config_dir()
                         .unwrap_or_else(|| std::path::PathBuf::from("."))
                         .join("anarchyloader")
@@ -73,7 +73,7 @@ pub fn download_file(
                         file,
                         i + 1
                     );
-                    copy(&mut resp.into_reader(), &mut dest_file)?;
+                    copy(&mut resp.body_mut().as_reader(), &mut dest_file)?;
                     return Ok(());
                 }
                 Ok(resp) if resp.status() == 404 => {

@@ -12,8 +12,11 @@ impl Updater {
     #[allow(clippy::result_large_err)]
     pub fn get_latest_releases(&self) -> Result<Vec<Release>, String> {
         let url = format!("https://api.github.com/repos/{}/releases", self.repository);
-        let resp = ureq::get(&url).call().map_err(|e| e.to_string())?;
-        let body = resp.into_string().map_err(|e| e.to_string())?;
+        let mut resp = ureq::get(&url).call().map_err(|e| e.to_string())?;
+        let body = resp
+            .body_mut()
+            .read_to_string()
+            .map_err(|e| e.to_string())?;
         let releases: Vec<Release> = serde_json::from_str(&body).map_err(|e| e.to_string())?;
         Ok(releases)
     }

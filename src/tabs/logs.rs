@@ -4,8 +4,9 @@ use log::Level;
 use crate::MyApp;
 
 impl MyApp {
-    pub fn render_logs_tab(&mut self, ctx: &egui::Context) {
-        egui::CentralPanel::default().show(ctx, |ui| {
+    pub fn render_logs_tab(&mut self, ui: &mut egui::Ui) {
+        let ctx = ui.ctx().clone();
+        egui::CentralPanel::default().show(ui, |ui| {
             ui.horizontal(|ui| {
                 ui.label("Log Level:");
                 for &level in &[

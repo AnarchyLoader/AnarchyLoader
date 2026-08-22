@@ -1,0 +1,11 @@
+[package]
+name = "containers"
+license.workspace = true
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+eframe = { workspace = true }
+egui = { workspace = true }
+egui_alignments = { workspace = true }
+egui_extras = { workspace = true }

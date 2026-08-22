@@ -14,11 +14,12 @@ use eframe::{
     egui::{self, RichText},
     App,
 };
-use egui::{include_image, DroppedFile, Image, Vec2};
+use egui::{include_image, Image, Vec2};
 use egui_alignments::center_vertical;
 use egui_commonmark::CommonMarkCache;
 use egui_notify::Toasts;
 use games::local::LocalUI;
+#[cfg(target_os = "windows")]
 use is_elevated::is_elevated;
 use tabs::top_panel::AppTab;
 use utils::{
@@ -42,7 +43,7 @@ use utils::{
 use crate::{
     tabs::{about::AboutTab, home::HomeTab, top_panel::TopPanel},
     utils::{
-        helpers::get_windows_version,
+        helpers::{detect_wine, get_windows_version},
         stats::{calculate_session, get_time_difference_in_seconds},
         ui::intro::{AnimationPhase, AnimationState},
     },
@@ -75,14 +76,25 @@ fn main() {
         ..Default::default()
     };
 
-    let title = if !is_elevated() {
-        format!("AnarchyLoader v{}", env!("CARGO_PKG_VERSION"))
-    } else {
-        format!(
-            "AnarchyLoader v{} (Administrator)",
-            env!("CARGO_PKG_VERSION")
-        )
-        .to_string()
+    let is_wine = detect_wine();
+    #[cfg(target_os = "windows")]
+    let elevated = is_elevated();
+    #[cfg(not(target_os = "windows"))]
+    let elevated = false;
+    let title = {
+        let base = format!("AnarchyLoader v{}", env!("CARGO_PKG_VERSION"));
+        let mut flags = Vec::new();
+        if elevated {
+            flags.push("Administrator");
+        }
+        if is_wine {
+            flags.push("Wine");
+        }
+        if flags.is_empty() {
+            base
+        } else {
+            format!("{} ({})", base, flags.join(", "))
+        }
     };
 
     eframe::run_native(
@@ -111,7 +123,7 @@ struct UIState {
     mark_cache: CommonMarkCache,
     search_query: String,
     main_menu_message: String,
-    dropped_file: DroppedFile,
+    dropped_file: Option<std::path::PathBuf>,
     selected_process_dnd: String,
     using_cache: bool,
     popups: Popups,
@@ -140,6 +152,7 @@ struct AppMeta {
     path: std::path::PathBuf,
     commit: String,
     os_version: String,
+    is_wine: bool,
     session: String,
     steam_account: SteamAccount,
 }
@@ -319,6 +332,7 @@ impl MyApp {
                     path: app_path,
                     commit: env!("GIT_HASH").to_string(),
                     os_version: get_windows_version().unwrap_or_else(|| "Unknown".to_string()),
+                    is_wine: detect_wine(),
                     session: chrono::Local::now().to_rfc3339(),
                     steam_account,
                 },
@@ -330,7 +344,7 @@ impl MyApp {
                     about: AboutTab::default(),
                     home: HomeTab::default(),
                 },
-                text_color: if cc.egui_ctx.style().visuals.dark_mode {
+                text_color: if cc.egui_ctx.style_of(egui::Theme::Dark).visuals.dark_mode {
                     egui::Color32::LIGHT_GRAY
                 } else {
                     egui::Color32::DARK_GRAY
@@ -338,7 +352,7 @@ impl MyApp {
                 mark_cache: CommonMarkCache::default(),
                 search_query: String::new(),
                 main_menu_message: default_main_menu_message(),
-                dropped_file: DroppedFile::default(),
+                dropped_file: None,
                 selected_process_dnd: String::new(),
                 using_cache,
                 popups: Popups {
@@ -364,13 +378,14 @@ impl MyApp {
         }
     }
 
-    fn render_central_panel(&mut self, ctx: &egui::Context) {
-        egui::CentralPanel::default().show(ctx, |ui| {
+    fn render_central_panel(&mut self, ui: &mut egui::Ui) {
+        egui::CentralPanel::default().show(ui, |ui| {
             if let Some(selected) = self.app.selected_hack.clone() {
+                let ctx = ui.ctx().clone();
                 egui::ScrollArea::vertical()
                     .auto_shrink([false; 2])
                     .show(ui, |ui| {
-                        self.display_hack_details(ui, ctx, &selected);
+                        self.display_hack_details(ui, &ctx, &selected);
                     });
             } else {
                 center_vertical(ui, |ui| {
@@ -384,28 +399,28 @@ impl MyApp {
         });
     }
 
-    fn render_tabs(&mut self, ctx: &egui::Context, tab: AppTab) {
+    fn render_tabs(&mut self, ui: &mut egui::Ui, tab: AppTab) {
         match tab {
-            AppTab::Home => self.render_home_tab(ctx),
-            AppTab::Settings => self.render_settings_tab(ctx),
-            AppTab::About => self.render_about_tab(ctx),
-            AppTab::Logs => self.render_logs_tab(ctx),
-            AppTab::Debug => self.render_debug_tab(ctx),
+            AppTab::Home => self.render_home_tab(ui),
+            AppTab::Settings => self.render_settings_tab(ui),
+            AppTab::About => self.render_about_tab(ui),
+            AppTab::Logs => self.render_logs_tab(ui),
+            AppTab::Debug => self.render_debug_tab(ui),
         }
     }
 }
 
 impl App for MyApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        if self.app.config.display.use_catppuccin_theme {
-            catppuccin_egui::set_theme(ctx, self.app.config.display.catpuccin_flavor.convert());
-        }
-
+    fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui_extras::install_image_loaders(ctx);
 
         if !self.app.config.display.disable_hack_name_animation {
             self.setup_text_animator_color(ctx);
         }
+    }
+
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        let ctx = ui.ctx().clone();
 
         if self.ui.parse_error.is_some() {
             log::error!(
@@ -413,7 +428,7 @@ impl App for MyApp {
                 self.ui.parse_error
             );
 
-            egui::CentralPanel::default().show(ctx, |ui| {
+            egui::CentralPanel::default().show(ui, |ui| {
                 ui.vertical_centered(|ui| {
                     ui.add_space(130.0);
                     ui.colored_label(
@@ -450,7 +465,7 @@ impl App for MyApp {
         }
 
         if self.app.updater.need_update && !self.app.config.display.skip_update_check {
-            egui::CentralPanel::default().show(ctx, |ui| {
+            egui::CentralPanel::default().show(ui, |ui| {
                 ui.vertical_centered(|ui| {
                     ui.add_space(130.0);
                     ui.colored_label(
@@ -497,7 +512,7 @@ impl App for MyApp {
         if self.app.stats.opened_count == 1 && self.ui.animation.phase != AnimationPhase::Complete {
             let dt = ctx.input(|i| i.unstable_dt);
             self.update_animation(dt);
-            self.render_intro_screen(ctx);
+            self.render_intro_screen(ui);
 
             if self.ui.animation.phase != AnimationPhase::Complete {
                 ctx.request_repaint();
@@ -506,16 +521,16 @@ impl App for MyApp {
             return;
         }
 
-        self.render_top_panel(ctx);
+        self.render_top_panel(ui);
 
-        self.handle_dnd(ctx);
-        self.handle_received_messages(ctx);
+        self.handle_dnd(ui);
+        self.handle_received_messages(&ctx);
 
-        self.render_tabs(ctx, self.ui.tab.clone());
+        self.render_tabs(ui, self.ui.tab.clone());
         self.ui.transitioning = false;
     }
 
-    fn on_exit(&mut self, _gl: Option<&eframe::glow::Context>) {
+    fn on_exit(&mut self) {
         self.rpc.sender.send(RpcUpdate::Shutdown).ok();
         log::info!("<MAIN> Sent shutdown signal to Discord RPC");
 

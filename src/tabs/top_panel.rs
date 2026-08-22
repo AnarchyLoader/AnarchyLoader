@@ -18,11 +18,11 @@ pub enum AppTab {
 impl AppTab {
     pub fn icon(&self) -> &'static str {
         match self {
-            Home => icons::ICON_HOME,
-            Settings => icons::ICON_SETTINGS,
-            About => icons::ICON_DESCRIPTION,
-            Logs => icons::ICON_EDIT_DOCUMENT,
-            Debug => icons::ICON_BUG_REPORT,
+            Home => icons::ICON_HOME.codepoint,
+            Settings => icons::ICON_SETTINGS.codepoint,
+            About => icons::ICON_DESCRIPTION.codepoint,
+            Logs => icons::ICON_EDIT_DOCUMENT.codepoint,
+            Debug => icons::ICON_BUG_REPORT.codepoint,
         }
     }
 }
@@ -44,7 +44,7 @@ static RANDOM_PHRASES: LazyLock<Vec<String>> = LazyLock::new(|| {
     vec![
         "by dest4590".to_string(),
         "thanks for using.".to_string(),
-        format!("made with {}", ICON_FAVORITE),
+        format!("made with {}", ICON_FAVORITE.codepoint),
         "did you know that loader using own injector?".to_string(),
         "loader is open source!".to_string(),
         "loader is written in rust!".to_string(),
@@ -67,8 +67,9 @@ impl Default for TopPanel {
 }
 
 impl MyApp {
-    pub fn render_top_panel(&mut self, ctx: &egui::Context) {
-        egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
+    pub fn render_top_panel(&mut self, ui: &mut egui::Ui) {
+        let _ctx = ui.ctx().clone();
+        egui::Panel::top("top_panel").show(ui, |ui| {
             ui.add_space(5.0);
             ui.horizontal(|ui| {
                 let home_rpc_message = if let Some(ref hack) = self.app.selected_hack {
@@ -110,7 +111,7 @@ impl MyApp {
                     "Viewing Logs",
                 );
 
-                if (ctx.input_mut(|i| i.modifiers.shift) && ctx.input_mut(|i| i.modifiers.ctrl))
+                if (ui.input_mut(|i| i.modifiers.shift) && ui.input_mut(|i| i.modifiers.ctrl))
                     || self.ui.tab == Debug
                 {
                     self.render_tab(
@@ -133,7 +134,7 @@ impl MyApp {
         });
 
         if !self.app.config.display.disable_toasts {
-            self.toasts.show(ctx);
+            self.toasts.show(ui.ctx());
         }
     }
 

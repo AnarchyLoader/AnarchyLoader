@@ -54,9 +54,9 @@ impl<'a> Modal<'a> {
         let inner = egui::Window::new(self.title.clone())
             .collapsible(false)
             .resizable(false)
-            .title_bar(true)
+            .title_bar(false)
             .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
-            .frame(egui::Frame::popup(&*self.ctx.style()))
+            .frame(egui::Frame::popup(&self.ctx.style_of(self.ctx.theme())))
             .show(self.ctx, |ui| {
                 add_contents(ui);
             });

@@ -127,8 +127,8 @@ impl MyApp {
         }
     }
 
-    pub(crate) fn render_intro_screen(&mut self, ctx: &egui::Context) {
-        egui::CentralPanel::default().show(ctx, |ui| {
+    pub(crate) fn render_intro_screen(&mut self, ui: &mut egui::Ui) {
+        egui::CentralPanel::default().show(ui, |ui| {
             center_vertical(ui, |ui| {
                 let is_dark_mode = ui.visuals().dark_mode;
                 let text_color = if is_dark_mode {
@@ -144,7 +144,7 @@ impl MyApp {
                         .color(text_color.gamma_multiply(self.ui.animation.hello_opacity)),
                 );
 
-                let scale_factor = ctx.animate_bool_with_time_and_easing(
+                let scale_factor = ui.ctx().animate_bool_with_time_and_easing(
                     Id::new("image_scale_animation"),
                     self.ui.animation.image_scale_animation_started,
                     0.8,
